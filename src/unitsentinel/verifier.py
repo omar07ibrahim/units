@@ -56,6 +56,7 @@ _RESOURCE_MARKERS: Final = (
     "timeout",
 )
 _DEFAULT_SOLVER_LIMITS: Final = SolverLimits()
+_CONSTRAINT_ASPECTS: Final = ("dimension", "kind", "unit-transform")
 
 
 @dataclass(frozen=True, slots=True)
@@ -223,23 +224,54 @@ def _same_dimension(left: _ValueTerms, right: _ValueTerms) -> list[Any]:
     ]
 
 
-def _constraint(
-    *,
-    constraint_id: str,
-    source: ConstraintSource,
-    source_id: str,
-    rule: str,
-    expression: Any,
-) -> _TrackedConstraint:
-    return _TrackedConstraint(
-        ConstraintWitness(
-            constraint_id=constraint_id,
-            source=source,
-            source_id=source_id,
-            rule=rule,
-        ),
-        expression,
+def _declaration_witness(value_id: str) -> ConstraintWitness:
+    return ConstraintWitness(
+        constraint_id=f"declaration/{value_id}/unit",
+        source=ConstraintSource.DECLARATION,
+        source_id=value_id,
+        rule="unit-annotation",
     )
+
+
+def _operation_witness(node: Node, aspect: str) -> ConstraintWitness:
+    return ConstraintWitness(
+        constraint_id=f"operation/{node.node_id}/{aspect}",
+        source=ConstraintSource.OPERATION,
+        source_id=node.node_id,
+        rule=f"{node.operation.value}-{aspect}",
+    )
+
+
+def constraint_catalog(
+    graph: ComputationGraph,
+    registry: UnitRegistry = BUILTIN_REGISTRY,
+) -> tuple[ConstraintWitness, ...]:
+    """Return the stable public manifest compiled for one exact graph."""
+
+    if type(graph) is not ComputationGraph:
+        raise VerificationError("graph must be an exact ComputationGraph")
+    if type(registry) is not UnitRegistry:
+        raise VerificationError("registry must be an exact UnitRegistry")
+    try:
+        graph.validate()
+        registry.validate()
+        graph.validate_units(registry)
+    except UnitSentinelError:
+        raise VerificationError(
+            "graph or registry contract is rejected or mutated"
+        ) from None
+    witnesses = [
+        _declaration_witness(value.value_id)
+        for value in graph.values
+        if value.unit_id is not None
+    ]
+    witnesses.extend(
+        _operation_witness(node, aspect)
+        for node in graph.nodes
+        for aspect in _CONSTRAINT_ASPECTS
+    )
+    witnesses.sort(key=lambda witness: witness.constraint_id)
+    return tuple(witnesses)
 
 
 def _declaration_constraint(
@@ -257,11 +289,8 @@ def _declaration_constraint(
             terms.offset == _rational(unit.offset, context),
         )
     )
-    return _constraint(
-        constraint_id=f"declaration/{value_id}/unit",
-        source=ConstraintSource.DECLARATION,
-        source_id=value_id,
-        rule="unit-annotation",
+    return _TrackedConstraint(
+        witness=_declaration_witness(value_id),
         expression=z3.And(*expressions),
     )
 
@@ -272,11 +301,8 @@ def _operation_constraint(
     aspect: str,
     expression: Any,
 ) -> _TrackedConstraint:
-    return _constraint(
-        constraint_id=f"operation/{node.node_id}/{aspect}",
-        source=ConstraintSource.OPERATION,
-        source_id=node.node_id,
-        rule=f"{node.operation.value}-{aspect}",
+    return _TrackedConstraint(
+        witness=_operation_witness(node, aspect),
         expression=expression,
     )
 
@@ -741,39 +767,37 @@ def _compile_problem(
             )
 
     for node in graph.nodes:
+        expressions = (
+            _node_dimension_expression(
+                node,
+                terms,
+                registry,
+                context,
+            ),
+            _node_kind_expression(
+                node,
+                terms,
+                registry,
+                context,
+            ),
+            _node_transform_expression(
+                node,
+                terms,
+                registry,
+                graph,
+                context,
+            ),
+        )
         constraints.extend(
-            (
-                _operation_constraint(
-                    node=node,
-                    aspect="dimension",
-                    expression=_node_dimension_expression(
-                        node,
-                        terms,
-                        registry,
-                        context,
-                    ),
-                ),
-                _operation_constraint(
-                    node=node,
-                    aspect="kind",
-                    expression=_node_kind_expression(
-                        node,
-                        terms,
-                        registry,
-                        context,
-                    ),
-                ),
-                _operation_constraint(
-                    node=node,
-                    aspect="unit-transform",
-                    expression=_node_transform_expression(
-                        node,
-                        terms,
-                        registry,
-                        graph,
-                        context,
-                    ),
-                ),
+            _operation_constraint(
+                node=node,
+                aspect=aspect,
+                expression=expression,
+            )
+            for aspect, expression in zip(
+                _CONSTRAINT_ASPECTS,
+                expressions,
+                strict=True,
             )
         )
 

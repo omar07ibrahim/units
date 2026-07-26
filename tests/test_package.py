@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import unittest
+from importlib.metadata import version
 
 import unitsentinel
 
@@ -8,6 +9,7 @@ import unitsentinel
 class PackageIdentityTests(unittest.TestCase):
     def test_version_and_public_surface_are_explicit(self) -> None:
         self.assertEqual(unitsentinel.__version__, "0.1.0")
+        self.assertEqual(version("unitsentinel"), unitsentinel.__version__)
         self.assertEqual(
             unitsentinel.__all__,
             [
@@ -21,6 +23,7 @@ class PackageIdentityTests(unittest.TestCase):
                 "THERMODYNAMIC_TEMPERATURE",
                 "TIME",
                 "BaseDimension",
+                "CertificateError",
                 "ComputationGraph",
                 "ConstraintSource",
                 "ConstraintWitness",
@@ -33,6 +36,7 @@ class PackageIdentityTests(unittest.TestCase):
                 "InferredContract",
                 "Node",
                 "Operation",
+                "ProofCertificate",
                 "Quantity",
                 "QuantityKind",
                 "RegistryError",
@@ -50,7 +54,10 @@ class PackageIdentityTests(unittest.TestCase):
                 "VerificationResult",
                 "VerificationStatus",
                 "__version__",
+                "constraint_catalog",
+                "create_certificate",
                 "decode_graph",
+                "encode_certificate",
                 "encode_graph",
                 "verify_graph",
             ],

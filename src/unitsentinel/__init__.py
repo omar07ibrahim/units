@@ -2,6 +2,12 @@
 
 from typing import Final
 
+from .certificate import (
+    CertificateError,
+    ProofCertificate,
+    create_certificate,
+    encode_certificate,
+)
 from .domain import (
     AMOUNT_OF_SUBSTANCE,
     DIMENSIONLESS,
@@ -48,9 +54,10 @@ from .verification import (
     VerificationResult,
     VerificationStatus,
 )
-from .verifier import verify_graph
+from .verifier import constraint_catalog, verify_graph
+from .version import VERSION
 
-__version__: Final = "0.1.0"
+__version__: Final = VERSION
 
 __all__ = [
     "AMOUNT_OF_SUBSTANCE",
@@ -63,6 +70,7 @@ __all__ = [
     "THERMODYNAMIC_TEMPERATURE",
     "TIME",
     "BaseDimension",
+    "CertificateError",
     "ComputationGraph",
     "ConstraintSource",
     "ConstraintWitness",
@@ -75,6 +83,7 @@ __all__ = [
     "InferredContract",
     "Node",
     "Operation",
+    "ProofCertificate",
     "Quantity",
     "QuantityKind",
     "RegistryError",
@@ -92,7 +101,10 @@ __all__ = [
     "VerificationResult",
     "VerificationStatus",
     "__version__",
+    "constraint_catalog",
+    "create_certificate",
     "decode_graph",
+    "encode_certificate",
     "encode_graph",
     "verify_graph",
 ]
