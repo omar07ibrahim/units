@@ -1,8 +1,9 @@
 # Built-in registry contract
 
 UnitSentinel's registry is a versioned input to verification, not a mutable
-process-wide table. A graph certificate will bind the exact registry bytes it
-was checked against.
+process-wide table. Every positive certificate binds the exact registry schema,
+version, and SHA-256 it was checked against; detached replay requires the
+current registry identity to match.
 
 ## Snapshot identity
 

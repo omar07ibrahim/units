@@ -142,3 +142,26 @@ aecbeff2ce89cfd7b2aab6a0414ec307a5061577f4b8b0d1c53298f896569546
 `tests/test_examples.py` runs the generator in an isolated interpreter,
 requires empty stderr and no trailing newline, decodes the exact stdout bytes,
 and pins the same graph digest.
+
+## CLI and certificate binding
+
+The production CLI accepts the same canonical bytes from a bounded regular
+file:
+
+```bash
+.venv/bin/python -m unitsentinel verify \
+  .unitsentinel/speed-contract.json \
+  --certificate .unitsentinel/speed-contract.cert.json
+```
+
+The final input path may not be a symlink, directory, FIFO, device, or oversized
+file. The reader checks the open descriptor with `fstat`, uses nonblocking
+bounded reads, and caps growth even when the initial file size becomes stale.
+It does not attempt to freeze a regular file against concurrent same-UID
+writers; that race is outside the stated CLI threat model.
+
+A positive certificate records the graph schema and SHA-256, not a pathname.
+Replay therefore accepts a caller-supplied canonical graph file, recomputes its
+identity, and stops before the solver if it does not match the claim. Moving an
+unchanged graph does not change its identity; changing even irrelevant JSON
+spelling is impossible because noncanonical bytes are rejected at decode time.

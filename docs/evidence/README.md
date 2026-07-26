@@ -67,9 +67,11 @@ same.
 
 - [Detached wheel-anomaly certificate](claims/wheel-anomaly.cert.json)
 
-The certificate is content-addressed and unsigned. Its visible
-`authentication: not-provided` field is intentional. A reproduced replay
-establishes current semantic reproduction, not issuer identity.
+The certificate is content-addressed and unsigned. The CLI transcript and JSON
+wrapper deliberately label its authentication as `not-provided`; authentication
+is not a field in the closed certificate document. A reproduced replay
+establishes current semantic reproduction, not issuer identity or issuance
+provenance.
 
 ### Actual CLI captures
 

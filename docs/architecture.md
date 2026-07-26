@@ -1,8 +1,8 @@
 # Architecture and verification boundary
 
-This document separates the implemented verification core from later design
-requirements. The implementation map at the end is the authoritative status
-summary.
+This document separates the implemented verifier, certificate/replay boundary,
+and CLI from later repair and adapter design. The implementation map at the end
+is the authoritative status summary.
 
 ## Design objective
 
@@ -12,11 +12,15 @@ annotations, the current verifier determines one of four outcomes:
 1. `verified`: every value has a unique, consistent dimensional interpretation;
 2. `underconstrained`: more than one interpretation remains;
 3. `conflict`: a tracked subset of declarations and operations is inconsistent;
-4. `unknown`: the solver or resource boundary could not establish a result.
+4. `unknown`: the trusted verification result could not be established.
 
 Only `verified` may produce a positive proof certificate. A timeout, unsupported
 operation, malformed graph, or non-unique interpretation is never converted
 into success.
+
+Stable `unknown` reasons cover timeout, memory/resource failure, solver unknown,
+contract rejection, out-of-domain model extraction, and internal
+inconsistency. Raw solver diagnostics are not exposed.
 
 ## Quantity model
 
@@ -68,7 +72,7 @@ still have an invalid tensor shape, and vice versa.
 
 ## Canonical graph format
 
-The first adapter will accept strict JSON with:
+The implemented core decoder accepts strict JSON with:
 
 - a schema version;
 - a bounded, unique list of graph inputs;
@@ -80,8 +84,8 @@ The first adapter will accept strict JSON with:
 
 Parsing rejects duplicate JSON keys, unknown fields, invalid UTF-8, noncanonical
 numbers, cycles, forward references, excessive nesting, and values outside
-declared limits. Source locations are graph identifiers and JSON pointers, not
-host filesystem paths.
+declared limits. Public witnesses use canonical value/node source identifiers
+and constraint identifiers, not host filesystem paths.
 
 ## Constraint compilation
 
@@ -90,13 +94,12 @@ and semantic quantity-kind expressions. Operations emit labelled equations:
 
 | Operation family | Dimensional rule |
 | --- | --- |
-| identity, cast, reshape, transpose, reduce | output equals input |
-| add, subtract, minimum, maximum | operands and output are equal |
-| multiply | output equals left plus right |
-| divide | output equals left minus right |
+| identity | output contract equals input contract |
+| add, subtract, minimum, maximum | dimensions match; kind/transform follow the explicit arithmetic truth table |
+| multiply, matrix multiplication | output dimension is left plus right |
+| divide | output dimension is left minus right |
 | power by rational constant | output equals input multiplied by exponent |
 | exponential, logarithm, sigmoid, softmax | input and output are dimensionless |
-| matrix multiplication | output equals left plus right |
 | explicit conversion | dimensions equal; unit transform is declared |
 
 Every equation is tracked by a stable constraint identifier derived from its
@@ -109,8 +112,9 @@ every dimension component, quantity kind, scale, and offset has a unique value.
 If two models assign different values to any observable contract, the graph is
 `underconstrained`.
 
-Extracted rational values are validated against exponent numerator and
-denominator bounds before they enter the trusted domain model.
+All extracted solver rationals pass a 256-bit numerator/denominator boundary.
+Dimension exponents additionally require an absolute numerator no greater than
+64 and a denominator no greater than 12 before they enter the domain model.
 
 ### Conflict cores
 
@@ -121,8 +125,9 @@ proof that every omitted declaration is irrelevant to scientific intent.
 
 ## Bounded repair
 
-Repair generation is downstream of verification and never mutates input. The
-first repair operators are deliberately small:
+This section is a design constraint for the next slice; repair generation is
+not implemented. It will remain downstream of verification and will never
+mutate input. The first repair operators are deliberately small:
 
 - replace one declared unit with another compatible registry unit;
 - insert one explicit scale conversion;
@@ -130,9 +135,9 @@ first repair operators are deliberately small:
   graph contract permits it;
 - remove one contradictory optional annotation.
 
-Candidates are ordered by a deterministic cost tuple and recompiled through the
-same verifier. A candidate that is not independently `verified` is discarded.
-Ambiguous top candidates cause abstention.
+Candidates will be ordered by a deterministic cost tuple and recompiled through
+the same verifier. A candidate that is not independently `verified` will be
+discarded. Ambiguous top candidates will cause abstention.
 
 An optional learned reranker may later order already-verified candidates. It
 will not create candidates, bypass the verifier, or turn abstention into an
@@ -140,22 +145,40 @@ automatic edit.
 
 ## Proof certificate
 
-A canonical certificate will bind:
+A canonical positive certificate currently binds:
 
 - graph schema version and SHA-256;
 - unit registry version and SHA-256;
-- verifier and solver versions;
-- configured resource limits;
+- verifier version, semantic contract, and solver version;
+- the exact configured solver/resource limits and checks performed;
 - ordered inferred contracts;
-- ordered constraint identities;
-- outcome and, where applicable, conflict core or repair identity;
-- certificate schema version and whole-document digest.
+- the complete ordered source-labelled constraint catalog;
+- the verified result SHA-256;
+- certificate schema version.
 
-Offline replay reparses the graph and registry, recompiles constraints, and
-compares a fresh result. A certificate is evidence of one bounded verifier
-execution, not a cryptographic signature or a proof of scientific validity.
+The complete canonical certificate bytes are content-addressed by SHA-256; the
+digest is computed outside the closed certificate document.
+
+Only an exact runtime `VerificationResult` with status `verified`, complete
+contract coverage, matching graph/registry bindings, and freshly revalidated
+sources can be issued. Negative and indeterminate outcomes have no certificate
+shape.
+
+Detached replay decodes the canonical claim, recomputes its digest, compares
+graph and registry identities, compares the current source-labelled catalog,
+optionally pins the toolchain, replays every claimed contract against the graph
+and registry through solver-independent Python semantics, then performs a fresh
+bounded uniqueness verification. It returns `reproduced`, `mismatch`, or
+`indeterminate`.
+
+A certificate is an unsigned claim about one bounded verifier execution.
+Successful replay establishes current semantic agreement, not that issuance
+happened, author identity, or scientific validity. The exact byte contract is
+documented in [certificate-format.md](certificate-format.md).
 
 ## Training and serving comparison
+
+This comparison layer is planned, not implemented.
 
 Two individually verified graphs may still disagree. Contract comparison will
 align declared public inputs and outputs, then report:
@@ -182,34 +205,37 @@ unit semantics. The adapter will:
 4. lower into the same canonical core graph;
 5. reject unsupported control flow or operator semantics rather than guessing.
 
-The adapter is not part of the first implementation slice.
+The adapter is not implemented.
 
 ## Resource and security limits
 
 - No network access is required by verification or replay.
 - No shell, `eval`, dynamic import, or arbitrary model execution.
-- Fixed limits for document bytes, nodes, edges, exponent size, core-shrink
-  checks, repair candidates, solver memory, and solver time.
+- Fixed limits for document bytes/tree shape, inputs, values, nodes, outputs,
+  tensor rank, exponent size, core-shrink checks, uniqueness checks, solver
+  memory, and solver time.
 - Deterministic errors omit host paths, environment values, and raw solver
   diagnostics.
 - Unknown unit identifiers and unsupported operations fail closed.
 - Canonical JSON readers reject duplicate fields and non-finite numbers.
-- The same registry snapshot is used for compile, repair, certificate, and
-  replay.
+- The same registry snapshot is used for compilation, certificate issuance,
+  and replay.
 
 The threat model excludes a same-UID process that can rewrite the verifier,
-solver binary, or committed inputs during execution. Reproducible evidence
-tooling will state that boundary explicitly.
+solver binary, or repository parent directories during execution. The
+reproducible evidence tooling states its separate rendering and filesystem
+boundary explicitly.
 
 ## Current implementation map
 
 | Area | Current | Next |
 | --- | --- | --- |
-| Package boundary | Typed public exact values, graph, registry, and results | Proof certificates |
+| Package boundary | Typed exact values, graph, registry, results, certificates, and replay reports | Contract comparison |
 | Dimension semantics | Exact bounded rational algebra and graph inference | Contract comparison |
 | Unit registry | Immutable 33-unit snapshot with pinned SHA-256 | External snapshot decoder |
 | Graph IR | Content-addressed bounded IR and strict decoder | ONNX lowering |
 | Solver | Tracked dimension/kind/scale/offset constraints, uniqueness, replay, and bounded cores | Bounded repairs |
 | Repairs | Bounded operators specified | Verified candidate enumeration |
-| Certificates | Required bindings specified | Canonical codec and replay |
-| Visual evidence | No placeholders | Generate from implemented behavior |
+| Certificates | Positive-only canonical codec, content digest, and detached replay with optional strict-toolchain policy | Contract-comparison evidence |
+| CLI | Bounded regular-file reads, stable exits, atomic no-overwrite certificate publication | Contract-comparison commands |
+| Visual evidence | Real CLI captures, diagrams, plot, GIF, accessible SVG, and closed digest manifest | Grouped synthetic fault corpus |

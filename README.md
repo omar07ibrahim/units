@@ -120,15 +120,16 @@ Machine consumers can request the same closed result record:
     --json
 ```
 
-The CLI writes diagnostics to stderr only for input, usage, output, or internal
-failures. Semantic outcomes remain structured stdout.
+Normal verification and replay reports use structured stdout. Usage,
+input/output, expected-digest preflight, interruption, and redacted internal
+failures use stderr.
 
 | Exit | Meaning |
 | ---: | --- |
 | `0` | Graph verified or certificate reproduced |
 | `1` | Dimensional conflict |
 | `2` | Underconstrained public contract |
-| `3` | Solver/resource result is unknown or indeterminate |
+| `3` | Verification is unknown or replay is indeterminate |
 | `4` | Input, output, or canonicality failure |
 | `5` | Replay or expected-digest mismatch |
 | `64` | Command-line usage error |
@@ -268,7 +269,7 @@ The implementation includes:
 - a byte-level decoder that rejects duplicate keys, floats, noncanonical JSON,
   unknown fields, invalid topology, and oversized inputs;
 - structural preflight limits on bytes, nesting, tokens, nodes, and items;
-- exact constraints for all 15 supported graph operations;
+- exact constraints for all 14 supported graph operations;
 - alternate-model uniqueness checks;
 - deterministic tracked-core shrinking within a fixed check budget;
 - monotonic per-check and whole-run deadlines plus solver memory bounds;
@@ -279,21 +280,26 @@ The implementation includes:
 
 The [canonical graph contract](docs/graph-format.md),
 [registry snapshot](docs/registry.md), and
-[architecture boundary](docs/architecture.md) specify the details.
+[architecture boundary](docs/architecture.md) specify the core. The
+[certificate and replay contract](docs/certificate-format.md) documents the
+detached claim byte boundary and replay ordering.
 
 ## Trust boundary
 
 Verification and replay require no network and never execute model code. The
-CLI rejects stdin streams, FIFOs, final-path symlinks, oversized documents,
-duplicate JSON fields, executable extension hooks, and unsafe certificate
-targets. File reads verify the regular-file snapshot before and after reading;
-certificate writes use private no-overwrite temporary files and atomic
-publication.
+CLI does not consume stdin; it accepts path-backed regular files and rejects
+FIFOs, final-path symlinks, oversized documents, duplicate JSON fields,
+executable extension hooks, and unsafe certificate targets. Input paths are
+opened without following the final symlink, the open descriptor must be a
+regular file, and bounded nonblocking reads still cap a file that grows after
+its initial `fstat`. Certificate writes use private no-overwrite temporary
+files and atomic publication.
 
 The threat model excludes a hostile same-UID process that can rewrite the
 installed verifier, solver, or repository parent directories during execution.
-Detached certificates establish integrity and replayable semantics; they do
-not establish author identity.
+A caller-trusted expected digest can detect certificate-byte substitution;
+successful replay establishes current semantic agreement. Neither establishes
+author identity or proves that the claimed issuance happened.
 
 ## Deliberate non-goals
 
