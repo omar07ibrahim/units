@@ -2,8 +2,14 @@ from __future__ import annotations
 
 import unittest
 from dataclasses import FrozenInstanceError
+from fractions import Fraction
 
-from unitsentinel.domain import LENGTH, QuantityKind
+from unitsentinel.domain import (
+    LENGTH,
+    MAX_RATIONAL_BITS,
+    THERMODYNAMIC_TEMPERATURE,
+    QuantityKind,
+)
 from unitsentinel.verification import (
     MAX_CORE_SHRINK_CHECKS,
     MAX_SOLVER_MEMORY_MB,
@@ -25,7 +31,13 @@ REGISTRY_DIGEST = "2" * 64
 
 
 def contract(value_id: str = "distance") -> InferredContract:
-    return InferredContract(value_id, LENGTH, QuantityKind.LINEAR)
+    return InferredContract(
+        value_id,
+        LENGTH,
+        QuantityKind.LINEAR,
+        Fraction(1_000),
+        Fraction(0),
+    )
 
 
 def witness(constraint_id: str = "declaration/distance/unit") -> ConstraintWitness:
@@ -117,6 +129,8 @@ class VerificationValueTests(unittest.TestCase):
             {
                 "dimension": [{"base": "length", "exponent": "1"}],
                 "kind": "linear",
+                "offset": "0",
+                "scale": "1000",
                 "value_id": "distance",
             },
         )
@@ -136,7 +150,13 @@ class VerificationValueTests(unittest.TestCase):
                 "unit-annotation",
             )
         with self.assertRaisesRegex(VerificationError, "exact InferredContract"):
-            DerivedContract("distance", LENGTH, QuantityKind.LINEAR)
+            DerivedContract(
+                "distance",
+                LENGTH,
+                QuantityKind.LINEAR,
+                Fraction(1),
+                Fraction(0),
+            )
         with self.assertRaisesRegex(VerificationError, "not canonical"):
             witness("Declaration/distance")
         with self.assertRaisesRegex(VerificationError, "source is unknown"):
@@ -151,7 +171,89 @@ class VerificationValueTests(unittest.TestCase):
                 "distance",
                 LENGTH,
                 "linear",  # type: ignore[arg-type]
+                Fraction(1),
+                Fraction(0),
             )
+
+    def test_inferred_transform_is_exact_positive_and_semantically_coherent(
+        self,
+    ) -> None:
+        cases = (
+            (
+                (LENGTH, QuantityKind.LINEAR, 1, Fraction(0)),
+                "exact Fraction",
+            ),
+            (
+                (
+                    LENGTH,
+                    QuantityKind.LINEAR,
+                    Fraction(1),
+                    0,
+                ),
+                "exact Fraction",
+            ),
+            (
+                (
+                    LENGTH,
+                    QuantityKind.LINEAR,
+                    Fraction(0),
+                    Fraction(0),
+                ),
+                "must be positive",
+            ),
+            (
+                (
+                    LENGTH,
+                    QuantityKind.LINEAR,
+                    Fraction(1),
+                    Fraction(1),
+                ),
+                "absolute temperature",
+            ),
+            (
+                (
+                    LENGTH,
+                    QuantityKind.TEMPERATURE_DELTA,
+                    Fraction(1),
+                    Fraction(0),
+                ),
+                "incoherent",
+            ),
+            (
+                (
+                    THERMODYNAMIC_TEMPERATURE,
+                    QuantityKind.LINEAR,
+                    Fraction(1),
+                    Fraction(0),
+                ),
+                "incoherent",
+            ),
+            (
+                (
+                    LENGTH,
+                    QuantityKind.LINEAR,
+                    Fraction(1 << MAX_RATIONAL_BITS),
+                    Fraction(0),
+                ),
+                "size limit",
+            ),
+        )
+        for arguments, message in cases:
+            with (
+                self.subTest(arguments=arguments),
+                self.assertRaisesRegex(VerificationError, message),
+            ):
+                InferredContract("value", *arguments)  # type: ignore[arg-type]
+
+        absolute = InferredContract(
+            "temperature",
+            THERMODYNAMIC_TEMPERATURE,
+            QuantityKind.ABSOLUTE_TEMPERATURE,
+            Fraction(5, 9),
+            Fraction(45_967, 180),
+        )
+        self.assertEqual(absolute.canonical_record()["scale"], "5/9")
+        self.assertEqual(absolute.canonical_record()["offset"], "45967/180")
 
 
 class VerificationResultTests(unittest.TestCase):
@@ -268,9 +370,7 @@ class VerificationResultTests(unittest.TestCase):
             VerificationStatus.VERIFIED,
             contracts=(contract(),),
         )
-        object.__setattr__(
-            verified.contracts[0], "kind", QuantityKind.TEMPERATURE_DELTA
-        )
+        object.__setattr__(verified.contracts[0], "scale", Fraction(1))
         with self.assertRaisesRegex(VerificationError, "does not match"):
             verified.canonical_record()
 

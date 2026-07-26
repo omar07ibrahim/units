@@ -6,11 +6,14 @@ import hmac
 import re
 from dataclasses import dataclass, field
 from enum import StrEnum
+from fractions import Fraction
 from typing import Final
 
 from .canonical import canonical_json_bytes, sha256_hex
 from .domain import (
+    MAX_RATIONAL_BITS,
     MAX_UNIT_ID_LENGTH,
+    THERMODYNAMIC_TEMPERATURE,
     UNIT_ID,
     Dimension,
     QuantityKind,
@@ -56,6 +59,25 @@ def _require_exact_int(value: object, *, label: str) -> int:
     if type(value) is not int:
         raise VerificationError(f"{label} must be an exact integer")
     return value
+
+
+def _require_exact_rational(value: object, *, label: str) -> Fraction:
+    if type(value) is not Fraction:
+        raise VerificationError(f"{label} must be an exact Fraction")
+    if (
+        abs(value.numerator).bit_length() > MAX_RATIONAL_BITS
+        or value.denominator.bit_length() > MAX_RATIONAL_BITS
+    ):
+        raise VerificationError(f"{label} exceeds the rational size limit")
+    return value
+
+
+def _fraction_text(value: Fraction) -> str:
+    return (
+        str(value.numerator)
+        if value.denominator == 1
+        else f"{value.numerator}/{value.denominator}"
+    )
 
 
 def _require_public_identifier(value: object, *, label: str) -> str:
@@ -163,11 +185,13 @@ class ConstraintWitness:
 
 @dataclass(frozen=True, slots=True)
 class InferredContract:
-    """One uniquely inferred dimension and semantic quantity kind."""
+    """One uniquely inferred dimension, kind, and numeric unit transform."""
 
     value_id: str
     dimension: Dimension
     kind: QuantityKind
+    scale: Fraction
+    offset: Fraction
 
     def __post_init__(self) -> None:
         self.validate()
@@ -183,6 +207,23 @@ class InferredContract:
         self.dimension.validate()
         if type(self.kind) is not QuantityKind:
             raise VerificationError("inferred quantity kind is unknown")
+        scale = _require_exact_rational(self.scale, label="inferred scale")
+        offset = _require_exact_rational(self.offset, label="inferred offset")
+        if scale <= 0:
+            raise VerificationError("inferred scale must be positive")
+        pure_temperature = self.dimension == THERMODYNAMIC_TEMPERATURE
+        temperature_kind = self.kind in {
+            QuantityKind.ABSOLUTE_TEMPERATURE,
+            QuantityKind.TEMPERATURE_DELTA,
+        }
+        if pure_temperature != temperature_kind:
+            raise VerificationError(
+                "inferred quantity kind is incoherent with its dimension"
+            )
+        if self.kind is not QuantityKind.ABSOLUTE_TEMPERATURE and offset != 0:
+            raise VerificationError(
+                "only an absolute temperature may have an inferred offset"
+            )
 
     def canonical_record(self) -> dict[str, object]:
         self.validate()
@@ -192,6 +233,8 @@ class InferredContract:
                 for base, exponent in self.dimension.canonical_pairs()
             ],
             "kind": self.kind.value,
+            "offset": _fraction_text(self.offset),
+            "scale": _fraction_text(self.scale),
             "value_id": self.value_id,
         }
 
