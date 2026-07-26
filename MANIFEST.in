@@ -1,4 +1,5 @@
 include README.md
-recursive-include docs *.md
+recursive-include docs *.gif *.json *.md *.png *.svg *.txt
 recursive-include examples *.py
 include src/unitsentinel/py.typed
+recursive-include tools *.json *.md *.mjs *.py

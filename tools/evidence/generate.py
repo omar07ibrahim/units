@@ -870,10 +870,10 @@ def check_manifest() -> None:
         document = json.loads(manifest_payload)
     except (EvidenceError, UnicodeDecodeError, json.JSONDecodeError):
         raise EvidenceError("evidence manifest is missing or malformed") from None
-    if manifest_payload != _canonical_bytes(document):
-        raise EvidenceError("evidence manifest is not canonical")
     if type(document) is not dict or set(document) != {"files", "schema"}:
         raise EvidenceError("evidence manifest fields are malformed")
+    if manifest_payload != _canonical_bytes(document):
+        raise EvidenceError("evidence manifest is not canonical")
     if document["schema"] != MANIFEST_SCHEMA or type(document["files"]) is not list:
         raise EvidenceError("evidence manifest schema is not supported")
     expected_paths = {_relative(path) for path in _evidence_files()}

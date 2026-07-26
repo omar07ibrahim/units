@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="890" viewBox="0 0 1440 890" role="img" aria-labelledby="title description">
+  <title id="title">UnitSentinel scaling benchmark</title>
+  <desc id="description">Measured median verification-plus-issuance and strict replay time across bounded identity-chain graph sizes.</desc>
+  <defs>
+    <linearGradient id="background" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#07111f"/>
+      <stop offset="1" stop-color="#0a1730"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="10" stdDeviation="12" flood-color="#000814" flood-opacity=".45"/>
+    </filter>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L0,6 L9,3 z" fill="#8fa5bd"/>
+    </marker>
+  </defs>
+  <rect width="1440" height="890" fill="url(#background)"/>
+<text x="65" y="62" fill="#d8e4f2" font-family="DejaVu Sans, sans-serif" font-size="31" font-weight="700" text-anchor="start">Bounded verification and replay scaling</text>
+<text x="65" y="98" fill="#8fa5bd" font-family="DejaVu Sans, sans-serif" font-size="17" font-weight="400" text-anchor="start">Measured snapshot · median of 3 runs · log-scale milliseconds · lower is better</text>
+<line x1="120" y1="660" x2="1355" y2="660" stroke="#253a55" stroke-width="2"/>
+<line x1="120" y1="170" x2="120" y2="660" stroke="#253a55" stroke-width="2"/>
+<line x1="120" y1="660.0" x2="1355" y2="660.0" stroke="#253a55" stroke-width="1" stroke-dasharray="5 8"/>
+<text x="102" y="666.0" fill="#8fa5bd" font-family="DejaVu Sans, sans-serif" font-size="14" font-weight="400" text-anchor="end">15.0</text>
+<line x1="120" y1="537.5" x2="1355" y2="537.5" stroke="#253a55" stroke-width="1" stroke-dasharray="5 8"/>
+<text x="102" y="543.5" fill="#8fa5bd" font-family="DejaVu Sans, sans-serif" font-size="14" font-weight="400" text-anchor="end">45.8</text>
+<line x1="120" y1="415.0" x2="1355" y2="415.0" stroke="#253a55" stroke-width="1" stroke-dasharray="5 8"/>
+<text x="102" y="421.0" fill="#8fa5bd" font-family="DejaVu Sans, sans-serif" font-size="14" font-weight="400" text-anchor="end">139.4</text>
+<line x1="120" y1="292.5" x2="1355" y2="292.5" stroke="#253a55" stroke-width="1" stroke-dasharray="5 8"/>
+<text x="102" y="298.5" fill="#8fa5bd" font-family="DejaVu Sans, sans-serif" font-size="14" font-weight="400" text-anchor="end">424.6</text>
+<line x1="120" y1="170.0" x2="1355" y2="170.0" stroke="#253a55" stroke-width="1" stroke-dasharray="5 8"/>
+<text x="102" y="176.0" fill="#8fa5bd" font-family="DejaVu Sans, sans-serif" font-size="14" font-weight="400" text-anchor="end">1293.6</text>
+<polyline points="120.0,628.4 428.8,546.9 737.5,438.0 1046.2,295.5 1355.0,214.0" fill="none" stroke="#5ee6a8" stroke-width="4"/>
+<polyline points="120.0,588.2 428.8,519.3 737.5,413.8 1046.2,274.4 1355.0,194.5" fill="none" stroke="#38d9f5" stroke-width="4"/>
+<line x1="955" y1="132" x2="1005" y2="132" stroke="#5ee6a8" stroke-width="4"/>
+<text x="1018" y="138" fill="#5ee6a8" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="700" text-anchor="start">verify + issue</text>
+<line x1="1170" y1="132" x2="1220" y2="132" stroke="#38d9f5" stroke-width="4"/>
+<text x="1233" y="138" fill="#38d9f5" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="700" text-anchor="start">strict replay</text>
+<circle cx="120.0" cy="628.4" r="7" fill="#5ee6a8"/>
+<circle cx="120.0" cy="588.2" r="7" fill="#38d9f5"/>
+<text x="120.0" y="692" fill="#d8e4f2" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="400" text-anchor="middle">1</text>
+<text x="120.0" y="653.4" fill="#5ee6a8" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="700" text-anchor="middle">20.0</text>
+<text x="120.0" y="574.2" fill="#38d9f5" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="700" text-anchor="middle">28.8</text>
+<circle cx="428.8" cy="546.9" r="7" fill="#5ee6a8"/>
+<circle cx="428.8" cy="519.3" r="7" fill="#38d9f5"/>
+<text x="428.8" y="692" fill="#d8e4f2" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="400" text-anchor="middle">8</text>
+<text x="428.8" y="571.9" fill="#5ee6a8" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="700" text-anchor="middle">42.0</text>
+<text x="428.8" y="505.29999999999995" fill="#38d9f5" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="700" text-anchor="middle">54.0</text>
+<circle cx="737.5" cy="438.0" r="7" fill="#5ee6a8"/>
+<circle cx="737.5" cy="413.8" r="7" fill="#38d9f5"/>
+<text x="737.5" y="692" fill="#d8e4f2" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="400" text-anchor="middle">32</text>
+<text x="737.5" y="463.0" fill="#5ee6a8" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="700" text-anchor="middle">113.0</text>
+<text x="737.5" y="399.8" fill="#38d9f5" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="700" text-anchor="middle">140.9</text>
+<circle cx="1046.2" cy="295.5" r="7" fill="#5ee6a8"/>
+<circle cx="1046.2" cy="274.4" r="7" fill="#38d9f5"/>
+<text x="1046.2" y="692" fill="#d8e4f2" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="400" text-anchor="middle">128</text>
+<text x="1046.2" y="320.5" fill="#5ee6a8" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="700" text-anchor="middle">413.4</text>
+<text x="1046.2" y="260.4" fill="#38d9f5" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="700" text-anchor="middle">500.4</text>
+<circle cx="1355.0" cy="214.0" r="7" fill="#5ee6a8"/>
+<circle cx="1355.0" cy="194.5" r="7" fill="#38d9f5"/>
+<text x="1355.0" y="692" fill="#d8e4f2" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="400" text-anchor="middle">256</text>
+<text x="1355.0" y="239.0" fill="#5ee6a8" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="700" text-anchor="middle">867.0</text>
+<text x="1355.0" y="180.5" fill="#38d9f5" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="700" text-anchor="middle">1034.9</text>
+<text x="737.5" y="735" fill="#8fa5bd" font-family="DejaVu Sans, sans-serif" font-size="17" font-weight="400" text-anchor="middle">identity-chain nodes</text>
+<text x="65" y="805" fill="#b69cff" font-family="DejaVu Sans, sans-serif" font-size="20" font-weight="700" text-anchor="start">Snapshot context</text>
+<text x="65" y="840" fill="#8fa5bd" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="400" text-anchor="start">Python 3.12.3 · Z3 4.16.0 · UnitSentinel 0.1.0 · 2026-07-26T07:25:03+00:00</text>
+</svg>

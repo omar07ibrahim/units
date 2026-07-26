@@ -1,0 +1,21 @@
+$ .venv/bin/python -m unitsentinel replay \
+    .unitsentinel/evidence-run/wheel-anomaly.cert.json \
+    --graph docs/evidence/contracts/wheel-anomaly-verified.json \
+    --expect-sha256 e93cc87cd72c6ede9cf8d324bfb41b2eb2bdcea6cb0aa6fea7aed4696009ab1a \
+    --strict-toolchain
+UnitSentinel replay: REPRODUCED
+exit code: 0
+tool: unitsentinel 0.1.0
+reason: none
+certificate sha256: e93cc87cd72c6ede9cf8d324bfb41b2eb2bdcea6cb0aa6fea7aed4696009ab1a
+certificate authentication: not-provided
+graph id: wheel-anomaly-verified
+graph sha256: 139e3e3d99d64c3d9cde89e9e1f116f09452c3532eaaee2e0513c71a0f2ada3c
+registry version: 1.0.0
+registry sha256: fc80cbb596f3341b1d2ff13795e50d2d1e05c792b34f24804afc97c3470913e5
+replay sha256: aca0b2794371a552a1f1b3af75bdd86b8cf8fb21e5cb664b835b2adf19acf3aa
+toolchain match: yes (strict=yes)
+certificate toolchain: unitsentinel 0.1.0, z3 4.16.0
+current toolchain: unitsentinel 0.1.0, z3 4.16.0
+fresh result: verified f2dce1e2b1e602719d117d05dfe356521bb204039de084beccc68dd8920406bd
+[exit 0]

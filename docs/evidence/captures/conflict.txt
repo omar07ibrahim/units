@@ -1,0 +1,20 @@
+$ .venv/bin/python -m unitsentinel verify \
+    docs/evidence/contracts/wheel-anomaly-conflict.json \
+    --certificate .unitsentinel/evidence-run/conflict.cert.json
+UnitSentinel verification: CONFLICT
+exit code: 1
+tool: unitsentinel 0.1.0
+graph id: wheel-anomaly-conflict
+graph sha256: 6ae6457c38e5dbe707187031a521e4c76124ee55ac58869a36ba746978a4f708
+result sha256: 521b85cbf597e5ca45716c7add5346cc65191063060c24c87ca70797bac67aea
+registry version: 1.0.0
+registry sha256: fc80cbb596f3341b1d2ff13795e50d2d1e05c792b34f24804afc97c3470913e5
+solver: z3 4.16.0 (5 checks)
+conflict core (4, minimal=yes):
+  declaration/acceleration-si/unit | declaration:acceleration-si | unit-annotation
+  operation/derive-acceleration/dimension | operation:derive-acceleration | divide-dimension
+  operation/normalize-sample-period/dimension | operation:normalize-sample-period | convert-dimension
+  operation/normalize-speed-delta/dimension | operation:normalize-speed-delta | convert-dimension
+certificate: not-issued
+certificate output: not-issued
+[exit 1]

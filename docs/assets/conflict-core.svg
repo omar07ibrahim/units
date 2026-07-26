@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="930" viewBox="0 0 1440 930" role="img" aria-labelledby="title description">
+  <title id="title">UnitSentinel conflict-core explanation</title>
+  <desc id="description">The actual four-witness deletion-minimal conflict produced by the wheel anomaly serving-contract error.</desc>
+  <defs>
+    <linearGradient id="background" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#07111f"/>
+      <stop offset="1" stop-color="#0a1730"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="10" stdDeviation="12" flood-color="#000814" flood-opacity=".45"/>
+    </filter>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L0,6 L9,3 z" fill="#8fa5bd"/>
+    </marker>
+  </defs>
+  <rect width="1440" height="930" fill="url(#background)"/>
+<text x="70" y="68" fill="#d8e4f2" font-family="DejaVu Sans, sans-serif" font-size="30" font-weight="700" text-anchor="start">A shape-valid serving contract that cannot be physical</text>
+<text x="70" y="104" fill="#8fa5bd" font-family="DejaVu Sans, sans-serif" font-size="18" font-weight="400" text-anchor="start">The only changed annotation is acceleration-si: m/s² → m/s.</text>
+<rect x="90" y="190" width="300" height="165" rx="18" fill="#0d1b2d" stroke="#253a55" stroke-width="2" filter="url(#shadow)"/>
+<rect x="90" y="190" width="7" height="165" rx="3.5" fill="#38d9f5"/>
+<text x="118" y="228" fill="#38d9f5" font-family="DejaVu Sans, sans-serif" font-size="20" font-weight="700" text-anchor="start">speed-delta-si</text>
+<text x="118" y="260" fill="#d8e4f2" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="400" text-anchor="start">
+      <tspan x="118" dy="0">length^1 time^-1</tspan>
+      <tspan x="118" dy="25">scale 1</tspan>
+      <tspan x="118" dy="25">derived through CONVERT</tspan>
+    </text>
+<rect x="90" y="520" width="300" height="165" rx="18" fill="#0d1b2d" stroke="#253a55" stroke-width="2" filter="url(#shadow)"/>
+<rect x="90" y="520" width="7" height="165" rx="3.5" fill="#38d9f5"/>
+<text x="118" y="558" fill="#38d9f5" font-family="DejaVu Sans, sans-serif" font-size="20" font-weight="700" text-anchor="start">sample-period-si</text>
+<text x="118" y="590" fill="#d8e4f2" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="400" text-anchor="start">
+      <tspan x="118" dy="0">time^1</tspan>
+      <tspan x="118" dy="25">scale 1</tspan>
+      <tspan x="118" dy="25">derived through CONVERT</tspan>
+    </text>
+<rect x="545" y="355" width="310" height="175" rx="18" fill="#0d1b2d" stroke="#253a55" stroke-width="2" filter="url(#shadow)"/>
+<rect x="545" y="355" width="7" height="175" rx="3.5" fill="#5ee6a8"/>
+<text x="573" y="393" fill="#5ee6a8" font-family="DejaVu Sans, sans-serif" font-size="20" font-weight="700" text-anchor="start">DIVIDE Δv / Δt</text>
+<text x="573" y="425" fill="#d8e4f2" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="400" text-anchor="start">
+      <tspan x="573" dy="0">derived acceleration</tspan>
+      <tspan x="573" dy="25">length^1 time^-2</tspan>
+      <tspan x="573" dy="25">meter-per-second-squared</tspan>
+    </text>
+<rect x="1010" y="355" width="330" height="175" rx="18" fill="#0d1b2d" stroke="#253a55" stroke-width="2" filter="url(#shadow)"/>
+<rect x="1010" y="355" width="7" height="175" rx="3.5" fill="#ff6b7a"/>
+<text x="1038" y="393" fill="#ff6b7a" font-family="DejaVu Sans, sans-serif" font-size="20" font-weight="700" text-anchor="start">declared acceleration-si</text>
+<text x="1038" y="425" fill="#d8e4f2" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="400" text-anchor="start">
+      <tspan x="1038" dy="0">length^1 time^-1</tspan>
+      <tspan x="1038" dy="25">meter-per-second</tspan>
+      <tspan x="1038" dy="25">CONTRADICTION</tspan>
+    </text>
+<path d="M390,272 L545,410" stroke="#8fa5bd" stroke-width="3" fill="none" marker-end="url(#arrow)"/>
+<path d="M390,602 L545,480" stroke="#8fa5bd" stroke-width="3" fill="none" marker-end="url(#arrow)"/>
+<path d="M855,442 L1010,442" stroke="#ff6b7a" stroke-width="3" fill="none" marker-end="url(#arrow)"/>
+<text x="932.5" y="432.0" fill="#ff6b7a" font-family="DejaVu Sans, sans-serif" font-size="14" font-weight="400" text-anchor="middle">≠</text>
+<text x="70" y="760" fill="#ff6b7a" font-family="DejaVu Sans, sans-serif" font-size="23" font-weight="700" text-anchor="start">Deletion-minimal tracked core</text>
+<text x="1370" y="760" fill="#8fa5bd" font-family="DejaVu Sans, sans-serif" font-size="14" font-weight="400" text-anchor="end">graph 6ae6457c38e5… · result 521b85cbf597…</text>
+<text x="90" y="798" fill="#d8e4f2" font-family="DejaVu Sans Mono, monospace" font-size="16" font-weight="400" text-anchor="start">1. declaration/acceleration-si/unit</text>
+<text x="90" y="826" fill="#d8e4f2" font-family="DejaVu Sans Mono, monospace" font-size="16" font-weight="400" text-anchor="start">2. operation/derive-acceleration/dimension</text>
+<text x="90" y="854" fill="#d8e4f2" font-family="DejaVu Sans Mono, monospace" font-size="16" font-weight="400" text-anchor="start">3. operation/normalize-sample-period/dimension</text>
+<text x="90" y="882" fill="#d8e4f2" font-family="DejaVu Sans Mono, monospace" font-size="16" font-weight="400" text-anchor="start">4. operation/normalize-speed-delta/dimension</text>
+</svg>

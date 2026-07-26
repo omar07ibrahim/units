@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="900" viewBox="0 0 1440 900" role="img" aria-labelledby="title description">
+  <title id="title">serving contract bug · fail closed</title>
+  <desc id="description">Real UnitSentinel CLI output for the shape-valid but dimensionally conflicting wheel anomaly graph.</desc>
+  <defs>
+    <linearGradient id="background" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#07111f"/>
+      <stop offset="1" stop-color="#0a1730"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="10" stdDeviation="12" flood-color="#000814" flood-opacity=".45"/>
+    </filter>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L0,6 L9,3 z" fill="#8fa5bd"/>
+    </marker>
+  </defs>
+  <rect width="1440" height="900" fill="url(#background)"/>
+<rect x="32" y="30" width="1376" height="840" rx="20" fill="#0d1b2d" stroke="#253a55" stroke-width="2" filter="url(#shadow)"/>
+<rect x="32" y="30" width="1376" height="66" rx="20" fill="#12233a"/>
+<rect x="32" y="76" width="1376" height="20" fill="#12233a"/>
+<circle cx="70" cy="63" r="8" fill="#ff6b7a"/>
+<circle cx="98" cy="63" r="8" fill="#ffc857"/>
+<circle cx="126" cy="63" r="8" fill="#5ee6a8"/>
+<text x="720" y="70" fill="#d8e4f2" font-family="DejaVu Sans, sans-serif" font-size="19" font-weight="700" text-anchor="middle">serving contract bug · fail closed</text>
+<rect x="32" y="94" width="1376" height="4" fill="#ff6b7a"/>
+<text x="62" y="132" fill="#38d9f5" font-family="DejaVu Sans Mono, monospace" font-size="17" font-weight="400" text-anchor="start">$ .venv/bin/python -m unitsentinel verify \</text>
+<text x="62" y="156" fill="#38d9f5" font-family="DejaVu Sans Mono, monospace" font-size="17" font-weight="400" text-anchor="start">    docs/evidence/contracts/wheel-anomaly-conflict.json \</text>
+<text x="62" y="180" fill="#38d9f5" font-family="DejaVu Sans Mono, monospace" font-size="17" font-weight="400" text-anchor="start">    --certificate .unitsentinel/evidence-run/conflict.cert.json</text>
+<text x="62" y="204" fill="#ff6b7a" font-family="DejaVu Sans Mono, monospace" font-size="17" font-weight="700" text-anchor="start">UnitSentinel verification: CONFLICT</text>
+<text x="62" y="228" fill="#d8e4f2" font-family="DejaVu Sans Mono, monospace" font-size="17" font-weight="400" text-anchor="start">exit code: 1</text>
+<text x="62" y="252" fill="#d8e4f2" font-family="DejaVu Sans Mono, monospace" font-size="17" font-weight="400" text-anchor="start">tool: unitsentinel 0.1.0</text>
+<text x="62" y="276" fill="#d8e4f2" font-family="DejaVu Sans Mono, monospace" font-size="17" font-weight="400" text-anchor="start">graph id: wheel-anomaly-conflict</text>
+<text x="62" y="300" fill="#b69cff" font-family="DejaVu Sans Mono, monospace" font-size="17" font-weight="400" text-anchor="start">graph sha256: 6ae6457c38e5dbe707187031a521e4c76124ee55ac58869a36ba746978a4f708</text>
+<text x="62" y="324" fill="#b69cff" font-family="DejaVu Sans Mono, monospace" font-size="17" font-weight="400" text-anchor="start">result sha256: 521b85cbf597e5ca45716c7add5346cc65191063060c24c87ca70797bac67aea</text>
+<text x="62" y="348" fill="#d8e4f2" font-family="DejaVu Sans Mono, monospace" font-size="17" font-weight="400" text-anchor="start">registry version: 1.0.0</text>
+<text x="62" y="372" fill="#b69cff" font-family="DejaVu Sans Mono, monospace" font-size="17" font-weight="400" text-anchor="start">registry sha256: fc80cbb596f3341b1d2ff13795e50d2d1e05c792b34f24804afc97c3470913e5</text>
+<text x="62" y="396" fill="#d8e4f2" font-family="DejaVu Sans Mono, monospace" font-size="17" font-weight="400" text-anchor="start">solver: z3 4.16.0 (5 checks)</text>
+<text x="62" y="420" fill="#d8e4f2" font-family="DejaVu Sans Mono, monospace" font-size="17" font-weight="400" text-anchor="start">conflict core (4, minimal=yes):</text>
+<text x="62" y="444" fill="#d8e4f2" font-family="DejaVu Sans Mono, monospace" font-size="17" font-weight="400" text-anchor="start">  declaration/acceleration-si/unit | declaration:acceleration-si | unit-annotation</text>
+<text x="62" y="468" fill="#d8e4f2" font-family="DejaVu Sans Mono, monospace" font-size="17" font-weight="400" text-anchor="start">  operation/derive-acceleration/dimension | operation:derive-acceleration | divide-dimension</text>
+<text x="62" y="492" fill="#d8e4f2" font-family="DejaVu Sans Mono, monospace" font-size="17" font-weight="400" text-anchor="start">  operation/normalize-sample-period/dimension | operation:normalize-sample-period | convert-dimension</text>
+<text x="62" y="516" fill="#d8e4f2" font-family="DejaVu Sans Mono, monospace" font-size="17" font-weight="400" text-anchor="start">  operation/normalize-speed-delta/dimension | operation:normalize-speed-delta | convert-dimension</text>
+<text x="62" y="540" fill="#ff6b7a" font-family="DejaVu Sans Mono, monospace" font-size="17" font-weight="400" text-anchor="start">certificate: not-issued</text>
+<text x="62" y="564" fill="#ff6b7a" font-family="DejaVu Sans Mono, monospace" font-size="17" font-weight="400" text-anchor="start">certificate output: not-issued</text>
+<text x="62" y="588" fill="#ff6b7a" font-family="DejaVu Sans Mono, monospace" font-size="17" font-weight="700" text-anchor="start">[exit 1]</text>
+</svg>

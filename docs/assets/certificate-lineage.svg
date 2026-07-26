@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="900" viewBox="0 0 1440 900" role="img" aria-labelledby="title description">
+  <title id="title">UnitSentinel certificate and replay lineage</title>
+  <desc id="description">Exact graph, registry, toolchain, verification result, certificate, and strict semantic replay digests.</desc>
+  <defs>
+    <linearGradient id="background" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#07111f"/>
+      <stop offset="1" stop-color="#0a1730"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="10" stdDeviation="12" flood-color="#000814" flood-opacity=".45"/>
+    </filter>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L0,6 L9,3 z" fill="#8fa5bd"/>
+    </marker>
+  </defs>
+  <rect width="1440" height="900" fill="url(#background)"/>
+<text x="70" y="68" fill="#d8e4f2" font-family="DejaVu Sans, sans-serif" font-size="31" font-weight="700" text-anchor="start">Content-addressed proof lineage</text>
+<text x="70" y="104" fill="#8fa5bd" font-family="DejaVu Sans, sans-serif" font-size="17" font-weight="400" text-anchor="start">Integrity and semantic reproduction are explicit; issuer authentication is not provided.</text>
+<rect x="65" y="165" width="300" height="145" rx="18" fill="#0d1b2d" stroke="#253a55" stroke-width="2" filter="url(#shadow)"/>
+<rect x="65" y="165" width="7" height="145" rx="3.5" fill="#38d9f5"/>
+<text x="93" y="203" fill="#38d9f5" font-family="DejaVu Sans, sans-serif" font-size="20" font-weight="700" text-anchor="start">Canonical graph</text>
+<text x="93" y="235" fill="#d8e4f2" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="400" text-anchor="start">
+      <tspan x="93" dy="0">sha256 139e3e3d99d64c3d9cde…</tspan>
+      <tspan x="93" dy="25">2,072 exact bytes</tspan>
+    </text>
+<rect x="430" y="165" width="300" height="145" rx="18" fill="#0d1b2d" stroke="#253a55" stroke-width="2" filter="url(#shadow)"/>
+<rect x="430" y="165" width="7" height="145" rx="3.5" fill="#38d9f5"/>
+<text x="458" y="203" fill="#38d9f5" font-family="DejaVu Sans, sans-serif" font-size="20" font-weight="700" text-anchor="start">Registry snapshot</text>
+<text x="458" y="235" fill="#d8e4f2" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="400" text-anchor="start">
+      <tspan x="458" dy="0">sha256 fc80cbb596f3341b1d2f…</tspan>
+      <tspan x="458" dy="25">version 1.0.0 · 33 units</tspan>
+    </text>
+<rect x="795" y="165" width="300" height="145" rx="18" fill="#0d1b2d" stroke="#253a55" stroke-width="2" filter="url(#shadow)"/>
+<rect x="795" y="165" width="7" height="145" rx="3.5" fill="#b69cff"/>
+<text x="823" y="203" fill="#b69cff" font-family="DejaVu Sans, sans-serif" font-size="20" font-weight="700" text-anchor="start">Pinned toolchain</text>
+<text x="823" y="235" fill="#d8e4f2" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="400" text-anchor="start">
+      <tspan x="823" dy="0">unitsentinel 0.1.0</tspan>
+      <tspan x="823" dy="25">z3 4.16.0</tspan>
+      <tspan x="823" dy="25">caller-owned solver limits</tspan>
+    </text>
+<rect x="345" y="405" width="390" height="170" rx="18" fill="#0d1b2d" stroke="#253a55" stroke-width="2" filter="url(#shadow)"/>
+<rect x="345" y="405" width="7" height="170" rx="3.5" fill="#5ee6a8"/>
+<text x="373" y="443" fill="#5ee6a8" font-family="DejaVu Sans, sans-serif" font-size="20" font-weight="700" text-anchor="start">Verified result</text>
+<text x="373" y="475" fill="#d8e4f2" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="400" text-anchor="start">
+      <tspan x="373" dy="0">10 unique contracts · 24 witnesses</tspan>
+      <tspan x="373" dy="25">2 bounded solver checks</tspan>
+      <tspan x="373" dy="25">sha256 f2dce1e2b1e602719d11…</tspan>
+    </text>
+<rect x="345" y="665" width="390" height="150" rx="18" fill="#0d1b2d" stroke="#253a55" stroke-width="2" filter="url(#shadow)"/>
+<rect x="345" y="665" width="7" height="150" rx="3.5" fill="#5ee6a8"/>
+<text x="373" y="703" fill="#5ee6a8" font-family="DejaVu Sans, sans-serif" font-size="20" font-weight="700" text-anchor="start">Detached certificate</text>
+<text x="373" y="735" fill="#d8e4f2" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="400" text-anchor="start">
+      <tspan x="373" dy="0">positive claim · unsigned · 5,559 bytes</tspan>
+      <tspan x="373" dy="25">authentication: not-provided</tspan>
+      <tspan x="373" dy="25">sha256 e93cc87cd72c6ede9cf8…</tspan>
+    </text>
+<rect x="970" y="455" width="395" height="250" rx="18" fill="#0d1b2d" stroke="#253a55" stroke-width="2" filter="url(#shadow)"/>
+<rect x="970" y="455" width="7" height="250" rx="3.5" fill="#38d9f5"/>
+<text x="998" y="493" fill="#38d9f5" font-family="DejaVu Sans, sans-serif" font-size="20" font-weight="700" text-anchor="start">Strict replay</text>
+<text x="998" y="525" fill="#d8e4f2" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="400" text-anchor="start">
+      <tspan x="998" dy="0">recompute certificate digest</tspan>
+      <tspan x="998" dy="25">compare current graph + registry</tspan>
+      <tspan x="998" dy="25">match current toolchain (strict)</tspan>
+      <tspan x="998" dy="25">catalog + pure witness replay</tspan>
+      <tspan x="998" dy="25">fresh uniqueness check</tspan>
+      <tspan x="998" dy="25">status REPRODUCED</tspan>
+      <tspan x="998" dy="25">sha256 aca0b2794371a552a1f1…</tspan>
+    </text>
+<text x="540" y="365" fill="#8fa5bd" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="400" text-anchor="middle">graph + registry + toolchain establish the claim</text>
+<path d="M215,310 L430,405" stroke="#8fa5bd" stroke-width="3" fill="none" marker-end="url(#arrow)"/>
+<path d="M580,310 L540,405" stroke="#8fa5bd" stroke-width="3" fill="none" marker-end="url(#arrow)"/>
+<path d="M945,310 L650,405" stroke="#8fa5bd" stroke-width="3" fill="none" marker-end="url(#arrow)"/>
+<path d="M540,575 L540,665" stroke="#5ee6a8" stroke-width="3" fill="none" marker-end="url(#arrow)"/>
+<text x="540.0" y="610.0" fill="#5ee6a8" font-family="DejaVu Sans, sans-serif" font-size="14" font-weight="400" text-anchor="middle">issue</text>
+<path d="M735,740 L970,590" stroke="#38d9f5" stroke-width="3" fill="none" marker-end="url(#arrow)"/>
+<text x="852.5" y="655.0" fill="#38d9f5" font-family="DejaVu Sans, sans-serif" font-size="14" font-weight="400" text-anchor="middle">claim + current inputs</text>
+</svg>
