@@ -1,0 +1,20 @@
+{
+  "name": "unitsentinel-evidence-renderer",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Pinned renderer for reproducible UnitSentinel visual evidence",
+  "type": "module",
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "audit": "npm audit --audit-level=high",
+    "check": "node render.mjs --check",
+    "render": "node render.mjs"
+  },
+  "dependencies": {
+    "@resvg/resvg-js": "2.6.2",
+    "gifenc": "1.0.3",
+    "pngjs": "7.0.0"
+  }
+}
