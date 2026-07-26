@@ -46,6 +46,43 @@ verifier-call, or wall-clock bounds use closed reason codes. Exception text is
 never copied into a public result. Unexpected non-verifier failures use the
 equally redacted `internal-failure` reason.
 
+## Read-only CLI report
+
+`unitsentinel repair GRAPH` runs the same bounded search and always writes one
+`unitsentinel.cli.repair/v1` canonical JSON record to stdout when the search
+returns a closed result. There is no apply or output-file option. The source
+file is never rewritten, and the record states
+`"application":"not-performed"`.
+
+The envelope binds the source graph, registry, repair-result record, and their
+content digests. Available source-verification evidence is included as a full
+record. For `proposed`, `proposal` additionally contains the complete canonical
+relaxed and repaired graph and verification-result records, their digests, and
+the candidate digest. For `abstained` and `indeterminate`, `proposal` is
+`null`. The proposed graph is data for a caller to inspect; emitting it is not
+permission to install it.
+
+Process exits distinguish all three result states:
+
+| Repair status | Exit | Meaning |
+| --- | ---: | --- |
+| `proposed` | `0` | exactly one replacement was freshly verified |
+| `abstained` | `6` | the completed search did not establish one unique repair |
+| `indeterminate` | `3` | a bound or verifier outcome prevented a complete answer |
+
+Input, usage, and internal boundary failures retain the shared CLI exits `4`,
+`64`, and `70` and emit no JSON. Error details are redacted. The graph uses the
+shared one-mebibyte input limit: it is opened without following the final
+symlink, held by descriptor, checked as a regular file, and read with a second
+stream-growth bound.
+
+The CLI exposes every aggregate `RepairLimits` field:
+`--max-sites` (`1..64`), `--max-candidates` (`1..512`),
+`--max-verifier-calls` (`1..1024`), `--max-work-items` (`1..8192`), and
+`--total-timeout-ms` (`1..60000`). Values must be canonical unsigned decimal
+integers and are rejected before the graph is opened when malformed or out of
+range.
+
 ## Aggregate bounds
 
 `RepairLimits` independently bounds eligible sites, semantic candidates,

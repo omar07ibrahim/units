@@ -25,8 +25,9 @@ from unitsentinel.certificate import (
 )
 from unitsentinel.domain import UnitSentinelError
 from unitsentinel.graph import ComputationGraph, Node, Operation, ScalarType, ValueSpec
-from unitsentinel.graph_codec import MAX_GRAPH_BYTES, encode_graph
+from unitsentinel.graph_codec import MAX_GRAPH_BYTES, decode_graph, encode_graph
 from unitsentinel.registry import BUILTIN_REGISTRY
+from unitsentinel.repair import RepairError
 from unitsentinel.replay import (
     CertificateReplay,
     CertificateReplayError,
@@ -81,6 +82,26 @@ def conflicting_graph() -> ComputationGraph:
             ),
         ),
         outputs=("sum",),
+    )
+
+
+def repairable_graph() -> ComputationGraph:
+    return ComputationGraph(
+        graph_id="repairable-exp-contract",
+        values=(
+            ValueSpec("input", ScalarType.FLOAT64, (), "percent"),
+            ValueSpec("output", ScalarType.FLOAT64, ()),
+        ),
+        inputs=("input",),
+        nodes=(
+            Node(
+                "apply-exp",
+                Operation.EXP,
+                ("input",),
+                "output",
+            ),
+        ),
+        outputs=("output",),
     )
 
 
@@ -143,6 +164,7 @@ class ArgumentContractTests(CLITestCase):
             (("--version",), f"unitsentinel {VERSION}"),
             (("verify", "--help"), "--certificate"),
             (("replay", "--help"), "--strict-toolchain"),
+            (("repair", "--help"), "--max-work-items"),
         ):
             stdout = io.StringIO()
             stderr = io.StringIO()
@@ -600,6 +622,228 @@ class ReplayCommandTests(CLITestCase):
         self.assertNotIn("private", stderr)
 
 
+class RepairCommandTests(CLITestCase):
+    repair_graph = repairable_graph()
+    repair_graph_bytes = encode_graph(repair_graph)
+
+    def setUp(self) -> None:
+        super().setUp()
+        self.repair_graph_path = self.directory / "repair-graph.json"
+        self.repair_graph_path.write_bytes(self.repair_graph_bytes)
+
+    def test_proposal_is_canonical_json_and_never_applies_the_repair(self) -> None:
+        source_bytes = self.repair_graph_path.read_bytes()
+        original_names = {path.name for path in self.directory.iterdir()}
+
+        exit_code, stdout, stderr = self.invoke(
+            "repair",
+            str(self.repair_graph_path),
+            "--max-sites",
+            "2",
+            "--max-candidates",
+            "3",
+            "--max-verifier-calls",
+            "8",
+            "--max-work-items",
+            "100",
+            "--total-timeout-ms",
+            "10000",
+        )
+
+        record = json.loads(stdout)
+        self.assertEqual(exit_code, cli.EXIT_SUCCESS)
+        self.assertEqual(stderr, "")
+        self.assertEqual(
+            stdout,
+            canonical_json_bytes(record).decode("utf-8") + "\n",
+        )
+        self.assertEqual(record["schema"], cli.REPAIR_OUTPUT_SCHEMA)
+        self.assertEqual(record["exit_code"], cli.EXIT_SUCCESS)
+        self.assertEqual(record["application"], "not-performed")
+        self.assertEqual(record["graph"]["sha256"], self.repair_graph.digest)
+        self.assertEqual(record["report"]["record"]["status"], "proposed")
+        self.assertIsNone(record["report"]["record"]["reason"])
+        self.assertEqual(
+            record["report"]["sha256"],
+            sha256_hex(canonical_json_bytes(record["report"]["record"])),
+        )
+        self.assertEqual(
+            record["report"]["record"]["repair_limits"],
+            {
+                "max_candidates": 3,
+                "max_sites": 2,
+                "max_verifier_calls": 8,
+                "max_work_items": 100,
+                "total_timeout_ms": 10_000,
+            },
+        )
+        self.assertEqual(
+            record["report"]["record"]["candidate"]["previous_unit_id"],
+            "percent",
+        )
+        self.assertEqual(
+            record["report"]["record"]["candidate"]["replacement_unit_id"],
+            "one",
+        )
+
+        proposal = record["proposal"]
+        self.assertIsNotNone(proposal)
+        self.assertEqual(
+            proposal["candidate_sha256"],
+            sha256_hex(
+                canonical_json_bytes(
+                    record["report"]["record"]["candidate"],
+                )
+            ),
+        )
+        source_verification = record["source_verification"]
+        self.assertEqual(
+            source_verification["sha256"],
+            sha256_hex(canonical_json_bytes(source_verification["record"])),
+        )
+        self.assertEqual(source_verification["record"]["status"], "conflict")
+        self.assertIs(source_verification["record"]["core_minimal"], True)
+        repaired_envelope = proposal["repaired_graph"]
+        repaired_bytes = canonical_json_bytes(repaired_envelope["record"])
+        repaired = decode_graph(repaired_bytes)
+        self.assertEqual(repaired.digest, repaired_envelope["sha256"])
+        self.assertEqual(repaired.value("input").unit_id, "one")
+        relaxed_envelope = proposal["relaxed_graph"]
+        relaxed = decode_graph(canonical_json_bytes(relaxed_envelope["record"]))
+        self.assertEqual(relaxed.digest, relaxed_envelope["sha256"])
+        self.assertIsNone(relaxed.value("input").unit_id)
+        for graph_label, verification_label in (
+            ("relaxed_graph", "relaxed_verification"),
+            ("repaired_graph", "repaired_verification"),
+        ):
+            verification = proposal[verification_label]
+            self.assertEqual(
+                verification["sha256"],
+                sha256_hex(canonical_json_bytes(verification["record"])),
+            )
+            self.assertEqual(verification["record"]["status"], "verified")
+            self.assertEqual(
+                verification["record"]["graph_digest"],
+                proposal[graph_label]["sha256"],
+            )
+
+        self.assertEqual(self.repair_graph_path.read_bytes(), source_bytes)
+        self.assertEqual(
+            {path.name for path in self.directory.iterdir()},
+            original_names,
+        )
+
+    def test_abstention_has_a_distinct_exit_and_no_proposal(self) -> None:
+        exit_code, stdout, stderr = self.invoke(
+            "repair",
+            str(self.graph_path),
+        )
+
+        record = json.loads(stdout)
+        self.assertEqual(exit_code, cli.EXIT_ABSTAINED)
+        self.assertEqual(stderr, "")
+        self.assertEqual(record["exit_code"], cli.EXIT_ABSTAINED)
+        self.assertEqual(record["report"]["record"]["status"], "abstained")
+        self.assertEqual(
+            record["report"]["record"]["reason"],
+            "source-verified",
+        )
+        self.assertIsNone(record["proposal"])
+        self.assertEqual(
+            stdout,
+            canonical_json_bytes(record).decode("utf-8") + "\n",
+        )
+
+    def test_exhausted_bound_is_an_indeterminate_exit(self) -> None:
+        exit_code, stdout, stderr = self.invoke(
+            "repair",
+            str(self.repair_graph_path),
+            "--max-verifier-calls",
+            "1",
+        )
+
+        record = json.loads(stdout)
+        self.assertEqual(exit_code, cli.EXIT_INDETERMINATE)
+        self.assertEqual(stderr, "")
+        self.assertEqual(record["exit_code"], cli.EXIT_INDETERMINATE)
+        self.assertEqual(record["report"]["record"]["status"], "indeterminate")
+        self.assertEqual(record["report"]["record"]["reason"], "work-limit")
+        self.assertIsNone(record["proposal"])
+
+    def test_invalid_bounds_fail_before_reading_the_graph(self) -> None:
+        cases = (
+            ("--max-sites", "0"),
+            ("--max-sites", "65"),
+            ("--max-candidates", "01"),
+            ("--max-verifier-calls", "+1"),
+            ("--max-work-items", "999999999999999999999999"),
+            ("--total-timeout-ms", "60001"),
+        )
+        for option, value in cases:
+            with (
+                self.subTest(option=option, value=value),
+                patch.object(
+                    cli,
+                    "_decode_graph_file",
+                    side_effect=AssertionError("graph must not be read"),
+                ) as decoder,
+            ):
+                exit_code, stdout, stderr = self.invoke(
+                    "repair",
+                    "private-graph-name",
+                    option,
+                    value,
+                )
+
+            self.assertEqual(exit_code, cli.EXIT_USAGE)
+            self.assertEqual(stdout, "")
+            self.assertEqual(
+                stderr,
+                ("unitsentinel: error: invalid command-line arguments; use --help\n"),
+            )
+            self.assertNotIn("private", stderr)
+            decoder.assert_not_called()
+
+    def test_repair_contract_failures_are_redacted(self) -> None:
+        mismatched_report = cli.propose_unit_annotation_repair(self.graph)
+        mismatched_solver_report = cli.propose_unit_annotation_repair(
+            self.repair_graph,
+            solver_limits=SolverLimits(per_check_timeout_ms=100),
+        )
+        failures = (
+            RepairError("private /home/omar/solver"),
+            object(),
+            mismatched_report,
+            mismatched_solver_report,
+        )
+        for failure in failures:
+            kwargs = (
+                {"side_effect": failure}
+                if isinstance(failure, BaseException)
+                else {"return_value": failure}
+            )
+            with (
+                self.subTest(failure=type(failure).__name__),
+                patch.object(
+                    cli,
+                    "propose_unit_annotation_repair",
+                    **kwargs,
+                ),
+            ):
+                exit_code, stdout, stderr = self.invoke(
+                    "repair",
+                    str(self.repair_graph_path),
+                )
+
+            self.assertEqual(exit_code, cli.EXIT_INTERNAL)
+            self.assertEqual(stdout, "")
+            self.assertEqual(
+                stderr,
+                "unitsentinel: error: repair could not be completed safely\n",
+            )
+            self.assertNotIn("omar", stderr)
+
+
 class InputBoundaryTests(CLITestCase):
     def test_missing_paths_are_redacted(self) -> None:
         private_name = self.directory / "omar-secret-graph.json"
@@ -683,6 +927,26 @@ class InputBoundaryTests(CLITestCase):
             self.assertEqual(exit_code, cli.EXIT_INPUT)
             self.assertEqual(stdout, "")
             self.assertIn(expected, stderr)
+
+    def test_repair_rejects_a_symlinked_input_directory(self) -> None:
+        real_directory = self.directory / "real-input"
+        linked_directory = self.directory / "linked-input"
+        real_directory.mkdir()
+        nested_graph = real_directory / "graph.json"
+        nested_graph.write_bytes(encode_graph(repairable_graph()))
+        linked_directory.symlink_to(real_directory, target_is_directory=True)
+
+        exit_code, stdout, stderr = self.invoke(
+            "repair",
+            str(linked_directory / "graph.json"),
+        )
+
+        self.assertEqual(exit_code, cli.EXIT_INPUT)
+        self.assertEqual(stdout, "")
+        self.assertEqual(
+            stderr,
+            "unitsentinel: error: graph input could not be opened\n",
+        )
 
     def test_read_failures_are_stable_and_close_the_descriptor(self) -> None:
         with patch.object(cli.os, "read", side_effect=OSError("private failure")):
