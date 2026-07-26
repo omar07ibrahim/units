@@ -1120,6 +1120,56 @@ def _replay_model(
         return False
 
 
+def _replay_claimed_contracts(
+    graph: ComputationGraph,
+    registry: UnitRegistry,
+    contracts: tuple[InferredContract, ...],
+) -> bool:
+    """Check one complete assignment without making a uniqueness claim."""
+
+    if type(graph) is not ComputationGraph:
+        raise VerificationError("replay graph must be an exact ComputationGraph")
+    if type(registry) is not UnitRegistry:
+        raise VerificationError("replay registry must be an exact UnitRegistry")
+    if type(contracts) is not tuple:
+        raise VerificationError("replay contracts must be a tuple")
+    try:
+        graph.validate()
+        registry.validate()
+        graph.validate_units(registry)
+    except UnitSentinelError:
+        raise VerificationError(
+            "replay source contract is rejected or mutated"
+        ) from None
+
+    contract_ids: list[str] = []
+    model_values: dict[str, _ModelValue] = {}
+    for contract in contracts:
+        if type(contract) is not InferredContract:
+            raise VerificationError(
+                "replay contracts must contain exact InferredContract values"
+            )
+        try:
+            contract.validate()
+        except UnitSentinelError:
+            raise VerificationError(
+                "replay contract assignment is malformed or mutated"
+            ) from None
+        contract_ids.append(contract.value_id)
+        model_values[contract.value_id] = _ModelValue(
+            dimension=contract.dimension,
+            kind=contract.kind,
+            scale=contract.scale,
+            offset=contract.offset,
+        )
+    if contract_ids != sorted(set(contract_ids)):
+        raise VerificationError("replay contract identifiers must be sorted and unique")
+    expected_ids = tuple(value.value_id for value in graph.values)
+    if tuple(contract_ids) != expected_ids:
+        return False
+    return _replay_model(graph, registry, model_values)
+
+
 def _contracts(
     value_ids: Sequence[str],
     model_values: dict[str, _ModelValue],

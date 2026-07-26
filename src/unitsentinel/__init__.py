@@ -46,6 +46,13 @@ from .registry import (
     UnitRegistry,
     UnknownUnitError,
 )
+from .replay import (
+    CertificateReplay,
+    CertificateReplayError,
+    ReplayReason,
+    ReplayStatus,
+    replay_certificate,
+)
 from .verification import (
     ConstraintSource,
     ConstraintWitness,
@@ -74,6 +81,8 @@ __all__ = [
     "BaseDimension",
     "CertificateDecodeError",
     "CertificateError",
+    "CertificateReplay",
+    "CertificateReplayError",
     "ComputationGraph",
     "ConstraintSource",
     "ConstraintWitness",
@@ -90,6 +99,8 @@ __all__ = [
     "Quantity",
     "QuantityKind",
     "RegistryError",
+    "ReplayReason",
+    "ReplayStatus",
     "ScalarType",
     "SolverLimits",
     "Unit",
@@ -110,5 +121,6 @@ __all__ = [
     "decode_graph",
     "encode_certificate",
     "encode_graph",
+    "replay_certificate",
     "verify_graph",
 ]
