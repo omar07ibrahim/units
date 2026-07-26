@@ -7,14 +7,13 @@ metadata and are never accepted as aliases implicitly.
 
 from __future__ import annotations
 
-import hashlib
 import hmac
-import json
 import re
 from dataclasses import dataclass, field
 from fractions import Fraction
 from typing import Final
 
+from .canonical import canonical_json_bytes, sha256_hex
 from .domain import (
     AMOUNT_OF_SUBSTANCE,
     DIMENSIONLESS,
@@ -166,9 +165,7 @@ class UnitRegistry:
         }
 
     def _compute_digest(self) -> str:
-        return hashlib.sha256(
-            _canonical_json(self._canonical_record_unchecked())
-        ).hexdigest()
+        return sha256_hex(canonical_json_bytes(self._canonical_record_unchecked()))
 
     @property
     def digest(self) -> str:
@@ -181,7 +178,7 @@ class UnitRegistry:
 
     def canonical_bytes(self) -> bytes:
         self.validate()
-        return _canonical_json(self._canonical_record_unchecked())
+        return canonical_json_bytes(self._canonical_record_unchecked())
 
     def resolve(self, identifier: str) -> Unit:
         """Resolve one canonical identifier or explicit alias."""
@@ -211,16 +208,6 @@ class UnitRegistry:
             for unit in self.units
             if unit.dimension == source.dimension and unit.kind is source.kind
         )
-
-
-def _canonical_json(record: dict[str, object]) -> bytes:
-    return json.dumps(
-        record,
-        ensure_ascii=False,
-        allow_nan=False,
-        separators=(",", ":"),
-        sort_keys=True,
-    ).encode("utf-8")
 
 
 def _linear(
