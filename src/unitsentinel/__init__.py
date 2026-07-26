@@ -48,6 +48,7 @@ from .verification import (
     VerificationResult,
     VerificationStatus,
 )
+from .verifier import verify_graph
 
 __version__: Final = "0.1.0"
 
@@ -93,4 +94,5 @@ __all__ = [
     "__version__",
     "decode_graph",
     "encode_graph",
+    "verify_graph",
 ]

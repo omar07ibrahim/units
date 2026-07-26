@@ -52,6 +52,7 @@ class PackageIdentityTests(unittest.TestCase):
                 "__version__",
                 "decode_graph",
                 "encode_graph",
+                "verify_graph",
             ],
         )
 
