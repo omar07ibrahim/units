@@ -207,7 +207,7 @@ class JSONBoundaryTests(unittest.TestCase):
 
         with (
             patch(
-                "unitsentinel.graph_codec.json.loads",
+                "unitsentinel.json_boundary.json.loads",
                 side_effect=AssertionError("parser must not run"),
             ) as parser,
             self.assertRaisesRegex(GraphDecodeError, "array exceeds the item limit"),

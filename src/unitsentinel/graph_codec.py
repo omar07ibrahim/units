@@ -2,13 +2,10 @@
 
 from __future__ import annotations
 
-import json
 import re
-from dataclasses import dataclass
 from fractions import Fraction
-from typing import NoReturn, cast
+from typing import cast
 
-from .canonical import canonical_json_bytes
 from .domain import UnitSentinelError, _fraction_text
 from .graph import (
     GRAPH_SCHEMA,
@@ -20,6 +17,11 @@ from .graph import (
     ShapeAxis,
     ValueSpec,
 )
+from .json_boundary import (
+    CanonicalJSONError,
+    CanonicalJSONLimits,
+    decode_canonical_json,
+)
 
 MAX_GRAPH_BYTES = 1_048_576
 MAX_JSON_DEPTH = 8
@@ -29,6 +31,14 @@ MAX_JSON_STRING_LENGTH = 128
 MAX_JSON_INTEGER_DIGITS = 10
 MAX_EXPONENT_TEXT_LENGTH = 16
 FRACTION_TEXT = re.compile(r"^(?:0|-?[1-9][0-9]*)(?:/[1-9][0-9]*)?$")
+_GRAPH_JSON_LIMITS = CanonicalJSONLimits(
+    max_bytes=MAX_GRAPH_BYTES,
+    max_depth=MAX_JSON_DEPTH,
+    max_container_items=MAX_JSON_CONTAINER_ITEMS,
+    max_total_values=MAX_JSON_TOTAL_VALUES,
+    max_string_length=MAX_JSON_STRING_LENGTH,
+    max_integer_digits=MAX_JSON_INTEGER_DIGITS,
+)
 
 ROOT_FIELDS = frozenset({"graph_id", "inputs", "nodes", "outputs", "schema", "values"})
 VALUE_FIELDS = frozenset({"dtype", "shape", "unit_id", "value_id"})
@@ -53,200 +63,19 @@ def encode_graph(graph: ComputationGraph) -> bytes:
 def decode_graph(payload: bytes) -> ComputationGraph:
     """Decode byte-for-byte canonical v1 JSON without coercion or extensions."""
 
-    if type(payload) is not bytes:
-        raise GraphDecodeError("graph payload must be exact bytes")
-    if not payload:
-        raise GraphDecodeError("graph payload is empty")
-    if len(payload) > MAX_GRAPH_BYTES:
-        raise GraphDecodeError("graph payload exceeds the byte limit")
-    if payload.startswith(b"\xef\xbb\xbf"):
-        raise GraphDecodeError("graph payload must not contain a UTF-8 BOM")
     try:
-        text = payload.decode("utf-8", errors="strict")
-    except UnicodeDecodeError:
-        raise GraphDecodeError("graph payload is not valid UTF-8") from None
-
-    _preflight_json_structure(text)
-    parsed = _parse_json(text)
-    _validate_json_tree(parsed)
-    try:
-        canonical = canonical_json_bytes(parsed)
-    except UnicodeEncodeError:
-        raise GraphDecodeError(
-            "graph payload contains an invalid Unicode scalar"
-        ) from None
-    if canonical != payload:
-        raise GraphDecodeError("graph payload is not canonical JSON")
+        parsed = decode_canonical_json(
+            payload,
+            limits=_GRAPH_JSON_LIMITS,
+            label="graph",
+        )
+    except CanonicalJSONError as error:
+        raise GraphDecodeError(str(error)) from None
 
     graph = _decode_semantic_graph(parsed)
     if graph.canonical_bytes() != payload:
         raise GraphDecodeError("graph payload does not match the canonical graph model")
     return graph
-
-
-@dataclass(slots=True)
-class _ContainerFrame:
-    opening: str
-    commas: int = 0
-
-
-def _preflight_json_structure(text: str) -> None:
-    """Bound structural expansion before ``json.loads`` allocates a tree."""
-
-    stack: list[_ContainerFrame] = []
-    token_count = 0
-    previous_significant: str | None = None
-    index = 0
-    while index < len(text):
-        character = text[index]
-        if character in " \t\r\n":
-            index += 1
-            continue
-        if character == '"':
-            token_count += 1
-            _require_preflight_token_budget(token_count)
-            index = _scan_json_string(text, index + 1)
-            previous_significant = '"'
-            continue
-        if character in "[{":
-            token_count += 1
-            _require_preflight_token_budget(token_count)
-            stack.append(_ContainerFrame(character))
-            if len(stack) > MAX_JSON_DEPTH:
-                raise GraphDecodeError("graph payload exceeds the nesting limit")
-            previous_significant = character
-            index += 1
-            continue
-        if character in "]}":
-            expected = "[" if character == "]" else "{"
-            if not stack or stack[-1].opening != expected:
-                raise GraphDecodeError("graph payload is not valid bounded JSON")
-            stack.pop()
-            previous_significant = character
-            index += 1
-            continue
-        if character == ",":
-            if not stack:
-                raise GraphDecodeError("graph payload is not valid bounded JSON")
-            stack[-1].commas += 1
-            if stack[-1].commas + 1 > MAX_JSON_CONTAINER_ITEMS:
-                kind = "array" if stack[-1].opening == "[" else "object"
-                raise GraphDecodeError(f"graph payload {kind} exceeds the item limit")
-            previous_significant = character
-            index += 1
-            continue
-        if previous_significant is None or previous_significant in "[{,:":
-            token_count += 1
-            _require_preflight_token_budget(token_count)
-        previous_significant = character
-        index += 1
-
-    if stack:
-        raise GraphDecodeError("graph payload is not valid bounded JSON")
-
-
-def _scan_json_string(text: str, index: int) -> int:
-    while index < len(text):
-        character = text[index]
-        if character == '"':
-            return index + 1
-        if character == "\\":
-            index += 1
-            if index >= len(text):
-                break
-        index += 1
-    raise GraphDecodeError("graph payload is not valid bounded JSON")
-
-
-def _require_preflight_token_budget(token_count: int) -> None:
-    if token_count > MAX_JSON_TOTAL_VALUES:
-        raise GraphDecodeError("graph payload exceeds the JSON value limit")
-
-
-def _parse_json(text: str) -> object:
-    try:
-        return cast(
-            object,
-            json.loads(
-                text,
-                object_pairs_hook=_object_without_duplicates,
-                parse_constant=_reject_nonfinite_number,
-                parse_float=_reject_float,
-                parse_int=_parse_bounded_integer,
-            ),
-        )
-    except GraphDecodeError:
-        raise
-    except (json.JSONDecodeError, RecursionError):
-        raise GraphDecodeError("graph payload is not valid bounded JSON") from None
-
-
-def _object_without_duplicates(
-    pairs: list[tuple[str, object]],
-) -> dict[str, object]:
-    result: dict[str, object] = {}
-    for key, value in pairs:
-        if key in result:
-            raise GraphDecodeError("graph payload contains a duplicate object key")
-        result[key] = value
-    return result
-
-
-def _reject_nonfinite_number(_: str) -> NoReturn:
-    raise GraphDecodeError("graph payload contains a non-finite number")
-
-
-def _reject_float(_: str) -> NoReturn:
-    raise GraphDecodeError("graph payload contains a floating-point number")
-
-
-def _parse_bounded_integer(text: str) -> int:
-    digits = text[1:] if text.startswith("-") else text
-    if len(digits) > MAX_JSON_INTEGER_DIGITS:
-        raise GraphDecodeError("graph payload integer exceeds the digit limit")
-    return int(text)
-
-
-def _validate_json_tree(value: object) -> None:
-    counter = [0]
-    _walk_json(value, depth=0, counter=counter)
-
-
-def _walk_json(value: object, *, depth: int, counter: list[int]) -> None:
-    counter[0] += 1
-    if counter[0] > MAX_JSON_TOTAL_VALUES:
-        raise GraphDecodeError("graph payload exceeds the JSON value limit")
-    if depth > MAX_JSON_DEPTH:
-        raise GraphDecodeError("graph payload exceeds the nesting limit")
-
-    if type(value) is dict:
-        mapping = cast(dict[str, object], value)
-        if len(mapping) > MAX_JSON_CONTAINER_ITEMS:
-            raise GraphDecodeError("graph payload object exceeds the item limit")
-        for key, child in mapping.items():
-            _validate_json_string(key)
-            _walk_json(child, depth=depth + 1, counter=counter)
-        return
-    if type(value) is list:
-        sequence = cast(list[object], value)
-        if len(sequence) > MAX_JSON_CONTAINER_ITEMS:
-            raise GraphDecodeError("graph payload array exceeds the item limit")
-        for child in sequence:
-            _walk_json(child, depth=depth + 1, counter=counter)
-        return
-    if type(value) is str:
-        _validate_json_string(value)
-        return
-    if value is None or type(value) in {bool, int}:
-        return
-    raise GraphDecodeError("graph payload contains an unsupported JSON value")
-
-
-def _validate_json_string(value: str) -> None:
-    if len(value) > MAX_JSON_STRING_LENGTH:
-        raise GraphDecodeError("graph payload string exceeds the length limit")
-    if any(0xD800 <= ord(character) <= 0xDFFF for character in value):
-        raise GraphDecodeError("graph payload contains an invalid Unicode scalar")
 
 
 def _decode_semantic_graph(value: object) -> ComputationGraph:
