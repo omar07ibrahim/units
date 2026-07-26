@@ -11,7 +11,9 @@ requires-python = ">=3.11"
 authors = [
     { name = "Omar Ibrahim", email = "31526072+omar07ibrahim@users.noreply.github.com" },
 ]
-dependencies = []
+dependencies = [
+    "z3-solver==4.16.0.0",
+]
 classifiers = [
     "Development Status :: 2 - Pre-Alpha",
     "Intended Audience :: Developers",
@@ -21,6 +23,9 @@ classifiers = [
     "Programming Language :: Python :: 3.12",
     "Typing :: Typed",
 ]
+
+[project.scripts]
+unitsentinel = "unitsentinel.cli:main"
 
 [project.optional-dependencies]
 dev = [

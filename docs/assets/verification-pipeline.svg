@@ -1,0 +1,115 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="890" viewBox="0 0 1440 890" role="img" aria-labelledby="title description">
+  <title id="title">UnitSentinel verification pipeline</title>
+  <desc id="description">The implemented canonical decoding, constraint solving, fail-closed outcomes, positive certificate issuance, and independent replay flow.</desc>
+  <defs>
+    <linearGradient id="background" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#07111f"/>
+      <stop offset="1" stop-color="#0a1730"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="10" stdDeviation="12" flood-color="#000814" flood-opacity=".45"/>
+    </filter>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L0,6 L9,3 z" fill="#8fa5bd"/>
+    </marker>
+  </defs>
+  <rect width="1440" height="890" fill="url(#background)"/>
+<text x="70" y="70" fill="#d8e4f2" font-family="DejaVu Sans, sans-serif" font-size="32" font-weight="700" text-anchor="start">UnitSentinel verification pipeline</text>
+<text x="70" y="104" fill="#8fa5bd" font-family="DejaVu Sans, sans-serif" font-size="17" font-weight="400" text-anchor="start">Implemented boundaries; positive, conflict, and replay paths are recorded.</text>
+<rect x="70" y="155" width="260" height="150" rx="18" fill="#0d1b2d" stroke="#253a55" stroke-width="2" filter="url(#shadow)"/>
+<rect x="70" y="155" width="7" height="150" rx="3.5" fill="#38d9f5"/>
+<text x="98" y="193" fill="#38d9f5" font-family="DejaVu Sans, sans-serif" font-size="20" font-weight="700" text-anchor="start">Canonical graph</text>
+<text x="98" y="225" fill="#d8e4f2" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="400" text-anchor="start">
+      <tspan x="98" dy="0">closed JSON schema</tspan>
+      <tspan x="98" dy="25">1 MiB / 512-node caps</tspan>
+      <tspan x="98" dy="25">sha256 139e3e3d99d6…</tspan>
+    </text>
+<rect x="405" y="155" width="260" height="150" rx="18" fill="#0d1b2d" stroke="#253a55" stroke-width="2" filter="url(#shadow)"/>
+<rect x="405" y="155" width="7" height="150" rx="3.5" fill="#38d9f5"/>
+<text x="433" y="193" fill="#38d9f5" font-family="DejaVu Sans, sans-serif" font-size="20" font-weight="700" text-anchor="start">Strict decoder</text>
+<text x="433" y="225" fill="#d8e4f2" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="400" text-anchor="start">
+      <tspan x="433" dy="0">duplicate / float reject</tspan>
+      <tspan x="433" dy="25">topology + shape metadata</tspan>
+      <tspan x="433" dy="25">byte-for-byte closure</tspan>
+    </text>
+<rect x="740" y="155" width="290" height="150" rx="18" fill="#0d1b2d" stroke="#253a55" stroke-width="2" filter="url(#shadow)"/>
+<rect x="740" y="155" width="7" height="150" rx="3.5" fill="#b69cff"/>
+<text x="768" y="193" fill="#b69cff" font-family="DejaVu Sans, sans-serif" font-size="20" font-weight="700" text-anchor="start">Constraint compiler</text>
+<text x="768" y="225" fill="#d8e4f2" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="400" text-anchor="start">
+      <tspan x="768" dy="0">dimension + kind</tspan>
+      <tspan x="768" dy="25">exact scale + offset</tspan>
+      <tspan x="768" dy="25">source-labelled witnesses</tspan>
+    </text>
+<rect x="1105" y="155" width="265" height="150" rx="18" fill="#0d1b2d" stroke="#253a55" stroke-width="2" filter="url(#shadow)"/>
+<rect x="1105" y="155" width="7" height="150" rx="3.5" fill="#b69cff"/>
+<text x="1133" y="193" fill="#b69cff" font-family="DejaVu Sans, sans-serif" font-size="20" font-weight="700" text-anchor="start">Tracked Z3</text>
+<text x="1133" y="225" fill="#d8e4f2" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="400" text-anchor="start">
+      <tspan x="1133" dy="0">bounded checks</tspan>
+      <tspan x="1133" dy="25">alternate-model test</tspan>
+      <tspan x="1133" dy="25">independent Python replay</tspan>
+    </text>
+<path d="M330,230 L405,230" stroke="#8fa5bd" stroke-width="3" fill="none" marker-end="url(#arrow)"/>
+<path d="M665,230 L740,230" stroke="#8fa5bd" stroke-width="3" fill="none" marker-end="url(#arrow)"/>
+<path d="M1030,230 L1105,230" stroke="#8fa5bd" stroke-width="3" fill="none" marker-end="url(#arrow)"/>
+<rect x="110" y="420" width="260" height="155" rx="18" fill="#0d1b2d" stroke="#253a55" stroke-width="2" filter="url(#shadow)"/>
+<rect x="110" y="420" width="7" height="155" rx="3.5" fill="#ff6b7a"/>
+<text x="138" y="458" fill="#ff6b7a" font-family="DejaVu Sans, sans-serif" font-size="20" font-weight="700" text-anchor="start">CONFLICT</text>
+<text x="138" y="490" fill="#d8e4f2" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="400" text-anchor="start">
+      <tspan x="138" dy="0">tracked witness core</tspan>
+      <tspan x="138" dy="25">bounded deterministic shrink</tspan>
+      <tspan x="138" dy="25">never issues a certificate</tspan>
+    </text>
+<rect x="435" y="420" width="260" height="155" rx="18" fill="#0d1b2d" stroke="#253a55" stroke-width="2" filter="url(#shadow)"/>
+<rect x="435" y="420" width="7" height="155" rx="3.5" fill="#ffc857"/>
+<text x="463" y="458" fill="#ffc857" font-family="DejaVu Sans, sans-serif" font-size="20" font-weight="700" text-anchor="start">UNDERCONSTRAINED</text>
+<text x="463" y="490" fill="#d8e4f2" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="400" text-anchor="start">
+      <tspan x="463" dy="0">alternate model exists</tspan>
+      <tspan x="463" dy="25">observable values listed</tspan>
+      <tspan x="463" dy="25">no positive claim</tspan>
+    </text>
+<rect x="760" y="420" width="260" height="155" rx="18" fill="#0d1b2d" stroke="#253a55" stroke-width="2" filter="url(#shadow)"/>
+<rect x="760" y="420" width="7" height="155" rx="3.5" fill="#ffc857"/>
+<text x="788" y="458" fill="#ffc857" font-family="DejaVu Sans, sans-serif" font-size="20" font-weight="700" text-anchor="start">UNKNOWN</text>
+<text x="788" y="490" fill="#d8e4f2" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="400" text-anchor="start">
+      <tspan x="788" dy="0">timeout / memory / solver</tspan>
+      <tspan x="788" dy="25">redacted stable reason</tspan>
+      <tspan x="788" dy="25">fails closed</tspan>
+    </text>
+<rect x="1085" y="420" width="260" height="155" rx="18" fill="#0d1b2d" stroke="#253a55" stroke-width="2" filter="url(#shadow)"/>
+<rect x="1085" y="420" width="7" height="155" rx="3.5" fill="#5ee6a8"/>
+<text x="1113" y="458" fill="#5ee6a8" font-family="DejaVu Sans, sans-serif" font-size="20" font-weight="700" text-anchor="start">VERIFIED</text>
+<text x="1113" y="490" fill="#d8e4f2" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="400" text-anchor="start">
+      <tspan x="1113" dy="0">unique exact contracts</tspan>
+      <tspan x="1113" dy="25">result f2dce1e2b1e6…</tspan>
+      <tspan x="1113" dy="25">positive issuance allowed</tspan>
+    </text>
+<path d="M1238,305 L240,420" stroke="#ff6b7a" stroke-width="3" fill="none" marker-end="url(#arrow)"/>
+<text x="739.0" y="352.5" fill="#ff6b7a" font-family="DejaVu Sans, sans-serif" font-size="14" font-weight="400" text-anchor="middle">unsat</text>
+<path d="M1238,305 L565,420" stroke="#ffc857" stroke-width="3" fill="none" marker-end="url(#arrow)"/>
+<text x="901.5" y="352.5" fill="#ffc857" font-family="DejaVu Sans, sans-serif" font-size="14" font-weight="400" text-anchor="middle">non-unique</text>
+<path d="M1238,305 L890,420" stroke="#ffc857" stroke-width="3" fill="none" marker-end="url(#arrow)"/>
+<text x="1064.0" y="352.5" fill="#ffc857" font-family="DejaVu Sans, sans-serif" font-size="14" font-weight="400" text-anchor="middle">resource error</text>
+<path d="M1238,305 L1215,420" stroke="#5ee6a8" stroke-width="3" fill="none" marker-end="url(#arrow)"/>
+<text x="1226.5" y="352.5" fill="#5ee6a8" font-family="DejaVu Sans, sans-serif" font-size="14" font-weight="400" text-anchor="middle">unique model</text>
+<rect x="530" y="690" width="380" height="130" rx="18" fill="#0d1b2d" stroke="#253a55" stroke-width="2" filter="url(#shadow)"/>
+<rect x="530" y="690" width="7" height="130" rx="3.5" fill="#5ee6a8"/>
+<text x="558" y="728" fill="#5ee6a8" font-family="DejaVu Sans, sans-serif" font-size="20" font-weight="700" text-anchor="start">Detached certificate</text>
+<text x="558" y="760" fill="#d8e4f2" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="400" text-anchor="start">
+      <tspan x="558" dy="0">graph + registry + limits + toolchain</tspan>
+      <tspan x="558" dy="25">content-addressed, unsigned</tspan>
+      <tspan x="558" dy="25">only a positive verification claim</tspan>
+    </text>
+<rect x="1010" y="690" width="330" height="130" rx="18" fill="#0d1b2d" stroke="#253a55" stroke-width="2" filter="url(#shadow)"/>
+<rect x="1010" y="690" width="7" height="130" rx="3.5" fill="#38d9f5"/>
+<text x="1038" y="728" fill="#38d9f5" font-family="DejaVu Sans, sans-serif" font-size="20" font-weight="700" text-anchor="start">Independent replay</text>
+<text x="1038" y="760" fill="#d8e4f2" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="400" text-anchor="start">
+      <tspan x="1038" dy="0">pure contract check</tspan>
+      <tspan x="1038" dy="25">fresh bounded solver run</tspan>
+      <tspan x="1038" dy="25">REPRODUCED ≠ authenticated</tspan>
+    </text>
+<path d="M1215,575 L720,690" stroke="#5ee6a8" stroke-width="3" fill="none" marker-end="url(#arrow)"/>
+<text x="967.5" y="622.5" fill="#5ee6a8" font-family="DejaVu Sans, sans-serif" font-size="14" font-weight="400" text-anchor="middle">issue</text>
+<path d="M910,755 L1010,755" stroke="#38d9f5" stroke-width="3" fill="none" marker-end="url(#arrow)"/>
+<text x="960.0" y="745.0" fill="#38d9f5" font-family="DejaVu Sans, sans-serif" font-size="14" font-weight="400" text-anchor="middle">replay</text>
+</svg>

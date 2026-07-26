@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="900" viewBox="0 0 1440 900" role="img" aria-labelledby="title description">
+  <title id="title">detached certificate · strict semantic replay</title>
+  <desc id="description">Real UnitSentinel CLI output for strict replay of the recorded unsigned certificate claim.</desc>
+  <defs>
+    <linearGradient id="background" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#07111f"/>
+      <stop offset="1" stop-color="#0a1730"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="10" stdDeviation="12" flood-color="#000814" flood-opacity=".45"/>
+    </filter>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L0,6 L9,3 z" fill="#8fa5bd"/>
+    </marker>
+  </defs>
+  <rect width="1440" height="900" fill="url(#background)"/>
+<rect x="32" y="30" width="1376" height="840" rx="20" fill="#0d1b2d" stroke="#253a55" stroke-width="2" filter="url(#shadow)"/>
+<rect x="32" y="30" width="1376" height="66" rx="20" fill="#12233a"/>
+<rect x="32" y="76" width="1376" height="20" fill="#12233a"/>
+<circle cx="70" cy="63" r="8" fill="#ff6b7a"/>
+<circle cx="98" cy="63" r="8" fill="#ffc857"/>
+<circle cx="126" cy="63" r="8" fill="#5ee6a8"/>
+<text x="720" y="70" fill="#d8e4f2" font-family="DejaVu Sans, sans-serif" font-size="19" font-weight="700" text-anchor="middle">detached certificate · strict semantic replay</text>
+<rect x="32" y="94" width="1376" height="4" fill="#5ee6a8"/>
+<text x="62" y="132" fill="#38d9f5" font-family="DejaVu Sans Mono, monospace" font-size="17" font-weight="400" text-anchor="start">$ .venv/bin/python -m unitsentinel replay \</text>
+<text x="62" y="156" fill="#38d9f5" font-family="DejaVu Sans Mono, monospace" font-size="17" font-weight="400" text-anchor="start">    .unitsentinel/evidence-run/wheel-anomaly.cert.json \</text>
+<text x="62" y="180" fill="#38d9f5" font-family="DejaVu Sans Mono, monospace" font-size="17" font-weight="400" text-anchor="start">    --graph docs/evidence/contracts/wheel-anomaly-verified.json \</text>
+<text x="62" y="204" fill="#38d9f5" font-family="DejaVu Sans Mono, monospace" font-size="17" font-weight="400" text-anchor="start">    --expect-sha256 e93cc87cd72c6ede9cf8d324bfb41b2eb2bdcea6cb0aa6fea7aed4696009ab1a \</text>
+<text x="62" y="228" fill="#38d9f5" font-family="DejaVu Sans Mono, monospace" font-size="17" font-weight="400" text-anchor="start">    --strict-toolchain</text>
+<text x="62" y="252" fill="#5ee6a8" font-family="DejaVu Sans Mono, monospace" font-size="17" font-weight="700" text-anchor="start">UnitSentinel replay: REPRODUCED</text>
+<text x="62" y="276" fill="#d8e4f2" font-family="DejaVu Sans Mono, monospace" font-size="17" font-weight="400" text-anchor="start">exit code: 0</text>
+<text x="62" y="300" fill="#d8e4f2" font-family="DejaVu Sans Mono, monospace" font-size="17" font-weight="400" text-anchor="start">tool: unitsentinel 0.1.0</text>
+<text x="62" y="324" fill="#d8e4f2" font-family="DejaVu Sans Mono, monospace" font-size="17" font-weight="400" text-anchor="start">reason: none</text>
+<text x="62" y="348" fill="#b69cff" font-family="DejaVu Sans Mono, monospace" font-size="17" font-weight="400" text-anchor="start">certificate sha256: e93cc87cd72c6ede9cf8d324bfb41b2eb2bdcea6cb0aa6fea7aed4696009ab1a</text>
+<text x="62" y="372" fill="#d8e4f2" font-family="DejaVu Sans Mono, monospace" font-size="17" font-weight="400" text-anchor="start">certificate authentication: not-provided</text>
+<text x="62" y="396" fill="#d8e4f2" font-family="DejaVu Sans Mono, monospace" font-size="17" font-weight="400" text-anchor="start">graph id: wheel-anomaly-verified</text>
+<text x="62" y="420" fill="#b69cff" font-family="DejaVu Sans Mono, monospace" font-size="17" font-weight="400" text-anchor="start">graph sha256: 139e3e3d99d64c3d9cde89e9e1f116f09452c3532eaaee2e0513c71a0f2ada3c</text>
+<text x="62" y="444" fill="#d8e4f2" font-family="DejaVu Sans Mono, monospace" font-size="17" font-weight="400" text-anchor="start">registry version: 1.0.0</text>
+<text x="62" y="468" fill="#b69cff" font-family="DejaVu Sans Mono, monospace" font-size="17" font-weight="400" text-anchor="start">registry sha256: fc80cbb596f3341b1d2ff13795e50d2d1e05c792b34f24804afc97c3470913e5</text>
+<text x="62" y="492" fill="#b69cff" font-family="DejaVu Sans Mono, monospace" font-size="17" font-weight="400" text-anchor="start">replay sha256: aca0b2794371a552a1f1b3af75bdd86b8cf8fb21e5cb664b835b2adf19acf3aa</text>
+<text x="62" y="516" fill="#d8e4f2" font-family="DejaVu Sans Mono, monospace" font-size="17" font-weight="400" text-anchor="start">toolchain match: yes (strict=yes)</text>
+<text x="62" y="540" fill="#d8e4f2" font-family="DejaVu Sans Mono, monospace" font-size="17" font-weight="400" text-anchor="start">certificate toolchain: unitsentinel 0.1.0, z3 4.16.0</text>
+<text x="62" y="564" fill="#d8e4f2" font-family="DejaVu Sans Mono, monospace" font-size="17" font-weight="400" text-anchor="start">current toolchain: unitsentinel 0.1.0, z3 4.16.0</text>
+<text x="62" y="588" fill="#d8e4f2" font-family="DejaVu Sans Mono, monospace" font-size="17" font-weight="400" text-anchor="start">fresh result: verified f2dce1e2b1e602719d117d05dfe356521bb204039de084beccc68dd8920406bd</text>
+<text x="62" y="612" fill="#5ee6a8" font-family="DejaVu Sans Mono, monospace" font-size="17" font-weight="700" text-anchor="start">[exit 0]</text>
+</svg>

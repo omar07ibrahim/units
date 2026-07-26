@@ -1,7 +1,126 @@
-"""UnitSentinel's stable package identity."""
+"""Exact dimensional contracts for scientific and ML computation graphs."""
 
 from typing import Final
 
-__version__: Final = "0.1.0"
+from .certificate import (
+    CertificateDecodeError,
+    CertificateError,
+    ProofCertificate,
+    create_certificate,
+    decode_certificate,
+    encode_certificate,
+)
+from .domain import (
+    AMOUNT_OF_SUBSTANCE,
+    DIMENSIONLESS,
+    ELECTRIC_CURRENT,
+    LENGTH,
+    LUMINOUS_INTENSITY,
+    MASS,
+    THERMODYNAMIC_TEMPERATURE,
+    TIME,
+    BaseDimension,
+    ConversionError,
+    Dimension,
+    DimensionError,
+    Quantity,
+    QuantityKind,
+    Unit,
+    UnitDefinitionError,
+    UnitSentinelError,
+)
+from .graph import (
+    ComputationGraph,
+    GraphError,
+    GraphValidationError,
+    Node,
+    Operation,
+    ScalarType,
+    ValueSpec,
+)
+from .graph_codec import GraphDecodeError, decode_graph, encode_graph
+from .registry import (
+    BUILTIN_REGISTRY,
+    RegistryError,
+    UnitAlias,
+    UnitRegistry,
+    UnknownUnitError,
+)
+from .replay import (
+    CertificateReplay,
+    CertificateReplayError,
+    ReplayReason,
+    ReplayStatus,
+    replay_certificate,
+)
+from .verification import (
+    ConstraintSource,
+    ConstraintWitness,
+    InferredContract,
+    SolverLimits,
+    UnknownReason,
+    VerificationError,
+    VerificationResult,
+    VerificationStatus,
+)
+from .verifier import constraint_catalog, verify_graph
+from .version import VERSION
 
-__all__ = ["__version__"]
+__version__: Final = VERSION
+
+__all__ = [
+    "AMOUNT_OF_SUBSTANCE",
+    "BUILTIN_REGISTRY",
+    "DIMENSIONLESS",
+    "ELECTRIC_CURRENT",
+    "LENGTH",
+    "LUMINOUS_INTENSITY",
+    "MASS",
+    "THERMODYNAMIC_TEMPERATURE",
+    "TIME",
+    "BaseDimension",
+    "CertificateDecodeError",
+    "CertificateError",
+    "CertificateReplay",
+    "CertificateReplayError",
+    "ComputationGraph",
+    "ConstraintSource",
+    "ConstraintWitness",
+    "ConversionError",
+    "Dimension",
+    "DimensionError",
+    "GraphDecodeError",
+    "GraphError",
+    "GraphValidationError",
+    "InferredContract",
+    "Node",
+    "Operation",
+    "ProofCertificate",
+    "Quantity",
+    "QuantityKind",
+    "RegistryError",
+    "ReplayReason",
+    "ReplayStatus",
+    "ScalarType",
+    "SolverLimits",
+    "Unit",
+    "UnitAlias",
+    "UnitDefinitionError",
+    "UnitRegistry",
+    "UnitSentinelError",
+    "UnknownReason",
+    "UnknownUnitError",
+    "ValueSpec",
+    "VerificationError",
+    "VerificationResult",
+    "VerificationStatus",
+    "__version__",
+    "constraint_catalog",
+    "create_certificate",
+    "decode_certificate",
+    "decode_graph",
+    "encode_certificate",
+    "encode_graph",
+    "replay_certificate",
+    "verify_graph",
+]

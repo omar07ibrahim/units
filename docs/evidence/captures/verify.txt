@@ -1,0 +1,27 @@
+$ .venv/bin/python -m unitsentinel verify \
+    docs/evidence/contracts/wheel-anomaly-verified.json \
+    --certificate .unitsentinel/evidence-run/wheel-anomaly.cert.json
+UnitSentinel verification: VERIFIED
+exit code: 0
+tool: unitsentinel 0.1.0
+graph id: wheel-anomaly-verified
+graph sha256: 139e3e3d99d64c3d9cde89e9e1f116f09452c3532eaaee2e0513c71a0f2ada3c
+result sha256: f2dce1e2b1e602719d117d05dfe356521bb204039de084beccc68dd8920406bd
+registry version: 1.0.0
+registry sha256: fc80cbb596f3341b1d2ff13795e50d2d1e05c792b34f24804afc97c3470913e5
+solver: z3 4.16.0 (2 checks)
+contracts (10):
+  acceleration-reference | length^1 time^-2 | linear | scale=1 offset=0
+  acceleration-si | length^1 time^-2 | linear | scale=1 offset=0
+  anomaly-score | dimensionless | linear | scale=1 offset=0
+  normalized-acceleration | dimensionless | linear | scale=1 offset=0
+  previous-wheel-speed-kph | length^1 time^-1 | linear | scale=5/18 offset=0
+  sample-period-ms | time^1 | linear | scale=1/1000 offset=0
+  sample-period-si | time^1 | linear | scale=1 offset=0
+  speed-delta-kph | length^1 time^-1 | linear | scale=5/18 offset=0
+  speed-delta-si | length^1 time^-1 | linear | scale=1 offset=0
+  wheel-speed-kph | length^1 time^-1 | linear | scale=5/18 offset=0
+certificate sha256: e93cc87cd72c6ede9cf8d324bfb41b2eb2bdcea6cb0aa6fea7aed4696009ab1a
+certificate authentication: not-provided
+certificate output: written
+[exit 0]
