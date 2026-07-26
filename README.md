@@ -4,9 +4,10 @@ Dimensional proof certificates for scientific and machine-learning computation
 graphs.
 
 > **Status:** active implementation. Exact dimensional values and a
-> content-addressed 33-unit registry are implemented; the bounded graph format
-> is the next slice. There are no solver, benchmark, ONNX-support, or model
-> accuracy claims yet.
+> content-addressed 33-unit registry are implemented, together with a bounded
+> graph IR and strict canonical JSON decoder. Constraint compilation is the next
+> slice. There are no solver, benchmark, ONNX-support, or model accuracy claims
+> yet.
 
 ## The failure mode
 
@@ -72,7 +73,14 @@ The current package already provides:
 - explicit aliases that resolve only to canonical identifiers;
 - canonical UTF-8 JSON and a pinned SHA-256 registry fingerprint;
 - nested revalidation that detects low-level mutation before lookup or
-  serialization.
+  serialization;
+- a closed topological graph IR with one producer per non-input value;
+- explicit scalar types, bounded concrete or symbolic shapes, and unit
+  annotations;
+- a byte-level graph decoder that rejects duplicate keys, floats, noncanonical
+  JSON, unknown fields, invalid topology, and oversized inputs;
+- a structural preflight that enforces nesting, item, and token budgets before
+  Python materializes an untrusted JSON tree.
 
 This is a real conversion through the committed registry:
 
@@ -97,6 +105,15 @@ Symbols such as `m/s` and `°C` are display metadata, not implicit lookup keys.
 Contracts use canonical identifiers or one of the registry's explicit ASCII
 aliases. The full snapshot and versioning rules are documented in
 [docs/registry.md](docs/registry.md).
+
+The graph contract and its exact byte boundary are documented in
+[docs/graph-format.md](docs/graph-format.md). A committed generator emits one
+real canonical graph without a trailing newline:
+
+```bash
+.venv/bin/python -I examples/build_speed_contract.py | sha256sum
+# aecbeff2ce89cfd7b2aab6a0414ec307a5061577f4b8b0d1c53298f896569546  -
+```
 
 ## Why a solver belongs here
 
@@ -123,7 +140,8 @@ resources, and fail closed on `unknown` or timeout.
    semantics.
 2. **Complete:** a bounded immutable unit registry with canonical serialization
    and a pinned content digest.
-3. A bounded canonical graph format and typed intermediate representation.
+3. **Complete:** a bounded canonical graph format, typed intermediate
+   representation, and strict byte decoder.
 4. Tracked SMT constraints, inference, deterministic conflict cores, and
    fail-closed resource handling.
 5. Bounded repairs, canonical proof certificates, and independent replay.

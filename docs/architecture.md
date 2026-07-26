@@ -208,7 +208,7 @@ tooling will state that boundary explicitly.
 | Package boundary | Typed public exact values and registry | Graph and verifier results |
 | Dimension semantics | Exact bounded rational algebra | Graph-level inference |
 | Unit registry | Immutable 33-unit snapshot with pinned SHA-256 | External snapshot decoder |
-| Graph IR | Closed JSON contract specified | Strict decoder and graph validation |
+| Graph IR | Content-addressed bounded IR and strict decoder | Constraint compilation |
 | Solver | Constraint and fail-closed behavior specified | Tracked exact constraints |
 | Repairs | Bounded operators specified | Verified candidate enumeration |
 | Certificates | Required bindings specified | Canonical codec and replay |
