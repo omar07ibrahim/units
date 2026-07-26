@@ -3,9 +3,11 @@
 from typing import Final
 
 from .certificate import (
+    CertificateDecodeError,
     CertificateError,
     ProofCertificate,
     create_certificate,
+    decode_certificate,
     encode_certificate,
 )
 from .domain import (
@@ -70,6 +72,7 @@ __all__ = [
     "THERMODYNAMIC_TEMPERATURE",
     "TIME",
     "BaseDimension",
+    "CertificateDecodeError",
     "CertificateError",
     "ComputationGraph",
     "ConstraintSource",
@@ -103,6 +106,7 @@ __all__ = [
     "__version__",
     "constraint_catalog",
     "create_certificate",
+    "decode_certificate",
     "decode_graph",
     "encode_certificate",
     "encode_graph",

@@ -3,16 +3,29 @@
 from __future__ import annotations
 
 import hmac
+import re
 from dataclasses import dataclass, field
-from typing import Final
+from fractions import Fraction
+from typing import Final, cast
 
 from .canonical import canonical_json_bytes, sha256_hex
-from .domain import UnitSentinelError
+from .domain import (
+    BaseDimension,
+    Dimension,
+    QuantityKind,
+    UnitSentinelError,
+    _fraction_text,
+)
 from .graph import (
     GRAPH_SCHEMA,
     MAX_GRAPH_NODES,
     MAX_GRAPH_VALUES,
     ComputationGraph,
+)
+from .json_boundary import (
+    CanonicalJSONError,
+    CanonicalJSONLimits,
+    decode_canonical_json,
 )
 from .registry import (
     BUILTIN_REGISTRY,
@@ -23,7 +36,11 @@ from .registry import (
     UnitRegistry,
 )
 from .verification import (
+    MAX_CORE_SHRINK_CHECKS,
+    MAX_UNIQUENESS_CHECKS,
+    ConstraintSource,
     ConstraintWitness,
+    InferredContract,
     SolverLimits,
     VerificationResult,
     VerificationStatus,
@@ -37,11 +54,64 @@ VERIFIER_SEMANTICS: Final = "unitsentinel.verifier/v1"
 SOLVER_IMPLEMENTATION: Final = "z3"
 MAX_CERTIFICATE_CONSTRAINTS: Final = MAX_GRAPH_VALUES + 3 * MAX_GRAPH_NODES
 MAX_CERTIFICATE_CONTRACTS: Final = MAX_GRAPH_VALUES
+MAX_CERTIFICATE_BYTES: Final = 2_097_152
+MAX_CERTIFICATE_JSON_DEPTH: Final = 8
+MAX_CERTIFICATE_JSON_VALUES: Final = 65_536
+MAX_CERTIFICATE_STRING_LENGTH: Final = 192
+MAX_CERTIFICATE_INTEGER_DIGITS: Final = 10
+MAX_CERTIFICATE_SOLVER_VERSION_LENGTH: Final = 32
+MAX_CERTIFICATE_CHECKS: Final = 1 + max(
+    MAX_CORE_SHRINK_CHECKS,
+    MAX_UNIQUENESS_CHECKS,
+)
 _DEFAULT_SOLVER_LIMITS: Final = SolverLimits()
+_CERTIFICATE_JSON_LIMITS: Final = CanonicalJSONLimits(
+    max_bytes=MAX_CERTIFICATE_BYTES,
+    max_depth=MAX_CERTIFICATE_JSON_DEPTH,
+    max_container_items=MAX_CERTIFICATE_CONSTRAINTS,
+    max_total_values=MAX_CERTIFICATE_JSON_VALUES,
+    max_string_length=MAX_CERTIFICATE_STRING_LENGTH,
+    max_integer_digits=MAX_CERTIFICATE_INTEGER_DIGITS,
+)
+_RATIONAL_TEXT: Final = re.compile(r"^(?:0|-?[1-9][0-9]*)(?:/[1-9][0-9]*)?$")
+_ROOT_FIELDS: Final = frozenset(
+    {"graph", "proof", "registry", "run", "schema", "solver", "verifier"}
+)
+_GRAPH_FIELDS: Final = frozenset({"schema", "sha256"})
+_PROOF_FIELDS: Final = frozenset(
+    {
+        "constraints",
+        "contracts",
+        "outcome",
+        "verification_result_sha256",
+    }
+)
+_REGISTRY_FIELDS: Final = frozenset({"schema", "sha256", "version"})
+_RUN_FIELDS: Final = frozenset({"checks_performed", "limits"})
+_SOLVER_FIELDS: Final = frozenset({"implementation", "version"})
+_VERIFIER_FIELDS: Final = frozenset({"implementation", "semantics", "version"})
+_LIMIT_FIELDS: Final = frozenset(
+    {
+        "max_core_shrink_checks",
+        "max_memory_mb",
+        "max_uniqueness_checks",
+        "per_check_timeout_ms",
+        "total_timeout_ms",
+    }
+)
+_CONSTRAINT_FIELDS: Final = frozenset({"constraint_id", "rule", "source", "source_id"})
+_CONTRACT_FIELDS: Final = frozenset(
+    {"dimension", "kind", "offset", "scale", "value_id"}
+)
+_DIMENSION_TERM_FIELDS: Final = frozenset({"base", "exponent"})
 
 
 class CertificateError(UnitSentinelError):
     """Raised when a proof certificate cannot be created or trusted."""
+
+
+class CertificateDecodeError(CertificateError):
+    """Raised when bytes do not encode one exact bounded certificate claim."""
 
 
 def _require_semver(value: object, *, label: str) -> str:
@@ -117,6 +187,10 @@ class ProofCertificate:
             raise CertificateError("proof certificates require a verified result")
         if len(self.result.contracts) > MAX_CERTIFICATE_CONTRACTS:
             raise CertificateError("certificate contracts exceed the limit")
+        if len(self.result.solver_version) > MAX_CERTIFICATE_SOLVER_VERSION_LENGTH:
+            raise CertificateError("certificate solver version exceeds the limit")
+        if self.result.checks_performed > MAX_CERTIFICATE_CHECKS:
+            raise CertificateError("certificate solver check count exceeds the limit")
 
     def validate(self) -> None:
         self._validate_structure()
@@ -257,3 +331,294 @@ def encode_certificate(certificate: ProofCertificate) -> bytes:
         return certificate.canonical_bytes()
     except UnitSentinelError:
         raise CertificateError("certificate encoding failed") from None
+
+
+def decode_certificate(payload: bytes) -> ProofCertificate:
+    """Decode one well-formed unsigned v1 claim from untrusted JSON bytes.
+
+    Successful decoding establishes structural integrity only. It does not
+    authenticate the issuer or reproduce the certificate's semantic claim.
+    """
+
+    try:
+        parsed = decode_canonical_json(
+            payload,
+            limits=_CERTIFICATE_JSON_LIMITS,
+            label="certificate",
+        )
+    except CanonicalJSONError as error:
+        raise CertificateDecodeError(str(error)) from None
+
+    try:
+        certificate, claimed_result_digest = _decode_certificate_record(parsed)
+    except UnitSentinelError as error:
+        raise CertificateDecodeError(
+            f"certificate semantic contract failed: {error}"
+        ) from None
+    if not hmac.compare_digest(
+        claimed_result_digest,
+        certificate.result.digest,
+    ):
+        raise CertificateDecodeError(
+            "certificate verification-result digest does not match its contents"
+        )
+    if certificate.canonical_bytes() != payload:
+        raise CertificateDecodeError(
+            "certificate payload does not match the canonical certificate model"
+        )
+    return certificate
+
+
+def _decode_certificate_record(
+    value: object,
+) -> tuple[ProofCertificate, str]:
+    root = _expect_object(value, _ROOT_FIELDS, label="certificate document")
+    _expect_literal(root["schema"], CERTIFICATE_SCHEMA, label="certificate schema")
+
+    graph = _expect_object(root["graph"], _GRAPH_FIELDS, label="graph binding")
+    _expect_literal(graph["schema"], GRAPH_SCHEMA, label="graph schema")
+    graph_digest = _expect_sha256(graph["sha256"], label="graph digest")
+
+    registry = _expect_object(
+        root["registry"],
+        _REGISTRY_FIELDS,
+        label="registry binding",
+    )
+    _expect_literal(registry["schema"], REGISTRY_SCHEMA, label="registry schema")
+    registry_digest = _expect_sha256(
+        registry["sha256"],
+        label="registry digest",
+    )
+    registry_version = _expect_text(
+        registry["version"],
+        label="registry version",
+    )
+
+    solver = _expect_object(root["solver"], _SOLVER_FIELDS, label="solver identity")
+    _expect_literal(
+        solver["implementation"],
+        SOLVER_IMPLEMENTATION,
+        label="solver implementation",
+    )
+    solver_version = _expect_text(solver["version"], label="solver version")
+
+    verifier = _expect_object(
+        root["verifier"],
+        _VERIFIER_FIELDS,
+        label="verifier identity",
+    )
+    _expect_literal(
+        verifier["implementation"],
+        VERIFIER_IMPLEMENTATION,
+        label="verifier implementation",
+    )
+    _expect_literal(
+        verifier["semantics"],
+        VERIFIER_SEMANTICS,
+        label="verifier semantics",
+    )
+    verifier_version = _expect_text(
+        verifier["version"],
+        label="verifier version",
+    )
+
+    run = _expect_object(root["run"], _RUN_FIELDS, label="verification run")
+    limits = _decode_limits(run["limits"])
+    checks_performed = _expect_integer(
+        run["checks_performed"],
+        label="solver check count",
+    )
+
+    proof = _expect_object(root["proof"], _PROOF_FIELDS, label="proof claim")
+    _expect_literal(
+        proof["outcome"],
+        VerificationStatus.VERIFIED.value,
+        label="proof outcome",
+    )
+    claimed_result_digest = _expect_sha256(
+        proof["verification_result_sha256"],
+        label="verification-result digest",
+    )
+    constraints = tuple(
+        _decode_constraint(item)
+        for item in _expect_array(
+            proof["constraints"],
+            label="proof constraints",
+        )
+    )
+    contracts = tuple(
+        _decode_contract(item)
+        for item in _expect_array(
+            proof["contracts"],
+            label="proof contracts",
+        )
+    )
+    result = VerificationResult(
+        status=VerificationStatus.VERIFIED,
+        graph_digest=graph_digest,
+        registry_digest=registry_digest,
+        solver_version=solver_version,
+        limits=limits,
+        checks_performed=checks_performed,
+        contracts=contracts,
+    )
+    return (
+        ProofCertificate(
+            registry_version=registry_version,
+            verifier_version=verifier_version,
+            constraints=constraints,
+            result=result,
+        ),
+        claimed_result_digest,
+    )
+
+
+def _decode_limits(value: object) -> SolverLimits:
+    record = _expect_object(value, _LIMIT_FIELDS, label="solver limits")
+    return SolverLimits(
+        per_check_timeout_ms=_expect_integer(
+            record["per_check_timeout_ms"],
+            label="per-check timeout",
+        ),
+        total_timeout_ms=_expect_integer(
+            record["total_timeout_ms"],
+            label="total timeout",
+        ),
+        max_memory_mb=_expect_integer(
+            record["max_memory_mb"],
+            label="solver memory",
+        ),
+        max_core_shrink_checks=_expect_integer(
+            record["max_core_shrink_checks"],
+            label="core-shrink check limit",
+        ),
+        max_uniqueness_checks=_expect_integer(
+            record["max_uniqueness_checks"],
+            label="uniqueness check limit",
+        ),
+    )
+
+
+def _decode_constraint(value: object) -> ConstraintWitness:
+    record = _expect_object(
+        value,
+        _CONSTRAINT_FIELDS,
+        label="constraint witness",
+    )
+    source_text = _expect_text(
+        record["source"],
+        label="constraint source",
+    )
+    try:
+        source = ConstraintSource(source_text)
+    except ValueError:
+        raise CertificateError("constraint source is not supported") from None
+    return ConstraintWitness(
+        constraint_id=_expect_text(
+            record["constraint_id"],
+            label="constraint identifier",
+        ),
+        source=source,
+        source_id=_expect_text(
+            record["source_id"],
+            label="constraint source identifier",
+        ),
+        rule=_expect_text(record["rule"], label="constraint rule"),
+    )
+
+
+def _decode_contract(value: object) -> InferredContract:
+    record = _expect_object(value, _CONTRACT_FIELDS, label="inferred contract")
+    kind_text = _expect_text(record["kind"], label="inferred quantity kind")
+    try:
+        kind = QuantityKind(kind_text)
+    except ValueError:
+        raise CertificateError("inferred quantity kind is not supported") from None
+    return InferredContract(
+        value_id=_expect_text(
+            record["value_id"],
+            label="inferred value identifier",
+        ),
+        dimension=_decode_dimension(record["dimension"]),
+        kind=kind,
+        scale=_decode_rational(record["scale"], label="inferred scale"),
+        offset=_decode_rational(record["offset"], label="inferred offset"),
+    )
+
+
+def _decode_dimension(value: object) -> Dimension:
+    terms = _expect_array(value, label="inferred dimension")
+    exponents: dict[BaseDimension, Fraction] = {}
+    for item in terms:
+        record = _expect_object(
+            item,
+            _DIMENSION_TERM_FIELDS,
+            label="dimension term",
+        )
+        base_text = _expect_text(record["base"], label="dimension base")
+        try:
+            base = BaseDimension(base_text)
+        except ValueError:
+            raise CertificateError("dimension base is not supported") from None
+        if base in exponents:
+            raise CertificateError("inferred dimension contains a duplicate base")
+        exponents[base] = _decode_rational(
+            record["exponent"],
+            label="dimension exponent",
+        )
+    return Dimension.from_mapping(exponents)
+
+
+def _decode_rational(value: object, *, label: str) -> Fraction:
+    text = _expect_text(value, label=label)
+    if _RATIONAL_TEXT.fullmatch(text) is None:
+        raise CertificateError(f"{label} is not a canonical rational")
+    result = Fraction(text)
+    if _fraction_text(result) != text:
+        raise CertificateError(f"{label} is not reduced")
+    return result
+
+
+def _expect_object(
+    value: object,
+    fields: frozenset[str],
+    *,
+    label: str,
+) -> dict[str, object]:
+    if type(value) is not dict:
+        raise CertificateError(f"{label} must be an object")
+    record = cast(dict[str, object], value)
+    if set(record) != fields:
+        raise CertificateError(f"{label} has missing or unknown fields")
+    return record
+
+
+def _expect_array(value: object, *, label: str) -> list[object]:
+    if type(value) is not list:
+        raise CertificateError(f"{label} must be an array")
+    return cast(list[object], value)
+
+
+def _expect_text(value: object, *, label: str) -> str:
+    if type(value) is not str:
+        raise CertificateError(f"{label} must be text")
+    return value
+
+
+def _expect_integer(value: object, *, label: str) -> int:
+    if type(value) is not int:
+        raise CertificateError(f"{label} must be an exact integer")
+    return value
+
+
+def _expect_sha256(value: object, *, label: str) -> str:
+    digest = _expect_text(value, label=label)
+    if SHA256_HEX.fullmatch(digest) is None:
+        raise CertificateError(f"{label} is malformed")
+    return digest
+
+
+def _expect_literal(value: object, expected: str, *, label: str) -> None:
+    text = _expect_text(value, label=label)
+    if text != expected:
+        raise CertificateError(f"{label} is not supported")

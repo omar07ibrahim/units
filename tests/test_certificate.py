@@ -10,6 +10,7 @@ from examples.build_speed_contract import build_graph
 from unitsentinel import certificate as certificate_module
 from unitsentinel.certificate import (
     CERTIFICATE_SCHEMA,
+    MAX_CERTIFICATE_CHECKS,
     SOLVER_IMPLEMENTATION,
     VERIFIER_IMPLEMENTATION,
     VERIFIER_SEMANTICS,
@@ -359,6 +360,43 @@ class ProofCertificateTests(unittest.TestCase):
                 certificate.verifier_version,
                 certificate.constraints,
                 certificate.result,
+            )
+
+    def test_certificate_bounds_solver_provenance(self) -> None:
+        certificate = create_certificate(build_graph())
+        result = certificate.result
+        long_version = VerificationResult(
+            status=result.status,
+            graph_digest=result.graph_digest,
+            registry_digest=result.registry_digest,
+            solver_version="1.0." + ("0" * 29),
+            limits=result.limits,
+            checks_performed=result.checks_performed,
+            contracts=result.contracts,
+        )
+        with self.assertRaisesRegex(CertificateError, "solver version exceeds"):
+            ProofCertificate(
+                certificate.registry_version,
+                certificate.verifier_version,
+                certificate.constraints,
+                long_version,
+            )
+
+        too_many_checks = VerificationResult(
+            status=result.status,
+            graph_digest=result.graph_digest,
+            registry_digest=result.registry_digest,
+            solver_version=result.solver_version,
+            limits=result.limits,
+            checks_performed=MAX_CERTIFICATE_CHECKS + 1,
+            contracts=result.contracts,
+        )
+        with self.assertRaisesRegex(CertificateError, "check count exceeds"):
+            ProofCertificate(
+                certificate.registry_version,
+                certificate.verifier_version,
+                certificate.constraints,
+                too_many_checks,
             )
 
     def test_certificate_rejects_invalid_nested_witnesses(self) -> None:
