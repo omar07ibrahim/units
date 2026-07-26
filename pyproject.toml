@@ -24,6 +24,9 @@ classifiers = [
     "Typing :: Typed",
 ]
 
+[project.scripts]
+unitsentinel = "unitsentinel.cli:main"
+
 [project.optional-dependencies]
 dev = [
     "build==1.5.0",
