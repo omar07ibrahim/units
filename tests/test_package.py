@@ -8,7 +8,29 @@ import unitsentinel
 class PackageIdentityTests(unittest.TestCase):
     def test_version_and_public_surface_are_explicit(self) -> None:
         self.assertEqual(unitsentinel.__version__, "0.1.0")
-        self.assertEqual(unitsentinel.__all__, ["__version__"])
+        self.assertEqual(
+            unitsentinel.__all__,
+            [
+                "AMOUNT_OF_SUBSTANCE",
+                "DIMENSIONLESS",
+                "ELECTRIC_CURRENT",
+                "LENGTH",
+                "LUMINOUS_INTENSITY",
+                "MASS",
+                "THERMODYNAMIC_TEMPERATURE",
+                "TIME",
+                "BaseDimension",
+                "ConversionError",
+                "Dimension",
+                "DimensionError",
+                "Quantity",
+                "QuantityKind",
+                "Unit",
+                "UnitDefinitionError",
+                "UnitSentinelError",
+                "__version__",
+            ],
+        )
 
 
 if __name__ == "__main__":

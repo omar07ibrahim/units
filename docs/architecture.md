@@ -40,14 +40,16 @@ A unit contains:
 
 - a canonical identifier;
 - one dimension vector;
-- an exact decimal scale relative to a canonical reference unit;
-- an exact decimal offset when the conversion is affine;
+- an exact rational scale relative to a canonical reference unit;
+- an exact rational offset when the conversion is affine;
 - a quantity kind that distinguishes linear values, absolute temperatures, and
   temperature differences.
 
 An affine unit is not generally closed under multiplication, division, or
-exponentiation. For example, an absolute Celsius temperature must be converted
-to a linear reference before multiplicative operations. A temperature
+exponentiation. An absolute Celsius magnitude may be normalized onto the
+canonical absolute-temperature reference scale, but that conversion does not
+reclassify it as a linear quantity. Direct temperature units must declare
+whether they represent an absolute value or a difference; a temperature
 difference has no absolute offset.
 
 ### Tensor value
