@@ -3,11 +3,10 @@
 Dimensional proof certificates for scientific and machine-learning computation
 graphs.
 
-> **Status:** active implementation. Exact dimensional values and a
-> content-addressed 33-unit registry are implemented, together with a bounded
-> graph IR and strict canonical JSON decoder. Constraint compilation is the next
-> slice. There are no solver, benchmark, ONNX-support, or model accuracy claims
-> yet.
+> **Status:** active implementation. The exact value model, content-addressed
+> 33-unit registry, bounded graph IR, strict canonical JSON decoder, and tracked
+> Z3 verifier are implemented. Proof-certificate replay, repairs, benchmarks,
+> and ONNX support remain future work; no claim is made for them yet.
 
 ## The failure mode
 
@@ -43,23 +42,25 @@ canonical graph + versioned unit registry
                     │
           ┌─────────┴─────────┐
           ▼                   ▼
-    verified graph      tracked conflict
+   verified result       tracked conflict
           │                   │
           ▼                   ▼
- proof certificate    bounded repair candidates
+ planned certificate   planned repair candidates
 ```
 
-The complete verifier is intended to:
+The verifier currently:
 
 - represent SI dimensions with exact rational exponents;
 - keep scale, offset, and absolute-versus-delta temperature semantics explicit;
 - compile graph operations into source-labelled constraints;
 - infer omitted dimensions when the system has a unique solution;
 - return a small, deterministic conflict core when constraints are inconsistent;
-- suggest bounded edits without silently changing a graph;
-- issue canonical JSON certificates that can be replayed offline;
-- compare training and serving graph contracts before values reach a model;
-- add an ONNX adapter only after the core semantics are independently testable.
+- refuses a positive result until dimension, kind, scale, and offset are unique;
+- independently replays a solver model before publishing it;
+- returns one of `verified`, `underconstrained`, `conflict`, or `unknown`.
+
+Later layers will add bounded repairs, replayable certificates,
+training/serving comparison, and an ONNX adapter without weakening that core.
 
 ## What runs today
 
@@ -80,7 +81,16 @@ The current package already provides:
 - a byte-level graph decoder that rejects duplicate keys, floats, noncanonical
   JSON, unknown fields, invalid topology, and oversized inputs;
 - a structural preflight that enforces nesting, item, and token budgets before
-  Python materializes an untrusted JSON tree.
+  Python materializes an untrusted JSON tree;
+- exact constraints for all 15 graph operations over dimension, quantity kind,
+  scale, and affine offset;
+- alternate-model uniqueness checks, so solver satisfiability alone is never
+  reported as success;
+- source-labelled tracked assertions and deterministic conflict-core shrinking;
+- monotonic per-check and whole-run deadlines, solver memory bounds, and
+  redacted failure outcomes;
+- exact model extraction followed by an independent Python semantic replay;
+- content-addressed results that publish exact inferred scale and offset.
 
 This is a real conversion through the committed registry:
 
@@ -115,14 +125,40 @@ real canonical graph without a trailing newline:
 # aecbeff2ce89cfd7b2aab6a0414ec307a5061577f4b8b0d1c53298f896569546  -
 ```
 
+The same committed graph produces a positive result only after two solver
+checks: one satisfiability check and one alternate-model uniqueness check.
+
+```bash
+.venv/bin/python - <<'PY'
+from examples.build_speed_contract import build_graph
+from unitsentinel import verify_graph
+
+result = verify_graph(build_graph())
+print(result.status.value, result.checks_performed)
+for contract in result.contracts:
+    print(contract.value_id, contract.kind.value, contract.scale, contract.offset)
+PY
+```
+
+```text
+verified 2
+raw-speed linear 5/18 0
+si-speed linear 1 0
+```
+
+This is not merely a dimension check. Direct arithmetic between `m` and `cm`,
+between `one` and `percent`, or between incompatible absolute/delta temperature
+scales is rejected unless the graph contains an explicit conversion.
+
 ## Why a solver belongs here
 
 Local arithmetic catches obvious errors when every intermediate unit is known.
 Real graphs are partially annotated. A constraint solver can infer missing
 dimensions and explain a contradiction in terms of the declarations and
 operations that caused it. The solver is not the trust boundary by itself:
-UnitSentinel will revalidate every extracted model, cap graph and solver
-resources, and fail closed on `unknown` or timeout.
+UnitSentinel revalidates every extracted model, caps graph and solver resources,
+and fails closed on `unknown`, timeout, memory exhaustion, non-rational output,
+or an out-of-domain inferred exponent.
 
 ## Non-goals for v1
 
@@ -142,8 +178,8 @@ resources, and fail closed on `unknown` or timeout.
    and a pinned content digest.
 3. **Complete:** a bounded canonical graph format, typed intermediate
    representation, and strict byte decoder.
-4. Tracked SMT constraints, inference, deterministic conflict cores, and
-   fail-closed resource handling.
+4. **Complete:** tracked SMT constraints, inference, deterministic conflict
+   cores, and fail-closed resource handling.
 5. Bounded repairs, canonical proof certificates, and independent replay.
 6. Training/serving contract comparison and an ONNX metadata adapter.
 7. A grouped synthetic fault benchmark with calibration and abstention metrics.
@@ -155,7 +191,9 @@ behavior. No mock dashboard or invented result is used as a placeholder.
 
 ## Local quality checks
 
-The bootstrap package uses Python 3.11+ and keeps development tooling optional:
+The package uses Python 3.11+ and keeps development tooling optional. The
+current suite contains 101 unit, integration, and adversarial tests with 95%
+total statement/branch coverage:
 
 ```bash
 python3 -m venv .venv

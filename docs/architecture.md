@@ -1,13 +1,13 @@
 # Architecture and verification boundary
 
-This document defines the contract UnitSentinel will implement. Statements
-about future components are design requirements, not claims of completed
-behavior.
+This document separates the implemented verification core from later design
+requirements. The implementation map at the end is the authoritative status
+summary.
 
 ## Design objective
 
 Given a bounded computation graph, a versioned unit registry, and optional unit
-annotations, determine one of four outcomes:
+annotations, the current verifier determines one of four outcomes:
 
 1. `verified`: every value has a unique, consistent dimensional interpretation;
 2. `underconstrained`: more than one interpretation remains;
@@ -85,8 +85,8 @@ host filesystem paths.
 
 ## Constraint compilation
 
-Each value receives seven exact solver expressions, one per base dimension.
-Operations emit labelled equations:
+Each value receives seven exact dimension expressions plus exact scale, offset,
+and semantic quantity-kind expressions. Operations emit labelled equations:
 
 | Operation family | Dimensional rule |
 | --- | --- |
@@ -104,9 +104,9 @@ graph declaration. Solver-generated names never appear in user-facing output.
 
 ### Inference
 
-A satisfiable system is not automatically verified. UnitSentinel will ask
-whether each unresolved dimension component has a unique value. If two models
-assign different values to an observable contract, the graph is
+A satisfiable system is not automatically verified. UnitSentinel asks whether
+every dimension component, quantity kind, scale, and offset has a unique value.
+If two models assign different values to any observable contract, the graph is
 `underconstrained`.
 
 Extracted rational values are validated against exponent numerator and
@@ -115,9 +115,9 @@ denominator bounds before they enter the trusted domain model.
 ### Conflict cores
 
 Tracked assertions provide an initial unsatisfiable core. Because solver cores
-need not be minimal, UnitSentinel will deterministically shrink the core within
-a fixed check budget. The resulting core is a diagnostic witness, not a proof
-that every omitted declaration is irrelevant to scientific intent.
+need not be minimal, UnitSentinel deterministically shrinks the sorted core
+within a fixed check budget. The resulting core is a diagnostic witness, not a
+proof that every omitted declaration is irrelevant to scientific intent.
 
 ## Bounded repair
 
@@ -205,11 +205,11 @@ tooling will state that boundary explicitly.
 
 | Area | Current | Next |
 | --- | --- | --- |
-| Package boundary | Typed public exact values and registry | Graph and verifier results |
-| Dimension semantics | Exact bounded rational algebra | Graph-level inference |
+| Package boundary | Typed public exact values, graph, registry, and results | Proof certificates |
+| Dimension semantics | Exact bounded rational algebra and graph inference | Contract comparison |
 | Unit registry | Immutable 33-unit snapshot with pinned SHA-256 | External snapshot decoder |
-| Graph IR | Content-addressed bounded IR and strict decoder | Constraint compilation |
-| Solver | Constraint and fail-closed behavior specified | Tracked exact constraints |
+| Graph IR | Content-addressed bounded IR and strict decoder | ONNX lowering |
+| Solver | Tracked dimension/kind/scale/offset constraints, uniqueness, replay, and bounded cores | Bounded repairs |
 | Repairs | Bounded operators specified | Verified candidate enumeration |
 | Certificates | Required bindings specified | Canonical codec and replay |
 | Visual evidence | No placeholders | Generate from implemented behavior |
