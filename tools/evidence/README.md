@@ -4,8 +4,10 @@ This directory turns implemented UnitSentinel behavior into reviewable
 portfolio evidence. It does not synthesize terminal output or edit result
 records by hand:
 
-- the Python recorder executes the production CLI for verified, conflict, and
-  strict-replay paths;
+- the general Python recorder executes the production CLI for verified,
+  conflict, and strict-replay paths;
+- the closed repair-only recorder executes one pinned production CLI search
+  and can publish only its capture, provenance, and lineage SVG;
 - SVG builders consume those CLI records, inferred contracts, tracked conflict
   witnesses, certificate bindings, and a measured benchmark snapshot;
 - the pinned Node renderer converts the committed SVG sources to PNG and builds
@@ -48,6 +50,26 @@ The recorder refuses to delete an existing
 `.unitsentinel/evidence-run` directory. Its own scratch directory is removed
 after a successful or failed run.
 
+### Refresh only repair evidence
+
+The repair slice has fixed input, bounds, output paths, and raster target:
+
+```bash
+.venv/bin/python -m tools.evidence.repair_evidence --record
+npm --prefix tools/evidence run render:repair
+.venv/bin/python -m tools.evidence.repair_evidence --check
+npm --prefix tools/evidence run check:repair
+.venv/bin/python -m tools.evidence.generate --write-manifest
+```
+
+The recorder validates the canonical CLI envelope, all graph/result/candidate
+digests, and the exact one-annotation lineage before writing anything. Its
+allowlist contains only `repair.json`, `repair.txt`,
+`repair-provenance.json`, and `unit-repair-lineage.svg`. The renderer mode has
+one compiled-in source and output basename; it cannot select arbitrary files.
+The manifest command performs a full in-memory raster freshness check and then
+rewrites only the global closed manifest.
+
 ## Verify freshness
 
 Both checks are required:
@@ -55,6 +77,8 @@ Both checks are required:
 ```bash
 .venv/bin/python -m tools.evidence.generate --check
 npm --prefix tools/evidence run check
+.venv/bin/python -m tools.evidence.repair_evidence --check
+npm --prefix tools/evidence run check:repair
 ```
 
 The Python check replays the deterministic source evidence without re-running
@@ -70,6 +94,7 @@ also refuses to bless raster assets until the renderer check passes.
 | `docs/evidence/captures/*` | Actual production CLI stdout and exit status |
 | `docs/evidence/claims/*.json` | Actual positive certificate |
 | `docs/evidence/provenance.json` | Cross-bound graph, result, registry, certificate, and replay identities |
+| `docs/evidence/repair-provenance.json` | Cross-bound source, relaxed, repaired, candidate, and search identities |
 | `docs/evidence/data/scaling.json` | Recorded bounded timing runs and environment |
 | `docs/assets/*.svg` | Live records consumed by dependency-free SVG builders |
 | `docs/assets/*.png` | Pinned Resvg rendering of the SVG sources |
@@ -82,7 +107,8 @@ The renderer accepts only bounded regular files under the declared evidence
 directories. It rejects symlinks, external SVG resources, scripts, images,
 DOCTYPE/entity declarations, oversized documents, unexpected manifest fields,
 mixed frame dimensions, and unsafe output targets. Writes are atomic per file;
-the complete output set is not a multi-file transaction.
+the complete output set is not a multi-file transaction. The fixed repair mode
+writes exactly one PNG.
 
 Rendering uses DejaVu Sans with system-font loading disabled. For byte-identical
 output on another host, provide the same regular font file through an absolute

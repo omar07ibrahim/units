@@ -33,6 +33,14 @@ verification results. Their content digests form an auditable
 conflict-to-relaxed-to-verified lineage. The caller must explicitly decide
 whether to use the returned graph.
 
+A reproducible production-CLI example is committed as
+[canonical JSON](evidence/captures/repair.json) and an
+[exact transcript](evidence/captures/repair.txt). Its
+[source-derived lineage visual](assets/unit-repair-lineage.svg) and
+[cross-bound provenance](evidence/repair-provenance.json) show the non-applied
+wheel-anomaly annotation proposal without equating dimensional verification
+with scientific intent.
+
 ## Fail-closed outcomes
 
 `abstained` is a completed negative answer: for example, the source was already

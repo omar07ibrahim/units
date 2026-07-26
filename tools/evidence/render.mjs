@@ -44,6 +44,8 @@ const ASSET_DIRECTORY = join(REPOSITORY_ROOT, "docs", "assets");
 const DEMO_DIRECTORY = join(REPOSITORY_ROOT, "docs", "evidence", "demo");
 const DEMO_MANIFEST = join(DEMO_DIRECTORY, "frames.json");
 const DEMO_OUTPUT = join(ASSET_DIRECTORY, "unitsentinel-demo.gif");
+const REPAIR_SOURCE = join(ASSET_DIRECTORY, "unit-repair-lineage.svg");
+const REPAIR_OUTPUT = join(ASSET_DIRECTORY, "unit-repair-lineage.png");
 
 const DEMO_SCHEMA = "unitsentinel.demo-frames/v1";
 const FONT_ENVIRONMENT_VARIABLE = "UNITSENTINEL_FONT_PATH";
@@ -802,6 +804,20 @@ async function buildOutputs(context, dependencies, fontPath) {
   return { outputs, publicCount: publicSources.length };
 }
 
+async function buildRepairOutput(context, dependencies, fontPath) {
+  const payload = await readBoundedRegularFile(
+    REPAIR_SOURCE,
+    MAX_SVG_BYTES,
+    "svg-read-failed",
+  );
+  const rendered = renderSvg(payload, fontPath, dependencies);
+  await validateOutputTarget(REPAIR_OUTPUT, context.repositoryRoot);
+  return {
+    outputs: [{ path: REPAIR_OUTPUT, payload: rendered.png }],
+    publicCount: 1,
+  };
+}
+
 async function verifyOutputs(outputs, repositoryRoot) {
   for (const output of outputs) {
     await validateOutputTarget(output.path, repositoryRoot, {
@@ -852,10 +868,16 @@ async function prepareContext() {
 
 function requestedMode() {
   if (process.argv.length === 2) {
-    return "render";
+    return "render-all";
   }
   if (process.argv.length === 3 && process.argv[2] === "--check") {
-    return "check";
+    return "check-all";
+  }
+  if (process.argv.length === 3 && process.argv[2] === "--repair") {
+    return "render-repair";
+  }
+  if (process.argv.length === 3 && process.argv[2] === "--check-repair") {
+    return "check-repair";
   }
   fail("arguments-not-supported");
 }
@@ -865,22 +887,25 @@ async function main() {
   const context = await prepareContext();
   const dependencies = await loadDependencies();
   const fontPath = await selectFont(context.repositoryRoot);
-  const { outputs, publicCount } = await buildOutputs(
-    context,
-    dependencies,
-    fontPath,
-  );
-  if (mode === "check") {
+  const repairOnly = mode.endsWith("-repair");
+  const { outputs, publicCount } = repairOnly
+    ? await buildRepairOutput(context, dependencies, fontPath)
+    : await buildOutputs(context, dependencies, fontPath);
+  if (mode.startsWith("check-")) {
     await verifyOutputs(outputs, context.repositoryRoot);
     process.stdout.write(
-      `unitsentinel-evidence: verified ${publicCount} PNG files and 1 GIF\n`,
+      repairOnly
+        ? "unitsentinel-evidence: verified 1 repair PNG\n"
+        : `unitsentinel-evidence: verified ${publicCount} PNG files and 1 GIF\n`,
     );
   } else {
     for (const output of outputs) {
       await atomicWrite(output.path, output.payload);
     }
     process.stdout.write(
-      `unitsentinel-evidence: rendered ${publicCount} PNG files and 1 GIF\n`,
+      repairOnly
+        ? "unitsentinel-evidence: rendered 1 repair PNG\n"
+        : `unitsentinel-evidence: rendered ${publicCount} PNG files and 1 GIF\n`,
     );
   }
 }
