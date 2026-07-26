@@ -205,9 +205,9 @@ tooling will state that boundary explicitly.
 
 | Area | Current | Next |
 | --- | --- | --- |
-| Package boundary | Python package metadata and public version | Exact domain value objects |
-| Dimension semantics | Specified here | Exact algebra and property tests |
-| Unit registry | Supported subset and exclusions specified | Versioned immutable registry |
+| Package boundary | Typed public exact values and registry | Graph and verifier results |
+| Dimension semantics | Exact bounded rational algebra | Graph-level inference |
+| Unit registry | Immutable 33-unit snapshot with pinned SHA-256 | External snapshot decoder |
 | Graph IR | Closed JSON contract specified | Strict decoder and graph validation |
 | Solver | Constraint and fail-closed behavior specified | Tracked exact constraints |
 | Repairs | Bounded operators specified | Verified candidate enumeration |

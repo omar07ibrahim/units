@@ -3,10 +3,10 @@
 Dimensional proof certificates for scientific and machine-learning computation
 graphs.
 
-> **Status:** design bootstrap. The package boundary, verification model, and
-> threat model are specified; the dimensional algebra and verifier are the next
-> implementation slices. There are no benchmark results or model-support claims
-> yet.
+> **Status:** active implementation. Exact dimensional values and a
+> content-addressed 33-unit registry are implemented; the bounded graph format
+> is the next slice. There are no solver, benchmark, ONNX-support, or model
+> accuracy claims yet.
 
 ## The failure mode
 
@@ -48,7 +48,7 @@ canonical graph + versioned unit registry
  proof certificate    bounded repair candidates
 ```
 
-The intended verifier will:
+The complete verifier is intended to:
 
 - represent SI dimensions with exact rational exponents;
 - keep scale, offset, and absolute-versus-delta temperature semantics explicit;
@@ -59,6 +59,44 @@ The intended verifier will:
 - issue canonical JSON certificates that can be replayed offline;
 - compare training and serving graph contracts before values reach a model;
 - add an ONNX adapter only after the core semantics are independently testable.
+
+## What runs today
+
+The current package already provides:
+
+- immutable vectors over the seven SI base dimensions;
+- exact rational multiplication, division, and bounded powers;
+- exact unit scales and affine offsets without float coercion;
+- separate types for absolute temperatures and temperature differences;
+- a bounded immutable registry with canonical ASCII identifiers;
+- explicit aliases that resolve only to canonical identifiers;
+- canonical UTF-8 JSON and a pinned SHA-256 registry fingerprint;
+- nested revalidation that detects low-level mutation before lookup or
+  serialization.
+
+This is a real conversion through the committed registry:
+
+```python
+from fractions import Fraction
+
+from unitsentinel import BUILTIN_REGISTRY, Quantity
+
+speed = Quantity(
+    Fraction(90),
+    BUILTIN_REGISTRY.resolve("kilometer-per-hour"),
+)
+converted = speed.to(BUILTIN_REGISTRY.resolve("meter-per-second"))
+
+assert converted.magnitude == Fraction(25)
+assert BUILTIN_REGISTRY.digest == (
+    "fc80cbb596f3341b1d2ff13795e50d2d1e05c792b34f24804afc97c3470913e5"
+)
+```
+
+Symbols such as `m/s` and `°C` are display metadata, not implicit lookup keys.
+Contracts use canonical identifiers or one of the registry's explicit ASCII
+aliases. The full snapshot and versioning rules are documented in
+[docs/registry.md](docs/registry.md).
 
 ## Why a solver belongs here
 
@@ -81,14 +119,17 @@ resources, and fail closed on `unknown` or timeout.
 
 ## Development slices
 
-1. Exact dimensions, units, quantities, and affine conversion semantics.
-2. A bounded canonical graph format and typed intermediate representation.
-3. Tracked SMT constraints, inference, deterministic conflict cores, and
+1. **Complete:** exact dimensions, units, quantities, and affine conversion
+   semantics.
+2. **Complete:** a bounded immutable unit registry with canonical serialization
+   and a pinned content digest.
+3. A bounded canonical graph format and typed intermediate representation.
+4. Tracked SMT constraints, inference, deterministic conflict cores, and
    fail-closed resource handling.
-4. Bounded repairs, canonical proof certificates, and independent replay.
-5. Training/serving contract comparison and an ONNX metadata adapter.
-6. A grouped synthetic fault benchmark with calibration and abstention metrics.
-7. Real CLI captures, architecture and lineage diagrams, benchmark plots, and a
+5. Bounded repairs, canonical proof certificates, and independent replay.
+6. Training/serving contract comparison and an ONNX metadata adapter.
+7. A grouped synthetic fault benchmark with calibration and abstention metrics.
+8. Real CLI captures, architecture and lineage diagrams, benchmark plots, and a
    short end-to-end demo generated from committed code.
 
 Visual evidence will be added only when it can be reproduced from implemented
@@ -103,9 +144,13 @@ python3 -m venv .venv
 .venv/bin/python -m pip install -e '.[dev]'
 
 PYTHONPATH=src .venv/bin/python -m unittest discover -s tests -v
+PYTHONPATH=src .venv/bin/coverage run -m unittest discover -s tests
+.venv/bin/coverage report
 .venv/bin/ruff check .
 .venv/bin/ruff format --check .
 .venv/bin/mypy src
+.venv/bin/python -m build
+.venv/bin/pip-audit
 ```
 
 The repository intentionally has no license yet. Licensing is a decision for
