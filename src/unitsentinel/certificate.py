@@ -285,6 +285,8 @@ def _create_certificate_attempt(
         result = verify_graph(graph, registry=registry, limits=limits)
     except UnitSentinelError:
         raise CertificateError("certificate verification failed") from None
+    if type(result) is not VerificationResult:
+        raise CertificateError("certificate verification returned an invalid result")
     try:
         graph.validate()
         registry.validate()
@@ -318,6 +320,27 @@ def _create_certificate_attempt(
         )
     except UnitSentinelError:
         raise CertificateError("verified result could not be certified") from None
+    try:
+        graph.validate()
+        registry.validate()
+        limits.validate()
+        certificate.validate()
+        sources_unchanged = (
+            graph.digest == graph_digest
+            and registry.digest == registry_digest
+            and registry.version == registry_version
+            and limits.canonical_record() == limits_record
+            and certificate.result is result
+            and result.graph_digest == graph_digest
+            and result.registry_digest == registry_digest
+            and result.limits.canonical_record() == limits_record
+        )
+    except UnitSentinelError:
+        raise CertificateError(
+            "certificate source changed during certification"
+        ) from None
+    if not sources_unchanged:
+        raise CertificateError("certificate source changed during certification")
     return result, certificate
 
 

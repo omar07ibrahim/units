@@ -511,10 +511,40 @@ class ProofCertificateTests(unittest.TestCase):
         with (
             patch.object(
                 certificate_module,
+                "verify_graph",
+                return_value=object(),
+            ),
+            self.assertRaisesRegex(CertificateError, "invalid result"),
+        ):
+            create_certificate(graph)
+
+        with (
+            patch.object(
+                certificate_module,
                 "ProofCertificate",
                 side_effect=CertificateError("injected constructor failure"),
             ),
             self.assertRaisesRegex(CertificateError, "could not be certified"),
+        ):
+            create_certificate(graph)
+
+    def test_factory_revalidates_sources_after_certificate_construction(
+        self,
+    ) -> None:
+        graph = build_graph()
+        real_validate = ProofCertificate.validate
+
+        def mutate_graph_after_validation(certificate: ProofCertificate) -> None:
+            real_validate(certificate)
+            object.__setattr__(graph, "graph_id", "changed-after-certification")
+
+        with (
+            patch.object(
+                ProofCertificate,
+                "validate",
+                new=mutate_graph_after_validation,
+            ),
+            self.assertRaisesRegex(CertificateError, "during certification"),
         ):
             create_certificate(graph)
 
