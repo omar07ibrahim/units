@@ -1,8 +1,8 @@
 # Architecture and verification boundary
 
-This document separates the implemented verifier, certificate/replay boundary,
-and CLI from later repair and adapter design. The implementation map at the end
-is the authoritative status summary.
+This document separates the implemented verifier, certificate/replay and
+bounded-repair boundaries, and CLI from later comparison and adapter design.
+The implementation map at the end is the authoritative status summary.
 
 ## Design objective
 
@@ -125,23 +125,26 @@ proof that every omitted declaration is irrelevant to scientific intent.
 
 ## Bounded repair
 
-This section is a design constraint for the next slice; repair generation is
-not implemented. It will remain downstream of verification and will never
-mutate input. The first repair operators are deliberately small:
+The implemented repair boundary remains downstream of verification and never
+mutates its input. Its v1 operator is deliberately narrow: it can propose
+replacing one explicit canonical unit annotation that participates in a freshly
+verified deletion-minimal conflict core.
 
-- replace one declared unit with another compatible registry unit;
-- insert one explicit scale conversion;
-- reinterpret an absolute temperature input as a declared delta only when the
-  graph contract permits it;
-- remove one contradictory optional annotation.
+For each bounded eligible site, the implementation removes only that annotation
+in memory and requires the relaxed graph to be `verified`. It then enumerates
+registry units whose dimension, quantity kind, scale, and offset exactly match
+the relaxed value contract, restores each candidate annotation in memory, and
+freshly verifies the candidate graph. It returns a proposal only when exactly
+one candidate verifies. Unknown outcomes or exhausted limits are indeterminate;
+multiple verified candidates, a remaining conflict, or no exact canonical
+match cause abstention.
 
-Candidates will be ordered by a deterministic cost tuple and recompiled through
-the same verifier. A candidate that is not independently `verified` will be
-discarded. Ambiguous top candidates will cause abstention.
-
-An optional learned reranker may later order already-verified candidates. It
-will not create candidates, bypass the verifier, or turn abstention into an
-automatic edit.
+The result binds the source, relaxed, and repaired graph and verification
+digests. The CLI exposes the same bounded search as a read-only canonical JSON
+report with `application: not-performed`; it has no apply or output-file
+surface. A verified dimensional proposal does not establish scientific intent
+or permission to change a model. The complete acceptance protocol and aggregate
+limits are documented in [unit-repair-v1.md](unit-repair-v1.md).
 
 ## Proof certificate
 
@@ -230,12 +233,12 @@ boundary explicitly.
 
 | Area | Current | Next |
 | --- | --- | --- |
-| Package boundary | Typed exact values, graph, registry, results, certificates, and replay reports | Contract comparison |
+| Package boundary | Typed exact values, graph, registry, verification/repair results, certificates, and replay reports | Contract comparison |
 | Dimension semantics | Exact bounded rational algebra and graph inference | Contract comparison |
 | Unit registry | Immutable 33-unit snapshot with pinned SHA-256 | External snapshot decoder |
 | Graph IR | Content-addressed bounded IR and strict decoder | ONNX lowering |
-| Solver | Tracked dimension/kind/scale/offset constraints, uniqueness, replay, and bounded cores | Bounded repairs |
-| Repairs | Bounded operators specified | Verified candidate enumeration |
+| Solver | Tracked dimension/kind/scale/offset constraints, uniqueness, replay, bounded cores, and repair re-verification | Training/serving contract comparison |
+| Repairs | One bounded, non-mutating, exact-registry annotation replacement with independent verification and abstention | Additional operators require separate design and review |
 | Certificates | Positive-only canonical codec, content digest, and detached replay with optional strict-toolchain policy | Contract-comparison evidence |
-| CLI | Bounded regular-file reads, stable exits, atomic no-overwrite certificate publication | Contract-comparison commands |
-| Visual evidence | Real CLI captures, diagrams, plot, GIF, accessible SVG, and closed digest manifest | Grouped synthetic fault corpus |
+| CLI | Bounded regular-file reads, stable exits, atomic no-overwrite certificate publication, and read-only repair reports | Contract-comparison commands |
+| Visual evidence | Real CLI captures, repair lineage, diagrams, plot, GIF, accessible SVG, and closed digest manifest | Grouped synthetic fault corpus |
