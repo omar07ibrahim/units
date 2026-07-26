@@ -12,6 +12,7 @@ class PackageIdentityTests(unittest.TestCase):
             unitsentinel.__all__,
             [
                 "AMOUNT_OF_SUBSTANCE",
+                "BUILTIN_REGISTRY",
                 "DIMENSIONLESS",
                 "ELECTRIC_CURRENT",
                 "LENGTH",
@@ -25,9 +26,13 @@ class PackageIdentityTests(unittest.TestCase):
                 "DimensionError",
                 "Quantity",
                 "QuantityKind",
+                "RegistryError",
                 "Unit",
+                "UnitAlias",
                 "UnitDefinitionError",
+                "UnitRegistry",
                 "UnitSentinelError",
+                "UnknownUnitError",
                 "__version__",
             ],
         )
