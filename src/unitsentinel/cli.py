@@ -1,4 +1,4 @@
-"""Deterministic command-line verification and certificate replay."""
+"""Deterministic command-line verification, replay, and repair reporting."""
 
 from __future__ import annotations
 
@@ -9,7 +9,7 @@ import os
 import secrets
 import stat
 import sys
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from contextlib import suppress
 from fractions import Fraction
 from typing import Final, NoReturn, cast
@@ -29,17 +29,30 @@ from .domain import UnitSentinelError
 from .graph import GRAPH_SCHEMA, ComputationGraph
 from .graph_codec import MAX_GRAPH_BYTES, GraphDecodeError, decode_graph
 from .registry import BUILTIN_REGISTRY, REGISTRY_SCHEMA, SHA256_HEX
+from .repair import (
+    MAX_REPAIR_CANDIDATES,
+    MAX_REPAIR_SITES,
+    MAX_REPAIR_TOTAL_TIMEOUT_MS,
+    MAX_REPAIR_VERIFIER_CALLS,
+    MAX_REPAIR_WORK_ITEMS,
+    RepairError,
+    RepairLimits,
+    RepairStatus,
+    UnitRepairResult,
+    propose_unit_annotation_repair,
+)
 from .replay import (
     CertificateReplay,
     CertificateReplayError,
     ReplayStatus,
     replay_certificate,
 )
-from .verification import VerificationResult, VerificationStatus
+from .verification import SolverLimits, VerificationResult, VerificationStatus
 from .version import VERSION
 
 VERIFY_OUTPUT_SCHEMA: Final = "unitsentinel.cli.verify/v1"
 REPLAY_OUTPUT_SCHEMA: Final = "unitsentinel.cli.replay/v1"
+REPAIR_OUTPUT_SCHEMA: Final = "unitsentinel.cli.repair/v1"
 
 EXIT_SUCCESS: Final = 0
 EXIT_CONFLICT: Final = 1
@@ -47,12 +60,15 @@ EXIT_UNDERCONSTRAINED: Final = 2
 EXIT_INDETERMINATE: Final = 3
 EXIT_INPUT: Final = 4
 EXIT_MISMATCH: Final = 5
+EXIT_ABSTAINED: Final = 6
 EXIT_USAGE: Final = 64
 EXIT_INTERNAL: Final = 70
 EXIT_INTERRUPTED: Final = 130
 
 _READ_CHUNK_BYTES: Final = 65_536
 _TEMP_ATTEMPTS: Final = 32
+_DEFAULT_REPAIR_LIMITS: Final = RepairLimits()
+_DEFAULT_SOLVER_LIMITS: Final = SolverLimits()
 
 
 class _CLIError(Exception):
@@ -79,11 +95,31 @@ def _sha256_argument(value: str) -> str:
     return value
 
 
+def _bounded_integer_argument(
+    minimum: int,
+    maximum: int,
+) -> Callable[[str], int]:
+    def parse(value: str) -> int:
+        if (
+            len(value) > len(str(maximum))
+            or not value.isascii()
+            or not value.isdecimal()
+        ):
+            raise argparse.ArgumentTypeError("expected a bounded integer")
+        parsed = int(value)
+        if value != str(parsed) or parsed < minimum or parsed > maximum:
+            raise argparse.ArgumentTypeError("expected a bounded integer")
+        return parsed
+
+    return parse
+
+
 def _parser() -> argparse.ArgumentParser:
     parser = _ArgumentParser(
         prog="unitsentinel",
         description=(
-            "Verify exact dimensional contracts and replay detached proof claims."
+            "Verify exact dimensional contracts, replay detached proof claims, "
+            "and report bounded repair proposals."
         ),
     )
     parser.add_argument(
@@ -136,10 +172,70 @@ def _parser() -> argparse.ArgumentParser:
         action="store_true",
         help="emit one canonical machine-readable record",
     )
+
+    repair = commands.add_parser(
+        "repair",
+        help="report one bounded unit-annotation repair search",
+    )
+    repair.add_argument("graph", help="canonical graph JSON file")
+    repair.add_argument(
+        "--max-sites",
+        type=_bounded_integer_argument(1, MAX_REPAIR_SITES),
+        default=_DEFAULT_REPAIR_LIMITS.max_sites,
+        metavar="COUNT",
+        help=f"consider at most COUNT repair sites (1..{MAX_REPAIR_SITES})",
+    )
+    repair.add_argument(
+        "--max-candidates",
+        type=_bounded_integer_argument(1, MAX_REPAIR_CANDIDATES),
+        default=_DEFAULT_REPAIR_LIMITS.max_candidates,
+        metavar="COUNT",
+        help=(
+            f"consider at most COUNT semantic candidates (1..{MAX_REPAIR_CANDIDATES})"
+        ),
+    )
+    repair.add_argument(
+        "--max-verifier-calls",
+        type=_bounded_integer_argument(1, MAX_REPAIR_VERIFIER_CALLS),
+        default=_DEFAULT_REPAIR_LIMITS.max_verifier_calls,
+        metavar="COUNT",
+        help=(f"perform at most COUNT verifier calls (1..{MAX_REPAIR_VERIFIER_CALLS})"),
+    )
+    repair.add_argument(
+        "--max-work-items",
+        type=_bounded_integer_argument(1, MAX_REPAIR_WORK_ITEMS),
+        default=_DEFAULT_REPAIR_LIMITS.max_work_items,
+        metavar="COUNT",
+        help=f"reserve at most COUNT work items (1..{MAX_REPAIR_WORK_ITEMS})",
+    )
+    repair.add_argument(
+        "--total-timeout-ms",
+        type=_bounded_integer_argument(1, MAX_REPAIR_TOTAL_TIMEOUT_MS),
+        default=_DEFAULT_REPAIR_LIMITS.total_timeout_ms,
+        metavar="MILLISECONDS",
+        help=(
+            "bound the complete search in milliseconds "
+            f"(1..{MAX_REPAIR_TOTAL_TIMEOUT_MS})"
+        ),
+    )
     return parser
 
 
-def _read_bounded_file(path: str, *, label: str, max_bytes: int) -> bytes:
+def _open_input_descriptor(path: str, *, label: str) -> int:
+    parent, name = os.path.split(path)
+    if not name or name in {".", ".."}:
+        raise _CLIError(EXIT_INPUT, f"{label} could not be opened")
+    directory_flags = (
+        os.O_RDONLY
+        | getattr(os, "O_CLOEXEC", 0)
+        | getattr(os, "O_DIRECTORY", 0)
+        | getattr(os, "O_NOFOLLOW", 0)
+    )
+    try:
+        directory = os.open(parent or ".", directory_flags)
+    except OSError:
+        raise _CLIError(EXIT_INPUT, f"{label} could not be opened") from None
+
     flags = (
         os.O_RDONLY
         | getattr(os, "O_CLOEXEC", 0)
@@ -147,9 +243,17 @@ def _read_bounded_file(path: str, *, label: str, max_bytes: int) -> bytes:
         | getattr(os, "O_NONBLOCK", 0)
     )
     try:
-        descriptor = os.open(path, flags)
-    except OSError:
-        raise _CLIError(EXIT_INPUT, f"{label} could not be opened") from None
+        try:
+            return os.open(name, flags, dir_fd=directory)
+        except OSError:
+            raise _CLIError(EXIT_INPUT, f"{label} could not be opened") from None
+    finally:
+        with suppress(OSError):
+            os.close(directory)
+
+
+def _read_bounded_file(path: str, *, label: str, max_bytes: int) -> bytes:
+    descriptor = _open_input_descriptor(path, label=label)
 
     try:
         try:
@@ -544,6 +648,65 @@ def _replay_json(
     return canonical_json_bytes(record).decode("utf-8") + "\n"
 
 
+def _repair_json(
+    graph: ComputationGraph,
+    report: UnitRepairResult,
+    *,
+    exit_code: int,
+) -> str:
+    source_verification: dict[str, object] | None = None
+    if report.source_verification is not None:
+        source_verification = {
+            "record": report.source_verification.canonical_record(),
+            "sha256": report.source_verification.digest,
+        }
+    proposal: dict[str, object] | None = None
+    if report.candidate is not None:
+        candidate = report.candidate
+        proposal = {
+            "candidate_sha256": candidate.digest,
+            "relaxed_graph": {
+                "record": candidate.relaxed_graph.canonical_record(),
+                "sha256": candidate.relaxed_graph.digest,
+            },
+            "relaxed_verification": {
+                "record": candidate.relaxed_verification.canonical_record(),
+                "sha256": candidate.relaxed_verification.digest,
+            },
+            "repaired_graph": {
+                "record": candidate.repaired_graph.canonical_record(),
+                "sha256": candidate.repaired_graph.digest,
+            },
+            "repaired_verification": {
+                "record": candidate.repaired_verification.canonical_record(),
+                "sha256": candidate.repaired_verification.digest,
+            },
+        }
+    record = {
+        "application": "not-performed",
+        "exit_code": exit_code,
+        "graph": {
+            "graph_id": graph.graph_id,
+            "schema": GRAPH_SCHEMA,
+            "sha256": graph.digest,
+        },
+        "proposal": proposal,
+        "registry": {
+            "schema": REGISTRY_SCHEMA,
+            "sha256": report.registry.digest,
+            "version": report.registry.version,
+        },
+        "report": {
+            "record": report.canonical_record(),
+            "sha256": report.digest,
+        },
+        "schema": REPAIR_OUTPUT_SCHEMA,
+        "source_verification": source_verification,
+        "tool": {"name": "unitsentinel", "version": VERSION},
+    }
+    return canonical_json_bytes(record).decode("utf-8") + "\n"
+
+
 def _verification_exit(status: VerificationStatus) -> int:
     return {
         VerificationStatus.VERIFIED: EXIT_SUCCESS,
@@ -558,6 +721,14 @@ def _replay_exit(status: ReplayStatus) -> int:
         ReplayStatus.REPRODUCED: EXIT_SUCCESS,
         ReplayStatus.MISMATCH: EXIT_MISMATCH,
         ReplayStatus.INDETERMINATE: EXIT_INDETERMINATE,
+    }[status]
+
+
+def _repair_exit(status: RepairStatus) -> int:
+    return {
+        RepairStatus.PROPOSED: EXIT_SUCCESS,
+        RepairStatus.ABSTAINED: EXIT_ABSTAINED,
+        RepairStatus.INDETERMINATE: EXIT_INDETERMINATE,
     }[status]
 
 
@@ -650,12 +821,58 @@ def _run_replay(arguments: argparse.Namespace) -> int:
     return exit_code
 
 
+def _run_repair(arguments: argparse.Namespace) -> int:
+    graph_path = cast(str, arguments.graph)
+    graph = _decode_graph_file(graph_path)
+    limits = RepairLimits(
+        max_sites=cast(int, arguments.max_sites),
+        max_candidates=cast(int, arguments.max_candidates),
+        max_verifier_calls=cast(int, arguments.max_verifier_calls),
+        max_work_items=cast(int, arguments.max_work_items),
+        total_timeout_ms=cast(int, arguments.total_timeout_ms),
+    )
+    solver_limits = _DEFAULT_SOLVER_LIMITS
+    try:
+        report = propose_unit_annotation_repair(
+            graph,
+            repair_limits=limits,
+            solver_limits=solver_limits,
+        )
+        if type(report) is not UnitRepairResult:
+            raise RepairError("repair returned an unexpected result")
+        report.validate()
+        if (
+            not hmac.compare_digest(
+                report.source_graph.digest,
+                graph.digest,
+            )
+            or not hmac.compare_digest(
+                report.registry.digest,
+                BUILTIN_REGISTRY.digest,
+            )
+            or report.repair_limits != limits
+            or report.solver_limits != solver_limits
+        ):
+            raise RepairError("repair result does not bind the CLI request")
+    except RepairError:
+        raise _CLIError(
+            EXIT_INTERNAL,
+            "repair could not be completed safely",
+        ) from None
+
+    exit_code = _repair_exit(report.status)
+    sys.stdout.write(_repair_json(graph, report, exit_code=exit_code))
+    return exit_code
+
+
 def _dispatch(arguments: argparse.Namespace) -> int:
     command = cast(str, arguments.command)
     if command == "verify":
         return _run_verify(arguments)
     if command == "replay":
         return _run_replay(arguments)
+    if command == "repair":
+        return _run_repair(arguments)
     raise _CLIError(EXIT_USAGE, "command is required; use --help")
 
 

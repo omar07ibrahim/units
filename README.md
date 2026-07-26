@@ -11,9 +11,9 @@ every public contract is unique, and can issue an unsigned, content-addressed
 certificate for a positive result.
 
 > **Status:** the v0.1 verification core, canonical graph codec, 33-unit
-> registry, deterministic CLI, detached certificate codec, and independent
-> strict replay are implemented. Bounded repair search, training/serving
-> comparison, and ONNX lowering remain future work.
+> registry, deterministic CLI, detached certificate codec, independent strict
+> replay, and bounded verification-backed annotation repair are implemented.
+> Training/serving comparison and ONNX lowering remain future work.
 
 ![Implemented UnitSentinel verification pipeline and fail-closed outcomes](docs/assets/verification-pipeline.png)
 
@@ -120,7 +120,7 @@ Machine consumers can request the same closed result record:
     --json
 ```
 
-Normal verification and replay reports use structured stdout. Usage,
+Verification, replay, and repair reports use structured stdout. Usage,
 input/output, expected-digest preflight, interruption, and redacted internal
 failures use stderr.
 
@@ -129,9 +129,10 @@ failures use stderr.
 | `0` | Graph verified or certificate reproduced |
 | `1` | Dimensional conflict |
 | `2` | Underconstrained public contract |
-| `3` | Verification is unknown or replay is indeterminate |
+| `3` | Verification is unknown or replay/repair is indeterminate |
 | `4` | Input, output, or canonicality failure |
 | `5` | Replay or expected-digest mismatch |
+| `6` | Repair search abstained without one unique proposal |
 | `64` | Command-line usage error |
 | `70` | Redacted internal failure |
 | `130` | Interrupted execution |
@@ -168,6 +169,42 @@ rather than a generic “unit mismatch” message:
 both explicit conversions. “Deletion-minimal” does not mean
 minimum-cardinality. [Inspect the accessible
 SVG](docs/assets/conflict-core.svg).*
+
+## Bounded repair without automatic application
+
+The repair command can mechanically investigate one explicit unit annotation
+from a fresh minimal conflict core. It removes that annotation in memory,
+requires the relaxed graph to verify, finds exact canonical registry matches,
+and freshly verifies each bounded candidate. It never edits the input graph or
+claims to infer scientific intent.
+
+```bash
+.venv/bin/python -m unitsentinel repair \
+    docs/evidence/contracts/wheel-anomaly-conflict.json \
+    --max-sites 1 \
+    --max-candidates 1 \
+    --max-verifier-calls 3 \
+    --max-work-items 64 \
+    --total-timeout-ms 30000
+```
+
+![Source-derived UnitSentinel conflict to verified repair proposal lineage](docs/assets/unit-repair-lineage.png)
+
+*The production CLI found exactly one verified candidate under the pinned
+registry and completed bounds: `acceleration-si` changes from
+`meter-per-second` to no declaration, then to
+`meter-per-second-squared`. The source remains unchanged and the output states
+`application: not-performed`. Inspect the [exact transcript](docs/evidence/captures/repair.txt),
+[canonical JSON](docs/evidence/captures/repair.json),
+[cross-bound provenance](docs/evidence/repair-provenance.json), or
+[accessible SVG](docs/assets/unit-repair-lineage.svg).*
+
+The repaired candidate retains the source graph identifier
+`wheel-anomaly-conflict`; it is not byte-identical to the separately committed
+verified fixture. `proposed` establishes a unique mechanical replacement under
+the recorded registry and limits—not scientific correctness or permission to
+apply it. The complete fail-closed contract is documented in
+[Verified unit-annotation repair v1](docs/unit-repair-v1.md).
 
 ## Certificates and independent replay
 
@@ -275,6 +312,7 @@ The implementation includes:
 - monotonic per-check and whole-run deadlines plus solver memory bounds;
 - independent semantic replay of extracted models;
 - canonical verification results, proof certificates, and replay reports;
+- bounded, non-mutating, verification-backed unit-annotation proposals;
 - a deterministic CLI with bounded regular-file reads and atomic private
   certificate writes.
 
@@ -322,9 +360,20 @@ npm --prefix tools/evidence run audit
 
 .venv/bin/python -m tools.evidence.generate --check
 npm --prefix tools/evidence run check
+.venv/bin/python -m tools.evidence.repair_evidence --check
+npm --prefix tools/evidence run check:repair
 ```
 
-To refresh the deterministic records and renders:
+To refresh only the deterministic repair records and repair rendering:
+
+```bash
+.venv/bin/python -m tools.evidence.repair_evidence --record
+npm --prefix tools/evidence run render:repair
+.venv/bin/python -m tools.evidence.generate --write-manifest
+```
+
+The general recorder and renderer remain available when intentionally
+refreshing the complete legacy evidence set:
 
 ```bash
 .venv/bin/python -m tools.evidence.generate --record
@@ -339,7 +388,7 @@ The timing snapshot changes only through the explicit
 
 ## Local quality gates
 
-The current suite contains 198 unit, integration, adversarial, and evidence
+The current suite contains 238 unit, integration, adversarial, and evidence
 tests with 96% combined statement/branch coverage.
 
 ```bash
@@ -355,6 +404,8 @@ PYTHONPATH=src .venv/bin/coverage run -m unittest discover -s tests
 
 .venv/bin/python -m tools.evidence.generate --check
 npm --prefix tools/evidence run check
+.venv/bin/python -m tools.evidence.repair_evidence --check
+npm --prefix tools/evidence run check:repair
 ```
 
 The evidence tests independently validate canonical graph/certificate
@@ -372,7 +423,7 @@ README coverage, and secret/PII exclusions.
 | Tracked exact verification and fail-closed outcomes | Complete |
 | Detached positive certificates and independent replay | Complete |
 | Production CLI and reproducible visual evidence | Complete |
-| Bounded formally reverified repair candidates | Next |
+| Bounded formally reverified repair candidates | Complete |
 | Training/serving contract comparison | Planned |
 | Closed-subset ONNX metadata adapter | Planned |
 | Grouped synthetic fault benchmark with abstention metrics | Planned |

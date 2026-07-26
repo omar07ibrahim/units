@@ -10,7 +10,9 @@
   "scripts": {
     "audit": "npm audit --audit-level=high",
     "check": "node render.mjs --check",
-    "render": "node render.mjs"
+    "check:repair": "node render.mjs --check-repair",
+    "render": "node render.mjs",
+    "render:repair": "node render.mjs --repair"
   },
   "dependencies": {
     "@resvg/resvg-js": "2.6.2",

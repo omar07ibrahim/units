@@ -608,6 +608,156 @@ def conflict_core_svg(
     )
 
 
+def unit_repair_lineage_svg(
+    *,
+    candidate_digest: str,
+    candidates_considered: int,
+    constraint_id: str,
+    max_work_items: int,
+    previous_unit_id: str,
+    registry_digest: str,
+    relaxed_graph_digest: str,
+    relaxed_verification_digest: str,
+    repaired_graph_digest: str,
+    repaired_verification_digest: str,
+    replacement_unit_id: str,
+    report_digest: str,
+    sites_considered: int,
+    source_graph_digest: str,
+    source_verification_digest: str,
+    value_id: str,
+    verification_calls: int,
+    work_items: int,
+) -> str:
+    body = [
+        _text(60, 66, "Verified unit-annotation repair lineage", size=31, weight=700),
+        _text(
+            60,
+            102,
+            "One production CLI record binds the conflict, relaxation, exact "
+            "registry match, and fresh verification.",
+            size=17,
+            fill=MUTED,
+        ),
+        _box(
+            55,
+            175,
+            365,
+            255,
+            title="SOURCE · CONFLICT",
+            lines=(
+                "wheel-anomaly-conflict",
+                f"{value_id} =",
+                previous_unit_id,
+                "deletion-minimal core",
+                f"graph {source_graph_digest[:16]}…",
+                f"result {source_verification_digest[:16]}…",
+            ),
+            accent=RED,
+        ),
+        _box(
+            535,
+            175,
+            365,
+            255,
+            title="RELAXED · VERIFIED",
+            lines=(
+                f"{value_id} = null",
+                "one declaration removed",
+                "inferred length^1 time^-2",
+                "linear · scale 1 · offset 0",
+                f"graph {relaxed_graph_digest[:16]}…",
+                f"result {relaxed_verification_digest[:16]}…",
+            ),
+            accent=VIOLET,
+        ),
+        _box(
+            1015,
+            175,
+            365,
+            255,
+            title="PROPOSAL · VERIFIED",
+            lines=(
+                f"{value_id} =",
+                replacement_unit_id,
+                "exact canonical registry match",
+                "one declaration restored",
+                f"graph {repaired_graph_digest[:16]}…",
+                f"result {repaired_verification_digest[:16]}…",
+            ),
+            accent=GREEN,
+        ),
+        _arrow(
+            420,
+            330,
+            535,
+            330,
+            color=VIOLET,
+        ),
+        _multiline(
+            477,
+            280,
+            ("remove one", "declaration"),
+            size=12,
+            fill=VIOLET,
+            line_height=16,
+            anchor="middle",
+        ),
+        _arrow(
+            900,
+            330,
+            1015,
+            330,
+            color=GREEN,
+        ),
+        _multiline(
+            957,
+            280,
+            ("exact match", "+ reverify"),
+            size=12,
+            fill=GREEN,
+            line_height=16,
+            anchor="middle",
+        ),
+        _box(
+            120,
+            540,
+            1200,
+            210,
+            title="Content-addressed bounded search",
+            lines=(
+                f"site {constraint_id}",
+                f"registry sha256 {registry_digest[:24]}…",
+                f"candidate {candidate_digest[:24]}… · report {report_digest[:24]}…",
+                f"{sites_considered} site · {candidates_considered} candidate · "
+                f"{verification_calls} verifier calls",
+                f"{work_items}/{max_work_items} deterministic work items consumed",
+            ),
+            accent=CYAN,
+        ),
+        _text(
+            720,
+            825,
+            "PROPOSAL ONLY · application not performed · dimensional "
+            "verification is not scientific intent",
+            size=18,
+            fill=AMBER,
+            weight=700,
+            anchor="middle",
+        ),
+    ]
+    return _document(
+        width=1_440,
+        height=900,
+        title="UnitSentinel verified unit-annotation repair lineage",
+        description=(
+            "Source-derived conflict to relaxed to verified proposal lineage for "
+            "one bounded, non-applied UnitSentinel repair search."
+        ),
+        body="\n".join(body),
+    )
+
+
 def lineage_svg(
     *,
     certificate_bytes: int,

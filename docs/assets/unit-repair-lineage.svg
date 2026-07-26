@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="900" viewBox="0 0 1440 900" role="img" aria-labelledby="title description">
+  <title id="title">UnitSentinel verified unit-annotation repair lineage</title>
+  <desc id="description">Source-derived conflict to relaxed to verified proposal lineage for one bounded, non-applied UnitSentinel repair search.</desc>
+  <defs>
+    <linearGradient id="background" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#07111f"/>
+      <stop offset="1" stop-color="#0a1730"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="10" stdDeviation="12" flood-color="#000814" flood-opacity=".45"/>
+    </filter>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L0,6 L9,3 z" fill="#8fa5bd"/>
+    </marker>
+  </defs>
+  <rect width="1440" height="900" fill="url(#background)"/>
+<text x="60" y="66" fill="#d8e4f2" font-family="DejaVu Sans, sans-serif" font-size="31" font-weight="700" text-anchor="start">Verified unit-annotation repair lineage</text>
+<text x="60" y="102" fill="#8fa5bd" font-family="DejaVu Sans, sans-serif" font-size="17" font-weight="400" text-anchor="start">One production CLI record binds the conflict, relaxation, exact registry match, and fresh verification.</text>
+<rect x="55" y="175" width="365" height="255" rx="18" fill="#0d1b2d" stroke="#253a55" stroke-width="2" filter="url(#shadow)"/>
+<rect x="55" y="175" width="7" height="255" rx="3.5" fill="#ff6b7a"/>
+<text x="83" y="213" fill="#ff6b7a" font-family="DejaVu Sans, sans-serif" font-size="20" font-weight="700" text-anchor="start">SOURCE · CONFLICT</text>
+<text x="83" y="245" fill="#d8e4f2" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="400" text-anchor="start">
+      <tspan x="83" dy="0">wheel-anomaly-conflict</tspan>
+      <tspan x="83" dy="25">acceleration-si =</tspan>
+      <tspan x="83" dy="25">meter-per-second</tspan>
+      <tspan x="83" dy="25">deletion-minimal core</tspan>
+      <tspan x="83" dy="25">graph 6ae6457c38e5dbe7…</tspan>
+      <tspan x="83" dy="25">result 521b85cbf597e5ca…</tspan>
+    </text>
+<rect x="535" y="175" width="365" height="255" rx="18" fill="#0d1b2d" stroke="#253a55" stroke-width="2" filter="url(#shadow)"/>
+<rect x="535" y="175" width="7" height="255" rx="3.5" fill="#b69cff"/>
+<text x="563" y="213" fill="#b69cff" font-family="DejaVu Sans, sans-serif" font-size="20" font-weight="700" text-anchor="start">RELAXED · VERIFIED</text>
+<text x="563" y="245" fill="#d8e4f2" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="400" text-anchor="start">
+      <tspan x="563" dy="0">acceleration-si = null</tspan>
+      <tspan x="563" dy="25">one declaration removed</tspan>
+      <tspan x="563" dy="25">inferred length^1 time^-2</tspan>
+      <tspan x="563" dy="25">linear · scale 1 · offset 0</tspan>
+      <tspan x="563" dy="25">graph 42d373fcb6d82578…</tspan>
+      <tspan x="563" dy="25">result 5cc15020866490d8…</tspan>
+    </text>
+<rect x="1015" y="175" width="365" height="255" rx="18" fill="#0d1b2d" stroke="#253a55" stroke-width="2" filter="url(#shadow)"/>
+<rect x="1015" y="175" width="7" height="255" rx="3.5" fill="#5ee6a8"/>
+<text x="1043" y="213" fill="#5ee6a8" font-family="DejaVu Sans, sans-serif" font-size="20" font-weight="700" text-anchor="start">PROPOSAL · VERIFIED</text>
+<text x="1043" y="245" fill="#d8e4f2" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="400" text-anchor="start">
+      <tspan x="1043" dy="0">acceleration-si =</tspan>
+      <tspan x="1043" dy="25">meter-per-second-squared</tspan>
+      <tspan x="1043" dy="25">exact canonical registry match</tspan>
+      <tspan x="1043" dy="25">one declaration restored</tspan>
+      <tspan x="1043" dy="25">graph 6eb183a6dd64a2e8…</tspan>
+      <tspan x="1043" dy="25">result fa1cc16dac6f167e…</tspan>
+    </text>
+<path d="M420,330 L535,330" stroke="#b69cff" stroke-width="3" fill="none" marker-end="url(#arrow)"/>
+<text x="477" y="280" fill="#b69cff" font-family="DejaVu Sans, sans-serif" font-size="12" font-weight="400" text-anchor="middle">
+      <tspan x="477" dy="0">remove one</tspan>
+      <tspan x="477" dy="16">declaration</tspan>
+    </text>
+<path d="M900,330 L1015,330" stroke="#5ee6a8" stroke-width="3" fill="none" marker-end="url(#arrow)"/>
+<text x="957" y="280" fill="#5ee6a8" font-family="DejaVu Sans, sans-serif" font-size="12" font-weight="400" text-anchor="middle">
+      <tspan x="957" dy="0">exact match</tspan>
+      <tspan x="957" dy="16">+ reverify</tspan>
+    </text>
+<rect x="120" y="540" width="1200" height="210" rx="18" fill="#0d1b2d" stroke="#253a55" stroke-width="2" filter="url(#shadow)"/>
+<rect x="120" y="540" width="7" height="210" rx="3.5" fill="#38d9f5"/>
+<text x="148" y="578" fill="#38d9f5" font-family="DejaVu Sans, sans-serif" font-size="20" font-weight="700" text-anchor="start">Content-addressed bounded search</text>
+<text x="148" y="610" fill="#d8e4f2" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="400" text-anchor="start">
+      <tspan x="148" dy="0">site declaration/acceleration-si/unit</tspan>
+      <tspan x="148" dy="25">registry sha256 fc80cbb596f3341b1d2ff137…</tspan>
+      <tspan x="148" dy="25">candidate f770481725a6e655b0dd0370… · report 71017e74ec05874c688c55db…</tspan>
+      <tspan x="148" dy="25">1 site · 1 candidate · 3 verifier calls</tspan>
+      <tspan x="148" dy="25">42/64 deterministic work items consumed</tspan>
+    </text>
+<text x="720" y="825" fill="#ffc857" font-family="DejaVu Sans, sans-serif" font-size="18" font-weight="700" text-anchor="middle">PROPOSAL ONLY · application not performed · dimensional verification is not scientific intent</text>
+</svg>

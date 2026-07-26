@@ -15,12 +15,29 @@ npm --prefix tools/evidence ci --ignore-scripts
 
 .venv/bin/python -m tools.evidence.generate --check
 npm --prefix tools/evidence run check
+.venv/bin/python -m tools.evidence.repair_evidence --check
+npm --prefix tools/evidence run check:repair
 ```
 
 The Python command re-executes the verified, conflict, and strict-replay CLI
-paths. It does not remeasure the timing benchmark. The Node command renders all
-expected PNG/GIF bytes in memory and compares them with the committed files.
-Neither check publishes replacements.
+paths; the repair-only Python command separately re-executes the pinned
+non-mutating repair search. Neither remeasures the timing benchmark. The Node
+commands render expected bytes in memory and compare them with the committed
+files. None of these checks publishes replacements.
+
+To intentionally refresh only the repair slice:
+
+```bash
+.venv/bin/python -m tools.evidence.repair_evidence --record
+npm --prefix tools/evidence run render:repair
+.venv/bin/python -m tools.evidence.repair_evidence --check
+npm --prefix tools/evidence run check:repair
+.venv/bin/python -m tools.evidence.generate --write-manifest
+```
+
+Those write modes are closed to the repair transcript, canonical record,
+repair provenance, lineage SVG, lineage PNG, and final manifest. They do not
+publish the existing demo GIF, scaling snapshot, or legacy PNGs.
 
 To intentionally refresh deterministic evidence while retaining the recorded
 benchmark:
@@ -44,6 +61,7 @@ goldens.
 | What did a successful CLI run return? | [Verified terminal SVG](../assets/verify-terminal.svg) | [Verified terminal PNG](../assets/verify-terminal.png) |
 | How did the serving-contract bug fail? | [Conflict terminal SVG](../assets/conflict-terminal.svg) | [Conflict terminal PNG](../assets/conflict-terminal.png) |
 | Which tracked constraints form the conflict? | [Conflict core SVG](../assets/conflict-core.svg) | [Conflict core PNG](../assets/conflict-core.png) |
+| How was one bounded repair proposal verified? | [Unit repair lineage SVG](../assets/unit-repair-lineage.svg) | [Unit repair lineage PNG](../assets/unit-repair-lineage.png) |
 | How is a claim bound and replayed? | [Certificate lineage SVG](../assets/certificate-lineage.svg) | [Certificate lineage PNG](../assets/certificate-lineage.png) |
 | What did strict replay return? | [Replay terminal SVG](../assets/replay-terminal.svg) | [Replay terminal PNG](../assets/replay-terminal.png) |
 | How did bounded graph size affect this host? | [Scaling plot SVG](../assets/scaling.svg) | [Scaling plot PNG](../assets/scaling.png) |
@@ -79,6 +97,7 @@ provenance.
 | --- | --- | --- |
 | Verify and issue | [verify.txt](captures/verify.txt) | [verify.json](captures/verify.json) |
 | Fail closed on conflict | [conflict.txt](captures/conflict.txt) | [conflict.json](captures/conflict.json) |
+| Propose one non-applied repair | [repair.txt](captures/repair.txt) | [repair.json](captures/repair.json) |
 | Strict detached replay | [replay.txt](captures/replay.txt) | [replay.json](captures/replay.json) |
 
 The transcript commands use `.unitsentinel/evidence-run` as an isolated scratch
@@ -88,6 +107,7 @@ an existing directory at that path, and removes only the directory it created.
 ### Cross-bindings and benchmark
 
 - [Graph/result/certificate/replay provenance](provenance.json)
+- [Repair graph/result/candidate provenance](repair-provenance.json)
 - [Measured scaling runs](data/scaling.json)
 
 The recorded benchmark uses identity chains with 1, 8, 32, 128, and 256
@@ -116,6 +136,9 @@ resources, and malformed delays.
 - `core_minimal: true` means deletion-minimal under the bounded shrink
   procedure, not minimum-cardinality.
 - A verified dimensional contract does not establish scientific correctness.
+- A `proposed` repair is one exact, freshly verified annotation replacement
+  under the recorded registry and search limits. It is not automatically
+  applied and does not establish scientific intent.
 - Timings include the recorded Python, UnitSentinel, and Z3 versions shown in
   [the benchmark data](data/scaling.json).
 
