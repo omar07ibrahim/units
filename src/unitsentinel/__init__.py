@@ -46,6 +46,15 @@ from .registry import (
     UnitRegistry,
     UnknownUnitError,
 )
+from .repair import (
+    RepairError,
+    RepairLimits,
+    RepairReason,
+    RepairStatus,
+    UnitRepairCandidate,
+    UnitRepairResult,
+    propose_unit_annotation_repair,
+)
 from .replay import (
     CertificateReplay,
     CertificateReplayError,
@@ -99,6 +108,10 @@ __all__ = [
     "Quantity",
     "QuantityKind",
     "RegistryError",
+    "RepairError",
+    "RepairLimits",
+    "RepairReason",
+    "RepairStatus",
     "ReplayReason",
     "ReplayStatus",
     "ScalarType",
@@ -107,6 +120,8 @@ __all__ = [
     "UnitAlias",
     "UnitDefinitionError",
     "UnitRegistry",
+    "UnitRepairCandidate",
+    "UnitRepairResult",
     "UnitSentinelError",
     "UnknownReason",
     "UnknownUnitError",
@@ -121,6 +136,7 @@ __all__ = [
     "decode_graph",
     "encode_certificate",
     "encode_graph",
+    "propose_unit_annotation_repair",
     "replay_certificate",
     "verify_graph",
 ]
