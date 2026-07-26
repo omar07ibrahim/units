@@ -121,6 +121,38 @@ class ConstraintCatalogTests(unittest.TestCase):
 
 
 class ProofCertificateTests(unittest.TestCase):
+    def test_internal_attempt_verifies_once_and_preserves_negative_results(
+        self,
+    ) -> None:
+        positive_graph = build_graph()
+        real_verify = certificate_module.verify_graph
+        with patch.object(
+            certificate_module,
+            "verify_graph",
+            wraps=real_verify,
+        ) as verify:
+            positive, certificate = certificate_module._create_certificate_attempt(
+                positive_graph
+            )
+
+        self.assertEqual(verify.call_count, 1)
+        self.assertIsNotNone(certificate)
+        self.assertIs(certificate.result, positive)
+
+        negative_graph = ambiguous_graph()
+        with patch.object(
+            certificate_module,
+            "verify_graph",
+            wraps=real_verify,
+        ) as verify:
+            negative, certificate = certificate_module._create_certificate_attempt(
+                negative_graph
+            )
+
+        self.assertEqual(verify.call_count, 1)
+        self.assertEqual(negative.status, VerificationStatus.UNDERCONSTRAINED)
+        self.assertIsNone(certificate)
+
     def test_positive_certificate_is_canonical_and_content_addressed(self) -> None:
         graph = build_graph()
 

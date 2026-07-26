@@ -256,12 +256,12 @@ class ProofCertificate:
         return canonical_json_bytes(self._canonical_record_unchecked())
 
 
-def create_certificate(
+def _create_certificate_attempt(
     graph: ComputationGraph,
     registry: UnitRegistry = BUILTIN_REGISTRY,
     limits: SolverLimits = _DEFAULT_SOLVER_LIMITS,
-) -> ProofCertificate:
-    """Run verification and issue a detached certificate only on success."""
+) -> tuple[VerificationResult, ProofCertificate | None]:
+    """Verify exactly once and attach a certificate only to a positive result."""
 
     if type(graph) is not ComputationGraph:
         raise CertificateError("certificate graph must be an exact ComputationGraph")
@@ -305,14 +305,12 @@ def create_certificate(
     ):
         raise CertificateError("certificate source changed during verification")
     if result.status is not VerificationStatus.VERIFIED:
-        raise CertificateError(
-            f"certificate issuance requires verified, got {result.status.value}"
-        )
+        return result, None
     actual_ids = tuple(contract.value_id for contract in result.contracts)
     if actual_ids != expected_ids:
         raise CertificateError("verified contracts do not cover every graph value")
     try:
-        return ProofCertificate(
+        certificate = ProofCertificate(
             registry_version=registry_version,
             verifier_version=VERSION,
             constraints=constraints,
@@ -320,6 +318,22 @@ def create_certificate(
         )
     except UnitSentinelError:
         raise CertificateError("verified result could not be certified") from None
+    return result, certificate
+
+
+def create_certificate(
+    graph: ComputationGraph,
+    registry: UnitRegistry = BUILTIN_REGISTRY,
+    limits: SolverLimits = _DEFAULT_SOLVER_LIMITS,
+) -> ProofCertificate:
+    """Run verification and issue a detached certificate only on success."""
+
+    result, certificate = _create_certificate_attempt(graph, registry, limits)
+    if certificate is None:
+        raise CertificateError(
+            f"certificate issuance requires verified, got {result.status.value}"
+        )
+    return certificate
 
 
 def encode_certificate(certificate: ProofCertificate) -> bytes:
