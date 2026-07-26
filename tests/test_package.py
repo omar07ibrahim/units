@@ -25,6 +25,7 @@ class PackageIdentityTests(unittest.TestCase):
                 "ConversionError",
                 "Dimension",
                 "DimensionError",
+                "GraphDecodeError",
                 "GraphError",
                 "GraphValidationError",
                 "Node",
@@ -41,6 +42,8 @@ class PackageIdentityTests(unittest.TestCase):
                 "UnknownUnitError",
                 "ValueSpec",
                 "__version__",
+                "decode_graph",
+                "encode_graph",
             ],
         )
 

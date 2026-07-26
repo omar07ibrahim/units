@@ -30,6 +30,7 @@ from .graph import (
     ScalarType,
     ValueSpec,
 )
+from .graph_codec import GraphDecodeError, decode_graph, encode_graph
 from .registry import (
     BUILTIN_REGISTRY,
     RegistryError,
@@ -55,6 +56,7 @@ __all__ = [
     "ConversionError",
     "Dimension",
     "DimensionError",
+    "GraphDecodeError",
     "GraphError",
     "GraphValidationError",
     "Node",
@@ -71,4 +73,6 @@ __all__ = [
     "UnknownUnitError",
     "ValueSpec",
     "__version__",
+    "decode_graph",
+    "encode_graph",
 ]
