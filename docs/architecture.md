@@ -182,33 +182,37 @@ documented in [certificate-format.md](certificate-format.md).
 
 ## Training and serving comparison
 
-The canonical alignment plan and bounded byte codec are implemented. They bind
-the exact training graph, serving graph, registry snapshot, and explicit
-logical interface mapping without making a compatibility claim. The
-fresh-verification comparison engine is planned, not yet implemented.
+The canonical alignment plan, bounded byte codec, fresh-verification engine,
+and immutable result are implemented. The plan binds the exact training graph,
+serving graph, registry snapshot, and explicit logical interface mapping
+without itself making a compatibility claim.
 
 Mappings operate on public `(role, value_id)` occurrences. Every occurrence
 must be covered exactly once before comparison; one-sided bindings express an
 explicit absence, cross-role bindings preserve a role drift, and different
 identifiers are treated as an intentional rename only under the caller-trusted
 plan that pairs them. Constructing or decoding a plan does not establish
-endpoint membership, total coverage, or permission; the later engine must
-validate membership and coverage against both bound graphs. It must also bind
-the exact plan digest, expose `authentication: not-provided`, and allow a
-caller-trusted expected digest or allow-list policy to fail closed. No fuzzy,
-positional, or alias-based matching is permitted. The complete plan contract
-is documented in
+endpoint membership, total coverage, or permission; the engine validates
+membership and exact occurrence coverage against both bound graphs before
+calling either solver. It binds the exact plan digest, exposes
+`authentication: not-provided`, and lets a caller-trusted expected digest fail
+closed. No fuzzy, positional, or alias-based matching is permitted. Port
+positions are compared only within the same role because input and output
+ordinals are separate namespaces. The complete plan and result contract is
+documented in
 [training-serving-comparison-v1.md](training-serving-comparison-v1.md).
 
 Two individually verified graphs may still disagree. Contract comparison will
-align declared public inputs and outputs, then report:
+align declared public inputs and outputs, then report exact missing/extra,
+role, position, dtype, shape, explicit-unit, dimension, kind, scale, and offset
+differences. A negative, underconstrained, unknown, malformed, or
+identity-mismatched verifier result produces `indeterminate` with no partial
+interface findings.
 
-- missing or extra values;
-- dimension changes;
-- compatible dimension but different scale or offset;
-- quantity-kind changes;
-- normalization provenance changes;
-- underconstrained values on either side.
+Both sides are freshly verified with the same registry and solver limits even
+when the first ordinary result is not positive. Complete positive assignments
+are independently replayed before snapshots are built. Normalization
+provenance comparison remains a separate planned layer.
 
 Statistical drift tools remain complementary: UnitSentinel finds semantic
 contract skew even when no representative payload samples are available.
@@ -229,7 +233,7 @@ The adapter is not implemented.
 
 ## Resource and security limits
 
-- No network access is required by verification or replay.
+- No network access is required by verification, replay, repair, or comparison.
 - No shell, `eval`, dynamic import, or arbitrary model execution.
 - Fixed limits for document bytes/tree shape, inputs, values, nodes, outputs,
   tensor rank, exponent size, core-shrink checks, uniqueness checks, solver
@@ -239,7 +243,7 @@ The adapter is not implemented.
 - Unknown unit identifiers and unsupported operations fail closed.
 - Canonical JSON readers reject duplicate fields and non-finite numbers.
 - The same registry snapshot is used for compilation, certificate issuance,
-  and replay.
+  replay, and both sides of a comparison.
 
 The threat model excludes a same-UID process that can rewrite the verifier,
 solver binary, or repository parent directories during execution. The
@@ -250,11 +254,11 @@ boundary explicitly.
 
 | Area | Current | Next |
 | --- | --- | --- |
-| Package boundary | Typed exact values, graph, registry, verification/repair results, certificates, replay reports, and content-addressed comparison plans | Verified comparison result |
-| Dimension semantics | Exact bounded rational algebra and graph inference | Contract comparison |
+| Package boundary | Typed exact values, graph, registry, verification/repair/comparison results, certificates, replay reports, and content-addressed comparison plans | Strict comparison-result decoder |
+| Dimension semantics | Exact bounded rational algebra, graph inference, and training/serving interface comparison | Normalization lineage comparison |
 | Unit registry | Immutable 33-unit snapshot with pinned SHA-256 | External snapshot decoder |
 | Graph IR | Content-addressed bounded IR and strict decoder | ONNX lowering |
-| Solver | Tracked dimension/kind/scale/offset constraints, uniqueness, replay, bounded cores, and repair re-verification | Training/serving contract comparison |
+| Solver | Tracked dimension/kind/scale/offset constraints, uniqueness, replay, bounded cores, repair re-verification, and two-sided fresh comparison | Normalization lineage evidence |
 | Repairs | One bounded, non-mutating, exact-registry annotation replacement with independent verification and abstention | Additional operators require separate design and review |
 | Certificates | Positive-only canonical codec, content digest, and detached replay with optional strict-toolchain policy | Contract-comparison evidence |
 | CLI | Bounded regular-file reads, stable exits, atomic no-overwrite certificate publication, and read-only repair reports | Contract-comparison command |
