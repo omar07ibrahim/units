@@ -12,10 +12,10 @@ certificate for a positive result.
 
 > **Status:** the v0.1 verification core, canonical graph codec, 33-unit
 > registry, deterministic CLI, detached certificate codec, independent strict
-> replay, bounded verification-backed annotation repair, and canonical
-> training/serving comparison engine are implemented. Bounded normalization
-> lineage extraction and fresh cross-graph normalization-lineage comparison
-> are implemented; the comparison CLI and ONNX lowering remain future work.
+> replay, bounded verification-backed annotation repair, canonical
+> training/serving comparison engine, normalization-lineage comparison, and
+> strict comparison-result codec are implemented. The comparison CLI,
+> reproducible comparison evidence, and ONNX lowering remain future work.
 
 ![Implemented UnitSentinel verification pipeline and fail-closed outcomes](docs/assets/verification-pipeline.png)
 
@@ -316,6 +316,8 @@ The implementation includes:
   exact inferred metadata, output routing, and internal-rename invariance;
 - fail-closed cross-graph normalization-lineage comparison over two freshly
   verified, graph-rederived lineages, including repeated-site multiplicity;
+- a strict 32 MiB canonical JSON codec for bounded, unsigned comparison-result
+  claims with exact nested digest and model round-trip checks;
 - structural preflight limits on bytes, nesting, tokens, nodes, and items;
 - exact constraints for all 14 supported graph operations;
 - alternate-model uniqueness checks;
@@ -333,8 +335,9 @@ The [canonical graph contract](docs/graph-format.md),
 [certificate and replay contract](docs/certificate-format.md) documents the
 detached claim byte boundary and replay ordering. The
 [training-serving comparison contract](docs/training-serving-comparison-v1.md)
-defines the explicit alignment plan, fresh engine, and unsigned result without
-claiming that a plan digest authenticates who approved its mapping.
+defines the explicit alignment plan, fresh engine, and strict unsigned result
+byte boundary without claiming that decoding proves freshness or that a plan
+digest authenticates who approved its mapping.
 
 ## Trust boundary
 
@@ -402,7 +405,7 @@ The timing snapshot changes only through the explicit
 
 ## Local quality gates
 
-The current suite contains 335 unit, integration, adversarial, and evidence
+The current suite contains 361 unit, integration, adversarial, and evidence
 tests with 97% statement coverage, 94% branch coverage, and 96% combined
 statement/branch coverage.
 
@@ -413,7 +416,7 @@ PYTHONPATH=src .venv/bin/coverage run -m unittest discover -s tests
 
 .venv/bin/ruff check .
 .venv/bin/ruff format --check .
-.venv/bin/mypy src tools/evidence
+.venv/bin/mypy src tools/evidence tools/measure_comparison_result_boundary.py
 .venv/bin/python -m build
 .venv/bin/pip-audit
 
@@ -443,6 +446,7 @@ README coverage, and secret/PII exclusions.
 | Fresh-verified training/serving comparison engine | Complete |
 | Bounded normalization-lineage extraction | Complete |
 | Fresh cross-graph normalization-lineage comparison | Complete |
+| Strict bounded comparison-result codec | Complete |
 | Comparison CLI and reproducible visual evidence | Planned |
 | Closed-subset ONNX metadata adapter | Planned |
 | Grouped synthetic fault benchmark with abstention metrics | Planned |

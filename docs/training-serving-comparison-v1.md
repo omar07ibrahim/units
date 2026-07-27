@@ -3,7 +3,7 @@
 Status: the canonical comparison plan, bounded plan byte codec,
 fresh-verification engine, immutable comparison result, bounded
 normalization-lineage extractor, and fresh cross-graph normalization-lineage
-comparison are implemented. The strict result codec, CLI surface, and
+comparison, and strict result codec are implemented. The CLI surface and
 reproducible comparison evidence remain future work.
 
 ## Objective
@@ -89,7 +89,7 @@ This representation distinguishes three cases that a same-name join cannot:
 2. a public value missing on one side;
 3. a value moved from input to output or the reverse.
 
-## Byte boundary
+## Plan byte boundary
 
 The decoder accepts exact canonical UTF-8 JSON bytes and reuses UnitSentinel's
 allocation preflight. Version 1 fixes:
@@ -172,6 +172,57 @@ prove freshness or rerun graph-backed lineage derivation because the detached
 record does not carry either graph. Callers that rely on a result must obtain
 it from `compare_graphs`, retain the caller-trusted plan policy separately, and
 treat its content digest as integrity rather than author authentication.
+
+## Comparison-result byte boundary
+
+`encode_comparison_result` accepts one exact `ComparisonResult`, emits its
+canonical bytes, and rejects a model whose serialized form exceeds the result
+transport limits. `decode_comparison_result` accepts untrusted canonical UTF-8
+JSON and fixes the following v1 preflight bounds:
+
+- 33,554,432 document bytes (32 MiB);
+- ten nested containers;
+- 2,112 entries in one object or array;
+- 1,048,576 total JSON values;
+- 192 Unicode scalar values in one string;
+- ten digits in an integer token.
+
+The larger byte and value budgets accommodate the deliberately repeated
+diagnostic and lineage records of a bounded two-sided result. A measured
+graph-count-ceiling stress result with 512 nodes, 385 qualifying normalization
+sites, and 64 outputs is 7,538,814 canonical bytes; it does not maximize every
+independent metadata field. The committed shape-only independent-field stress
+envelope is 24,402,018 bytes and 779,409 preflight tokens. The 32 MiB and
+1,048,576-token limits are the next powers of two above that envelope. Depth
+ten is the actual deepest v1 scalar, and 2,112 entries accommodate the maximum
+constraint catalog.
+
+The envelope is a committed, explicitly non-constructible sizing fixture; it
+is not presented as a valid result or an exact maximum. Reproduce its canonical
+summary and SHA-256 from the repository root:
+
+```bash
+PYTHONPATH=src .venv/bin/python -m tools.measure_comparison_result_boundary
+```
+
+After preflight, the decoder requires exact root and nested field sets,
+supported schemas, status/reason consistency, source bindings, and all model
+invariants. It reconstructs the verification, lineage, output, and interface
+records; recomputes their claimed wrapper and semantic digests; and finally
+requires the reconstructed result's canonical bytes to equal the input byte
+for byte. Duplicate fields, floats, a BOM, invalid UTF-8, noncanonical
+ordering or whitespace, oversized structures, malformed digests, unknown
+fields, and internally inconsistent claims fail closed.
+
+Successful decoding establishes only structural and content-address integrity
+for an internally coherent, unsigned detached claim. It does not authenticate
+an author, prove that either verifier run was fresh, perform graph-backed
+lineage rederivation, or establish that anyone approved the comparison plan.
+The graphs are not present at this boundary. Solver limits, check counts, and
+collections in a decoded result are claim provenance; decoding neither runs a
+solver nor proves that the claimed resources were enforced. A caller that
+needs those properties must execute `compare_graphs` over the bound graphs and
+registry under its own trusted expected-plan policy.
 
 ## Implemented lineage extraction and comparison boundary
 
@@ -290,3 +341,11 @@ A party that needs an approved mapping must supply a caller-trusted expected
 plan digest or equivalent allow-list policy to the engine and must reject a
 mismatch. Recomputing a digest after replacing a plan establishes only the
 integrity of the replacement; it does not make the replacement trusted.
+
+## Next surface
+
+The next delivery slice is a comparison CLI over bounded regular files,
+followed by reproducible fixtures, exact CLI and JSON captures, architecture
+and result diagrams, and a short recorded demo derived from those committed
+outputs. Until that surface exists, the Python comparison engine and result
+codec are the implemented machine interfaces.

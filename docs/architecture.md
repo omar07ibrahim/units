@@ -1,9 +1,9 @@
 # Architecture and verification boundary
 
 This document separates the implemented verifier, certificate/replay,
-bounded-repair, canonical comparison-plan, and CLI boundaries from the later
-comparison engine and adapter design. The implementation map at the end is the
-authoritative status summary.
+bounded-repair, canonical comparison-plan/result, comparison engine, and
+verification CLI boundaries from the later comparison CLI and adapter design.
+The implementation map at the end is the authoritative status summary.
 
 ## Design objective
 
@@ -182,10 +182,10 @@ documented in [certificate-format.md](certificate-format.md).
 
 ## Training and serving comparison
 
-The canonical alignment plan, bounded byte codec, fresh-verification engine,
-and immutable result are implemented. The plan binds the exact training graph,
-serving graph, registry snapshot, and explicit logical interface mapping
-without itself making a compatibility claim.
+The canonical alignment plan, bounded plan and result byte codecs,
+fresh-verification engine, and immutable result are implemented. The plan
+binds the exact training graph, serving graph, registry snapshot, and explicit
+logical interface mapping without itself making a compatibility claim.
 
 Mappings operate on public `(role, value_id)` occurrences. Every occurrence
 must be covered exactly once before comparison; one-sided bindings express an
@@ -238,6 +238,25 @@ misbound, incomplete, forged, or mutated lineage makes the whole result
 `normalization-lineage-failure`; neither lineage nor partial binding findings
 are published.
 
+The strict comparison-result decoder preflights canonical JSON at a 32 MiB
+document boundary, reconstructs the complete closed model, recomputes nested
+wrapper and semantic digests, and requires exact canonical byte equality. A
+graph-count-ceiling stress result with 512 nodes, 385 normalization sites, and
+64 outputs measures 7,538,814 bytes but does not maximize every metadata
+field. The committed
+[shape-only boundary measurement](../tools/measure_comparison_result_boundary.py)
+combines deliberately incompatible independent ceilings and measures
+24,402,018 bytes and 779,409 preflight tokens; the 32 MiB and
+1,048,576-token limits are the next powers of two above it. It is a sizing
+stress envelope, not a valid result or proof of the exact maximum.
+
+This codec establishes structural and content-address integrity only. The
+decoded result remains unsigned: decoding does not authenticate an author,
+prove verifier freshness, rederive lineage from either graph, or show that a
+caller approved the plan. Claimed solver limits and check counts do not prove
+those resources were enforced. The fresh engine and caller-trusted expected
+plan digest remain separate trust boundaries.
+
 Statistical drift tools remain complementary: UnitSentinel finds semantic
 contract skew even when no representative payload samples are available.
 
@@ -262,6 +281,8 @@ The adapter is not implemented.
 - Fixed limits for document bytes/tree shape, inputs, values, nodes, outputs,
   tensor rank, exponent size, core-shrink checks, uniqueness checks, solver
   memory, and solver time.
+- Comparison-result transport is separately capped at 33,554,432 canonical
+  JSON bytes before model reconstruction.
 - Deterministic errors omit host paths, environment values, and raw solver
   diagnostics.
 - Unknown unit identifiers and unsupported operations fail closed.
@@ -278,12 +299,12 @@ boundary explicitly.
 
 | Area | Current | Next |
 | --- | --- | --- |
-| Package boundary | Typed exact values, graph, registry, verification/repair/comparison/lineage results, certificates, replay reports, and content-addressed comparison plans | Strict comparison-result codec |
-| Dimension semantics | Exact bounded rational algebra, graph inference, training/serving interface comparison, and fresh cross-graph normalization-lineage comparison | Strict comparison-result codec |
+| Package boundary | Typed exact values, graph, registry, verification/repair/comparison/lineage results, certificates, replay reports, content-addressed comparison plans, and strict bounded comparison-result codec | Comparison CLI and evidence |
+| Dimension semantics | Exact bounded rational algebra, graph inference, training/serving interface comparison, and fresh cross-graph normalization-lineage comparison | Comparison evidence fixtures |
 | Unit registry | Immutable 33-unit snapshot with pinned SHA-256 | External snapshot decoder |
 | Graph IR | Content-addressed bounded IR and strict decoder | ONNX lowering |
 | Solver | Tracked dimension/kind/scale/offset constraints, uniqueness, replay, bounded cores, repair re-verification, two-sided fresh comparison, and replay-bound lineage comparison | Comparison evidence fixtures |
 | Repairs | One bounded, non-mutating, exact-registry annotation replacement with independent verification and abstention | Additional operators require separate design and review |
 | Certificates | Positive-only canonical codec, content digest, and detached replay with optional strict-toolchain policy | Contract-comparison evidence |
 | CLI | Bounded regular-file reads, stable exits, atomic no-overwrite certificate publication, and read-only repair reports | Contract-comparison command |
-| Visual evidence | Real CLI captures, repair lineage, diagrams, plot, GIF, accessible SVG, and closed digest manifest | Grouped synthetic fault corpus |
+| Visual evidence | Real verification/replay/repair CLI captures, lineage diagrams, plot, GIF, accessible SVG, and closed digest manifest | Training/serving comparison captures and diagrams |
