@@ -213,16 +213,30 @@ Both sides are freshly verified with the same registry and solver limits even
 when the first ordinary result is not positive. Complete positive assignments
 are independently replayed before snapshots are built.
 
-The standalone normalization-lineage extractor is also implemented. It
-derives a bounded, content-addressed expression DAG from one plan-scoped
-positive verification claim, maps public input roots and outputs through the
-explicit comparison plan, collapses only metadata-preserving identities, and
-records every dimensionless linear `divide` site as a counted semantic
-multiset. Semantic hashes exclude internal graph, node, and value identifiers;
-the outer artifact retains those diagnostics and source digests. The extractor
-replays and validates a supplied claim but does not prove it was produced
-freshly. Feeding the two fresh engine results into a fail-closed cross-graph
-lineage comparison remains the next layer.
+The normalization-lineage extractor and its fresh comparison integration are
+implemented. The extractor derives a bounded, content-addressed expression DAG
+from one plan-scoped positive verification claim, maps public input roots and
+outputs through the explicit comparison plan, collapses only
+metadata-preserving identities, and records every dimensionless linear
+`divide` site as a counted semantic multiset. Semantic hashes exclude internal
+graph, node, and value identifiers; the outer artifact retains those
+diagnostics and source digests. The extractor replays and validates a supplied
+claim but does not prove it was produced freshly.
+
+The comparison engine supplies that freshness boundary. Only after both graph
+results are accepted as complete and replayable does it extract training and
+serving lineages, recheck every pinned source between calls, and revalidate the
+first lineage after the second extraction. It independently rederives the
+complete expected expression DAG, sites, routes, and outputs from each real
+graph instead of trusting a candidate's internally consistent hashes. Every
+lineage output receives a domain-separated digest over its logical contract ID
+and counted routed normalization-site multiset. A two-sided output binding
+stores the training and serving digests; a difference adds
+`normalization-lineage-drift` after the ordinary interface codes. A malformed,
+misbound, incomplete, forged, or mutated lineage makes the whole result
+`indeterminate` with
+`normalization-lineage-failure`; neither lineage nor partial binding findings
+are published.
 
 Statistical drift tools remain complementary: UnitSentinel finds semantic
 contract skew even when no representative payload samples are available.
@@ -264,11 +278,11 @@ boundary explicitly.
 
 | Area | Current | Next |
 | --- | --- | --- |
-| Package boundary | Typed exact values, graph, registry, verification/repair/comparison/lineage results, certificates, replay reports, and content-addressed comparison plans | Strict comparison-result decoder |
-| Dimension semantics | Exact bounded rational algebra, graph inference, training/serving interface comparison, and bounded normalization-lineage extraction | Fresh cross-graph lineage comparison |
+| Package boundary | Typed exact values, graph, registry, verification/repair/comparison/lineage results, certificates, replay reports, and content-addressed comparison plans | Strict comparison-result codec |
+| Dimension semantics | Exact bounded rational algebra, graph inference, training/serving interface comparison, and fresh cross-graph normalization-lineage comparison | Strict comparison-result codec |
 | Unit registry | Immutable 33-unit snapshot with pinned SHA-256 | External snapshot decoder |
 | Graph IR | Content-addressed bounded IR and strict decoder | ONNX lowering |
-| Solver | Tracked dimension/kind/scale/offset constraints, uniqueness, replay, bounded cores, repair re-verification, two-sided fresh comparison, and replay-bound lineage extraction | Cross-graph lineage evidence |
+| Solver | Tracked dimension/kind/scale/offset constraints, uniqueness, replay, bounded cores, repair re-verification, two-sided fresh comparison, and replay-bound lineage comparison | Comparison evidence fixtures |
 | Repairs | One bounded, non-mutating, exact-registry annotation replacement with independent verification and abstention | Additional operators require separate design and review |
 | Certificates | Positive-only canonical codec, content digest, and detached replay with optional strict-toolchain policy | Contract-comparison evidence |
 | CLI | Bounded regular-file reads, stable exits, atomic no-overwrite certificate publication, and read-only repair reports | Contract-comparison command |

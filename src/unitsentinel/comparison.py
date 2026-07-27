@@ -11,7 +11,7 @@ from __future__ import annotations
 import hmac
 from dataclasses import dataclass, field
 from enum import StrEnum
-from typing import Final
+from typing import TYPE_CHECKING, Final
 
 import z3  # type: ignore[import-untyped]
 
@@ -41,6 +41,9 @@ from .verification import (
 )
 from .verifier import _replay_claimed_contracts, verify_graph
 
+if TYPE_CHECKING:
+    from .lineage import NormalizationLineage
+
 COMPARISON_RESULT_SCHEMA: Final = "unitsentinel.training-serving-comparison-result/v1"
 AUTHENTICATION_NOT_PROVIDED: Final = "not-provided"
 COMPARISON_SCOPE_UNDER_PLAN: Final = "under-plan"
@@ -66,6 +69,7 @@ class ComparisonReason(StrEnum):
     TRAINING_NOT_VERIFIED = "training-not-verified"
     SERVING_NOT_VERIFIED = "serving-not-verified"
     BOTH_NOT_VERIFIED = "both-not-verified"
+    NORMALIZATION_LINEAGE_FAILURE = "normalization-lineage-failure"
 
 
 class MismatchCode(StrEnum):
@@ -82,6 +86,7 @@ class MismatchCode(StrEnum):
     KIND_DRIFT = "kind-drift"
     SCALE_DRIFT = "scale-drift"
     OFFSET_DRIFT = "offset-drift"
+    NORMALIZATION_LINEAGE_DRIFT = "normalization-lineage-drift"
 
 
 def _require_digest(value: object, *, label: str) -> str:
@@ -192,6 +197,7 @@ class InterfaceSnapshot:
 def _expected_mismatches(
     training: InterfaceSnapshot | None,
     serving: InterfaceSnapshot | None,
+    normalization: OutputNormalizationComparison | None,
 ) -> tuple[MismatchCode, ...]:
     if training is None:
         return (MismatchCode.EXTRA_IN_SERVING,)
@@ -220,7 +226,42 @@ def _expected_mismatches(
         mismatches.append(MismatchCode.SCALE_DRIFT)
     if training.inferred.offset != serving.inferred.offset:
         mismatches.append(MismatchCode.OFFSET_DRIFT)
+    if (
+        normalization is not None
+        and normalization.training_digest != normalization.serving_digest
+    ):
+        mismatches.append(MismatchCode.NORMALIZATION_LINEAGE_DRIFT)
     return tuple(mismatches)
+
+
+@dataclass(frozen=True, slots=True)
+class OutputNormalizationComparison:
+    """Aggregate normalization-lineage digests for one output binding."""
+
+    training_digest: str
+    serving_digest: str
+
+    def __post_init__(self) -> None:
+        self.validate()
+
+    def validate(self) -> None:
+        if type(self) is not OutputNormalizationComparison:
+            raise ComparisonError("output normalization comparison must be exact")
+        _require_digest(
+            self.training_digest,
+            label="training output normalization digest",
+        )
+        _require_digest(
+            self.serving_digest,
+            label="serving output normalization digest",
+        )
+
+    def canonical_record(self) -> dict[str, str]:
+        self.validate()
+        return {
+            "serving_sha256": self.serving_digest,
+            "training_sha256": self.training_digest,
+        }
 
 
 @dataclass(frozen=True, slots=True)
@@ -230,6 +271,7 @@ class ContractComparison:
     contract_id: str
     training: InterfaceSnapshot | None
     serving: InterfaceSnapshot | None
+    normalization: OutputNormalizationComparison | None
     mismatches: tuple[MismatchCode, ...]
 
     def __post_init__(self) -> None:
@@ -260,13 +302,33 @@ class ContractComparison:
                     f"{side} snapshot must be an exact InterfaceSnapshot or null"
                 )
             snapshot.validate()
+        output_to_output = (
+            self.training is not None
+            and self.serving is not None
+            and self.training.endpoint.role is InterfaceRole.OUTPUT
+            and self.serving.endpoint.role is InterfaceRole.OUTPUT
+        )
+        if output_to_output:
+            if type(self.normalization) is not OutputNormalizationComparison:
+                raise ComparisonError(
+                    "output bindings require an exact normalization comparison"
+                )
+            self.normalization.validate()
+        elif self.normalization is not None:
+            raise ComparisonError(
+                "normalization comparison is only valid for two output snapshots"
+            )
         if type(self.mismatches) is not tuple:
             raise ComparisonError("comparison mismatches must be a tuple")
         if any(type(code) is not MismatchCode for code in self.mismatches):
             raise ComparisonError(
                 "comparison mismatches must contain exact MismatchCode values"
             )
-        expected = _expected_mismatches(self.training, self.serving)
+        expected = _expected_mismatches(
+            self.training,
+            self.serving,
+            self.normalization,
+        )
         if self.mismatches != expected:
             raise ComparisonError(
                 "comparison mismatch codes are incomplete or out of order"
@@ -277,6 +339,11 @@ class ContractComparison:
         return {
             "contract_id": self.contract_id,
             "mismatches": [code.value for code in self.mismatches],
+            "normalization": (
+                None
+                if self.normalization is None
+                else self.normalization.canonical_record()
+            ),
             "serving": (
                 None if self.serving is None else self.serving.canonical_record()
             ),
@@ -305,6 +372,8 @@ class ComparisonResult:
     limits: SolverLimits
     training_result: VerificationResult | None
     serving_result: VerificationResult | None
+    training_lineage: NormalizationLineage | None
+    serving_lineage: NormalizationLineage | None
     comparisons: tuple[ContractComparison, ...] = ()
     _digest: str = field(init=False, repr=False)
 
@@ -355,7 +424,28 @@ class ComparisonResult:
             != self.serving_result.solver_version
         ):
             raise ComparisonError("fresh results have inconsistent solver identities")
+        _validate_lineage_binding(
+            self.training_lineage,
+            side="training",
+            comparison_id=self.comparison_id,
+            plan_digest=self.plan_digest,
+            graph_digest=self.training_graph_digest,
+            registry_digest=self.registry_digest,
+            limits=self.limits,
+            verification_result=self.training_result,
+        )
+        _validate_lineage_binding(
+            self.serving_lineage,
+            side="serving",
+            comparison_id=self.comparison_id,
+            plan_digest=self.plan_digest,
+            graph_digest=self.serving_graph_digest,
+            registry_digest=self.registry_digest,
+            limits=self.limits,
+            verification_result=self.serving_result,
+        )
         self._validate_comparisons()
+        self._validate_lineage_coverage()
         self._validate_outcome()
 
     def _validate_fresh_result(
@@ -449,6 +539,90 @@ class ComparisonResult:
         if snapshot.value != previous:
             raise ComparisonError(f"{side} snapshots disagree about one declared value")
 
+    def _validate_lineage_coverage(self) -> None:
+        if self.training_lineage is None or self.serving_lineage is None:
+            return
+        for side, lineage in (
+            ("training", self.training_lineage),
+            ("serving", self.serving_lineage),
+        ):
+            snapshots = tuple(
+                (
+                    comparison.contract_id,
+                    comparison.training if side == "training" else comparison.serving,
+                )
+                for comparison in self.comparisons
+            )
+            expected_inputs = {
+                contract_id: (
+                    snapshot.endpoint.value_id,
+                    snapshot.position,
+                    snapshot.value,
+                    snapshot.inferred,
+                )
+                for contract_id, snapshot in snapshots
+                if snapshot is not None
+                and snapshot.endpoint.role is InterfaceRole.INPUT
+            }
+            input_expressions = tuple(
+                expression
+                for expression in lineage.expressions
+                if expression.operation is None
+            )
+            actual_inputs = {
+                expression.logical_roots[0]: (
+                    expression.value_id,
+                    position,
+                    expression.value,
+                    expression.inferred,
+                )
+                for position, expression in enumerate(input_expressions)
+            }
+            if actual_inputs != expected_inputs:
+                raise ComparisonError(
+                    f"{side} lineage input-root coverage is inconsistent"
+                )
+
+            expected_outputs = {
+                contract_id: (
+                    snapshot.endpoint.value_id,
+                    snapshot.position,
+                    snapshot.value,
+                    snapshot.inferred,
+                )
+                for contract_id, snapshot in snapshots
+                if snapshot is not None
+                and snapshot.endpoint.role is InterfaceRole.OUTPUT
+            }
+            expressions = {
+                expression.value_id: expression for expression in lineage.expressions
+            }
+            actual_outputs = {
+                output.contract_id: (
+                    output.value_id,
+                    output.position,
+                    expressions[output.value_id].value,
+                    expressions[output.value_id].inferred,
+                )
+                for output in lineage.outputs
+            }
+            if actual_outputs != expected_outputs:
+                raise ComparisonError(f"{side} lineage output coverage is inconsistent")
+
+        training_digests = _output_normalization_digests(self.training_lineage)
+        serving_digests = _output_normalization_digests(self.serving_lineage)
+        for comparison in self.comparisons:
+            if comparison.normalization is None:
+                continue
+            expected = OutputNormalizationComparison(
+                training_digest=training_digests[comparison.contract_id],
+                serving_digest=serving_digests[comparison.contract_id],
+            )
+            if comparison.normalization != expected:
+                raise ComparisonError(
+                    "output normalization comparison contradicts its lineages"
+                )
+
     def _validate_outcome(self) -> None:
         both_verified = (
             self.training_result is not None
@@ -459,8 +633,24 @@ class ComparisonResult:
         mismatch_count = sum(
             len(comparison.mismatches) for comparison in self.comparisons
         )
+        has_both_lineages = (
+            self.training_lineage is not None and self.serving_lineage is not None
+        )
+        has_any_lineage = (
+            self.training_lineage is not None or self.serving_lineage is not None
+        )
         if self.status is ComparisonStatus.INDETERMINATE:
-            if both_verified or self.comparisons or self.reason is None:
+            if self.comparisons or has_any_lineage or self.reason is None:
+                raise ComparisonError(
+                    "indeterminate comparison fields are inconsistent"
+                )
+            if self.reason is ComparisonReason.NORMALIZATION_LINEAGE_FAILURE:
+                if not both_verified:
+                    raise ComparisonError(
+                        "normalization-lineage failure fields are inconsistent"
+                    )
+                return
+            if both_verified:
                 raise ComparisonError(
                     "indeterminate comparison fields are inconsistent"
                 )
@@ -486,7 +676,12 @@ class ComparisonResult:
             if self.reason is not expected_reason:
                 raise ComparisonError("nonverified comparison reason is inconsistent")
             return
-        if self.reason is not None or not both_verified or not self.comparisons:
+        if (
+            self.reason is not None
+            or not both_verified
+            or not has_both_lineages
+            or not self.comparisons
+        ):
             raise ComparisonError("decisive comparison fields are inconsistent")
         if self.status is ComparisonStatus.COMPATIBLE and mismatch_count:
             raise ComparisonError("compatible comparison cannot contain mismatches")
@@ -514,6 +709,16 @@ class ComparisonResult:
                 "sha256": result.digest,
             }
 
+        def lineage_record(
+            lineage: NormalizationLineage | None,
+        ) -> dict[str, object] | None:
+            if lineage is None:
+                return None
+            return {
+                "record": lineage.canonical_record(),
+                "sha256": lineage.digest,
+            }
+
         return {
             "authentication": AUTHENTICATION_NOT_PROVIDED,
             "bindings": [
@@ -525,6 +730,10 @@ class ComparisonResult:
                 "training_sha256": self.training_graph_digest,
             },
             "limits": self.limits.canonical_record(),
+            "normalization_lineage": {
+                "serving": lineage_record(self.serving_lineage),
+                "training": lineage_record(self.training_lineage),
+            },
             "plan_sha256": self.plan_digest,
             "registry_sha256": self.registry_digest,
             "reason": None if self.reason is None else self.reason.value,
@@ -582,6 +791,267 @@ class _ComparisonPins:
     limits_bytes: bytes
     policy_bytes: bytes
     solver_version: str
+
+
+@dataclass(frozen=True, slots=True)
+class _AcceptedResultPin:
+    digest: str
+    canonical_bytes: bytes
+
+
+def _pin_accepted_result(result: VerificationResult) -> _AcceptedResultPin:
+    result.validate()
+    return _AcceptedResultPin(
+        digest=result.digest,
+        canonical_bytes=result.canonical_bytes(),
+    )
+
+
+def _accept_unchanged_fresh_result(
+    result: object | None,
+    *,
+    result_pin: _AcceptedResultPin | None,
+    graph: ComputationGraph,
+    registry: UnitRegistry,
+    limits: SolverLimits,
+    pins: _ComparisonPins,
+    side: str,
+) -> VerificationResult | None:
+    accepted = _accept_fresh_result(
+        result,
+        graph=graph,
+        registry=registry,
+        limits=limits,
+        pins=pins,
+        side=side,
+    )
+    if accepted is None or result_pin is None:
+        return None
+    try:
+        if (
+            not hmac.compare_digest(accepted.digest, result_pin.digest)
+            or accepted.canonical_bytes() != result_pin.canonical_bytes
+        ):
+            return None
+    except Exception:
+        return None
+    return accepted
+
+
+def _validate_lineage_binding(
+    lineage: object | None,
+    *,
+    side: str,
+    comparison_id: str,
+    plan_digest: str,
+    graph_digest: str,
+    registry_digest: str,
+    limits: SolverLimits,
+    verification_result: VerificationResult | None,
+) -> NormalizationLineage | None:
+    if lineage is None:
+        return None
+    from .lineage import LineageSide, NormalizationLineage
+
+    if type(lineage) is not NormalizationLineage:
+        raise ComparisonError(f"{side} lineage must be an exact NormalizationLineage")
+    expected_side = LineageSide.TRAINING if side == "training" else LineageSide.SERVING
+    try:
+        lineage.validate()
+        if verification_result is not None:
+            verification_result.validate()
+        consistent = (
+            lineage.side is expected_side
+            and lineage.comparison_id == comparison_id
+            and hmac.compare_digest(lineage.plan_digest, plan_digest)
+            and hmac.compare_digest(lineage.graph_digest, graph_digest)
+            and hmac.compare_digest(lineage.registry_digest, registry_digest)
+            and canonical_json_bytes(lineage.limits.canonical_record())
+            == canonical_json_bytes(limits.canonical_record())
+            and verification_result is not None
+            and hmac.compare_digest(
+                lineage.verification_result.digest,
+                verification_result.digest,
+            )
+            and lineage.verification_result.canonical_bytes()
+            == verification_result.canonical_bytes()
+        )
+    except Exception:
+        raise ComparisonError(f"{side} lineage is malformed or mutated") from None
+    if not consistent:
+        raise ComparisonError(f"{side} lineage source bindings are inconsistent")
+    return lineage
+
+
+def _accept_fresh_lineage(
+    lineage: object | None,
+    *,
+    side: str,
+    comparison_id: str,
+    plan_digest: str,
+    graph_digest: str,
+    registry_digest: str,
+    limits: SolverLimits,
+    verification_result: VerificationResult | None,
+) -> NormalizationLineage | None:
+    try:
+        return _validate_lineage_binding(
+            lineage,
+            side=side,
+            comparison_id=comparison_id,
+            plan_digest=plan_digest,
+            graph_digest=graph_digest,
+            registry_digest=registry_digest,
+            limits=limits,
+            verification_result=verification_result,
+        )
+    except ComparisonError:
+        return None
+
+
+def _accept_extracted_lineage(
+    lineage: object | None,
+    *,
+    plan: ComparisonPlan,
+    side: str,
+    graph: ComputationGraph,
+    plan_digest: str,
+    registry_digest: str,
+    limits: SolverLimits,
+    verification_result: VerificationResult | None,
+) -> NormalizationLineage | None:
+    accepted = _accept_fresh_lineage(
+        lineage,
+        side=side,
+        comparison_id=plan.comparison_id,
+        plan_digest=plan_digest,
+        graph_digest=graph.digest,
+        registry_digest=registry_digest,
+        limits=limits,
+        verification_result=verification_result,
+    )
+    if accepted is None:
+        return None
+    if verification_result is None:
+        return None
+    selected = tuple(
+        (
+            binding.contract_id,
+            binding.training if side == "training" else binding.serving,
+        )
+        for binding in plan.bindings
+    )
+    values = {value.value_id: value for value in graph.values}
+    contracts = {
+        contract.value_id: contract for contract in verification_result.contracts
+    }
+    expected_inputs = {
+        contract_id: (
+            endpoint.value_id,
+            graph.inputs.index(endpoint.value_id),
+            values[endpoint.value_id],
+            contracts[endpoint.value_id],
+        )
+        for contract_id, endpoint in selected
+        if endpoint is not None and endpoint.role is InterfaceRole.INPUT
+    }
+    input_expressions = tuple(
+        expression
+        for expression in accepted.expressions
+        if expression.operation is None
+    )
+    actual_inputs = {
+        expression.logical_roots[0]: (
+            expression.value_id,
+            position,
+            expression.value,
+            expression.inferred,
+        )
+        for position, expression in enumerate(input_expressions)
+    }
+    expected_outputs = {
+        contract_id: (
+            endpoint.value_id,
+            graph.outputs.index(endpoint.value_id),
+            values[endpoint.value_id],
+            contracts[endpoint.value_id],
+        )
+        for contract_id, endpoint in selected
+        if endpoint is not None and endpoint.role is InterfaceRole.OUTPUT
+    }
+    expressions = {
+        expression.value_id: expression for expression in accepted.expressions
+    }
+    actual_outputs = {
+        output.contract_id: (
+            output.value_id,
+            output.position,
+            expressions[output.value_id].value,
+            expressions[output.value_id].inferred,
+        )
+        for output in accepted.outputs
+    }
+    if actual_inputs != expected_inputs or actual_outputs != expected_outputs:
+        return None
+    try:
+        from .lineage import LineageSide, _derive_normalization_lineage
+
+        lineage_side = (
+            LineageSide.TRAINING if side == "training" else LineageSide.SERVING
+        )
+        expected = _derive_normalization_lineage(
+            plan,
+            side=lineage_side,
+            graph=graph,
+            verification_result=verification_result,
+            limits=limits,
+        )
+        if (
+            not hmac.compare_digest(accepted.digest, expected.digest)
+            or accepted.canonical_bytes() != expected.canonical_bytes()
+        ):
+            return None
+    except Exception:
+        return None
+    return accepted
+
+
+def _extract_lineage_candidate(
+    plan: ComparisonPlan,
+    *,
+    side: str,
+    graph: ComputationGraph,
+    registry: UnitRegistry,
+    verification_result: VerificationResult,
+    limits: SolverLimits,
+    policy: ComparisonPolicy,
+) -> object | None:
+    try:
+        from .lineage import LineageSide, extract_normalization_lineage
+
+        lineage_side = (
+            LineageSide.TRAINING if side == "training" else LineageSide.SERVING
+        )
+        return extract_normalization_lineage(
+            plan,
+            side=lineage_side,
+            graph=graph,
+            registry=registry,
+            verification_result=verification_result,
+            limits=limits,
+            policy=policy,
+        )
+    except Exception:
+        return None
+
+
+def _output_normalization_digests(
+    lineage: NormalizationLineage,
+) -> dict[str, str]:
+    lineage.validate()
+    return {
+        output.contract_id: output.normalization_digest for output in lineage.outputs
+    }
 
 
 def compare_graphs(
@@ -683,6 +1153,12 @@ def compare_graphs(
         policy,
         pins,
     )
+    training_result_pin = (
+        None if training_result is None else _pin_accepted_result(training_result)
+    )
+    serving_result_pin = (
+        None if serving_result is None else _pin_accepted_result(serving_result)
+    )
 
     if training_result is None or serving_result is None:
         return _finish_result(
@@ -697,6 +1173,10 @@ def compare_graphs(
             reason=ComparisonReason.VERIFIER_FAILURE,
             training_result=training_result,
             serving_result=serving_result,
+            training_result_pin=training_result_pin,
+            serving_result_pin=serving_result_pin,
+            training_lineage=None,
+            serving_lineage=None,
             comparisons=(),
         )
 
@@ -726,6 +1206,135 @@ def compare_graphs(
             reason=reason,
             training_result=training_result,
             serving_result=serving_result,
+            training_result_pin=training_result_pin,
+            serving_result_pin=serving_result_pin,
+            training_lineage=None,
+            serving_lineage=None,
+            comparisons=(),
+        )
+
+    training_lineage_candidate = _extract_lineage_candidate(
+        plan,
+        side="training",
+        graph=training_graph,
+        registry=registry,
+        verification_result=training_result,
+        limits=limits,
+        policy=policy,
+    )
+    _require_comparison_inputs_unchanged(
+        plan,
+        training_graph,
+        serving_graph,
+        registry,
+        limits,
+        policy,
+        pins,
+    )
+    serving_lineage_candidate = _extract_lineage_candidate(
+        plan,
+        side="serving",
+        graph=serving_graph,
+        registry=registry,
+        verification_result=serving_result,
+        limits=limits,
+        policy=policy,
+    )
+    _require_comparison_inputs_unchanged(
+        plan,
+        training_graph,
+        serving_graph,
+        registry,
+        limits,
+        policy,
+        pins,
+    )
+
+    reaccepted_training_result = _accept_unchanged_fresh_result(
+        training_result,
+        result_pin=training_result_pin,
+        graph=training_graph,
+        registry=registry,
+        limits=limits,
+        pins=pins,
+        side="training",
+    )
+    reaccepted_serving_result = _accept_unchanged_fresh_result(
+        serving_result,
+        result_pin=serving_result_pin,
+        graph=serving_graph,
+        registry=registry,
+        limits=limits,
+        pins=pins,
+        side="serving",
+    )
+    if reaccepted_training_result is None or reaccepted_serving_result is None:
+        return _finish_result(
+            plan,
+            training_graph,
+            serving_graph,
+            registry,
+            limits,
+            policy,
+            pins,
+            status=ComparisonStatus.INDETERMINATE,
+            reason=ComparisonReason.VERIFIER_FAILURE,
+            training_result=reaccepted_training_result,
+            serving_result=reaccepted_serving_result,
+            training_result_pin=training_result_pin,
+            serving_result_pin=serving_result_pin,
+            training_lineage=None,
+            serving_lineage=None,
+            comparisons=(),
+        )
+
+    training_lineage = _accept_extracted_lineage(
+        training_lineage_candidate,
+        plan=plan,
+        side="training",
+        graph=training_graph,
+        plan_digest=pins.plan_digest,
+        registry_digest=pins.registry_digest,
+        limits=limits,
+        verification_result=reaccepted_training_result,
+    )
+    serving_lineage = _accept_extracted_lineage(
+        serving_lineage_candidate,
+        plan=plan,
+        side="serving",
+        graph=serving_graph,
+        plan_digest=pins.plan_digest,
+        registry_digest=pins.registry_digest,
+        limits=limits,
+        verification_result=reaccepted_serving_result,
+    )
+    training_lineage = _accept_extracted_lineage(
+        training_lineage,
+        plan=plan,
+        side="training",
+        graph=training_graph,
+        plan_digest=pins.plan_digest,
+        registry_digest=pins.registry_digest,
+        limits=limits,
+        verification_result=reaccepted_training_result,
+    )
+    if training_lineage is None or serving_lineage is None:
+        return _finish_result(
+            plan,
+            training_graph,
+            serving_graph,
+            registry,
+            limits,
+            policy,
+            pins,
+            status=ComparisonStatus.INDETERMINATE,
+            reason=ComparisonReason.NORMALIZATION_LINEAGE_FAILURE,
+            training_result=reaccepted_training_result,
+            serving_result=reaccepted_serving_result,
+            training_result_pin=training_result_pin,
+            serving_result_pin=serving_result_pin,
+            training_lineage=None,
+            serving_lineage=None,
             comparisons=(),
         )
 
@@ -733,8 +1342,10 @@ def compare_graphs(
         plan,
         training_graph,
         serving_graph,
-        training_result,
-        serving_result,
+        reaccepted_training_result,
+        reaccepted_serving_result,
+        training_lineage,
+        serving_lineage,
     )
     status = (
         ComparisonStatus.DRIFT
@@ -751,8 +1362,12 @@ def compare_graphs(
         pins,
         status=status,
         reason=None,
-        training_result=training_result,
-        serving_result=serving_result,
+        training_result=reaccepted_training_result,
+        serving_result=reaccepted_serving_result,
+        training_result_pin=training_result_pin,
+        serving_result_pin=serving_result_pin,
+        training_lineage=training_lineage,
+        serving_lineage=serving_lineage,
         comparisons=comparisons,
     )
 
@@ -1053,6 +1668,8 @@ def _compare_bindings(
     serving_graph: ComputationGraph,
     training_result: VerificationResult,
     serving_result: VerificationResult,
+    training_lineage: NormalizationLineage,
+    serving_lineage: NormalizationLineage,
 ) -> tuple[ContractComparison, ...]:
     training_contracts = {
         contract.value_id: contract for contract in training_result.contracts
@@ -1060,6 +1677,8 @@ def _compare_bindings(
     serving_contracts = {
         contract.value_id: contract for contract in serving_result.contracts
     }
+    training_normalization = _output_normalization_digests(training_lineage)
+    serving_normalization = _output_normalization_digests(serving_lineage)
     comparisons: list[ContractComparison] = []
     for binding in plan.bindings:
         training = (
@@ -1080,12 +1699,30 @@ def _compare_bindings(
                 serving_contracts,
             )
         )
+        normalization = (
+            OutputNormalizationComparison(
+                training_digest=training_normalization[binding.contract_id],
+                serving_digest=serving_normalization[binding.contract_id],
+            )
+            if (
+                training is not None
+                and serving is not None
+                and training.endpoint.role is InterfaceRole.OUTPUT
+                and serving.endpoint.role is InterfaceRole.OUTPUT
+            )
+            else None
+        )
         comparisons.append(
             ContractComparison(
                 contract_id=binding.contract_id,
                 training=training,
                 serving=serving,
-                mismatches=_expected_mismatches(training, serving),
+                normalization=normalization,
+                mismatches=_expected_mismatches(
+                    training,
+                    serving,
+                    normalization,
+                ),
             )
         )
     return tuple(comparisons)
@@ -1104,6 +1741,10 @@ def _finish_result(
     reason: ComparisonReason | None,
     training_result: VerificationResult | None,
     serving_result: VerificationResult | None,
+    training_result_pin: _AcceptedResultPin | None,
+    serving_result_pin: _AcceptedResultPin | None,
+    training_lineage: NormalizationLineage | None,
+    serving_lineage: NormalizationLineage | None,
     comparisons: tuple[ContractComparison, ...],
 ) -> ComparisonResult:
     _require_comparison_inputs_unchanged(
@@ -1115,16 +1756,18 @@ def _finish_result(
         policy,
         pins,
     )
-    accepted_training = _accept_fresh_result(
+    accepted_training = _accept_unchanged_fresh_result(
         training_result,
+        result_pin=training_result_pin,
         graph=training_graph,
         registry=registry,
         limits=limits,
         pins=pins,
         side="training",
     )
-    accepted_serving = _accept_fresh_result(
+    accepted_serving = _accept_unchanged_fresh_result(
         serving_result,
+        result_pin=serving_result_pin,
         graph=serving_graph,
         registry=registry,
         limits=limits,
@@ -1134,7 +1777,55 @@ def _finish_result(
     if accepted_training is None or accepted_serving is None:
         status = ComparisonStatus.INDETERMINATE
         reason = ComparisonReason.VERIFIER_FAILURE
+        training_lineage = None
+        serving_lineage = None
         comparisons = ()
+    elif (
+        accepted_training.status is VerificationStatus.VERIFIED
+        and accepted_serving.status is VerificationStatus.VERIFIED
+    ):
+        accepted_training_lineage = _accept_extracted_lineage(
+            training_lineage,
+            plan=plan,
+            side="training",
+            graph=training_graph,
+            plan_digest=pins.plan_digest,
+            registry_digest=pins.registry_digest,
+            limits=limits,
+            verification_result=accepted_training,
+        )
+        accepted_serving_lineage = _accept_extracted_lineage(
+            serving_lineage,
+            plan=plan,
+            side="serving",
+            graph=serving_graph,
+            plan_digest=pins.plan_digest,
+            registry_digest=pins.registry_digest,
+            limits=limits,
+            verification_result=accepted_serving,
+        )
+        accepted_training_lineage = _accept_extracted_lineage(
+            accepted_training_lineage,
+            plan=plan,
+            side="training",
+            graph=training_graph,
+            plan_digest=pins.plan_digest,
+            registry_digest=pins.registry_digest,
+            limits=limits,
+            verification_result=accepted_training,
+        )
+        if accepted_training_lineage is None or accepted_serving_lineage is None:
+            status = ComparisonStatus.INDETERMINATE
+            reason = ComparisonReason.NORMALIZATION_LINEAGE_FAILURE
+            training_lineage = None
+            serving_lineage = None
+            comparisons = ()
+        else:
+            training_lineage = accepted_training_lineage
+            serving_lineage = accepted_serving_lineage
+    else:
+        training_lineage = None
+        serving_lineage = None
     result = ComparisonResult(
         status=status,
         reason=reason,
@@ -1146,6 +1837,8 @@ def _finish_result(
         limits=limits,
         training_result=accepted_training,
         serving_result=accepted_serving,
+        training_lineage=training_lineage,
+        serving_lineage=serving_lineage,
         comparisons=comparisons,
     )
     _require_comparison_inputs_unchanged(

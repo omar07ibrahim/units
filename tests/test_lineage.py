@@ -29,6 +29,7 @@ from unitsentinel.graph import (
 from unitsentinel.lineage import (
     LINEAGE_AUTHENTICATION,
     NORMALIZATION_LINEAGE_SCHEMA,
+    OUTPUT_NORMALIZATION_SCHEMA,
     LineageError,
     LineageExpression,
     LineageSide,
@@ -1344,6 +1345,70 @@ class VerificationBoundaryTests(unittest.TestCase):
 
 
 class ImmutableRecordTests(unittest.TestCase):
+    def test_output_normalization_digest_is_domain_separated_and_counted(
+        self,
+    ) -> None:
+        empty_a = OutputLineage(
+            "result-output",
+            "output-a",
+            0,
+            "a" * 64,
+            (),
+        )
+        empty_b = OutputLineage(
+            "result-output",
+            "output-b",
+            63,
+            "b" * 64,
+            (),
+        )
+        one_site = OutputLineage(
+            "result-output",
+            "output-a",
+            0,
+            "a" * 64,
+            ("c" * 64,),
+        )
+        duplicate_site = OutputLineage(
+            "result-output",
+            "output-a",
+            0,
+            "a" * 64,
+            ("c" * 64, "c" * 64),
+        )
+        different_contract = OutputLineage(
+            "other-output",
+            "output-a",
+            0,
+            "a" * 64,
+            (),
+        )
+
+        self.assertEqual(
+            empty_a.normalization_digest,
+            empty_b.normalization_digest,
+        )
+        self.assertNotEqual(
+            empty_a.normalization_digest,
+            one_site.normalization_digest,
+        )
+        self.assertNotEqual(
+            one_site.normalization_digest,
+            duplicate_site.normalization_digest,
+        )
+        self.assertNotEqual(
+            empty_a.normalization_digest,
+            different_contract.normalization_digest,
+        )
+        self.assertNotEqual(empty_a.normalization_digest, empty_a.digest)
+        self.assertEqual(
+            empty_a.canonical_record()["normalization_sha256"],
+            empty_a.normalization_digest,
+        )
+        self.assertEqual(
+            OUTPUT_NORMALIZATION_SCHEMA, "unitsentinel.output-normalization/v1"
+        )
+
     def test_records_are_frozen_content_addressed_and_canonical(self) -> None:
         candidate = ratio_pipeline("immutable-lineage")
         lineage = extract(ratio_plan(candidate), candidate)
@@ -1399,6 +1464,14 @@ class ImmutableRecordTests(unittest.TestCase):
             lineage.output_site_digest_multiset("missing-output")
         with self.assertRaisesRegex(LineageError, "not canonical"):
             lineage.output_site_digest_multiset("INVALID")
+        with self.assertRaisesRegex(LineageError, "not present"):
+            lineage.output_normalization_digest("missing-output")
+        with self.assertRaisesRegex(LineageError, "not canonical"):
+            lineage.output_normalization_digest("INVALID")
+        self.assertEqual(
+            lineage.output_normalization_digest("result-normalized"),
+            lineage.outputs[0].normalization_digest,
+        )
 
         expression = lineage.expressions[-1]
         assert expression.node_id is not None
@@ -1810,6 +1883,10 @@ class ImmutableRecordTests(unittest.TestCase):
         with self.assertRaisesRegex(LineageError, "diagnostic digest does not match"):
             damaged_site.validate()
 
+        damaged_output = copy_output(output)
+        object.__setattr__(damaged_output, "_normalization_digest", "f" * 64)
+        with self.assertRaisesRegex(LineageError, "normalization digest"):
+            damaged_output.validate()
         damaged_output = copy_output(output)
         object.__setattr__(damaged_output, "_digest", "bad")
         with self.assertRaisesRegex(LineageError, "digest is malformed"):

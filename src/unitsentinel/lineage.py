@@ -60,6 +60,7 @@ NORMALIZATION_LINEAGE_SEMANTIC_SCHEMA: Final = (
 )
 NORMALIZATION_EXPRESSION_SCHEMA: Final = "unitsentinel.normalization-expression/v1"
 NORMALIZATION_SITE_SCHEMA: Final = "unitsentinel.normalization-site/v1"
+OUTPUT_NORMALIZATION_SCHEMA: Final = "unitsentinel.output-normalization/v1"
 LINEAGE_AUTHENTICATION: Final = "not-provided"
 _DEFAULT_LINEAGE_LIMITS: Final = SolverLimits()
 _DEFAULT_LINEAGE_POLICY: Final = ComparisonPolicy()
@@ -499,10 +500,16 @@ class OutputLineage:
     position: int
     expression_digest: str
     site_digests: tuple[str, ...]
+    _normalization_digest: str = field(init=False, repr=False)
     _digest: str = field(init=False, repr=False)
 
     def __post_init__(self) -> None:
         self._validate_structure()
+        object.__setattr__(
+            self,
+            "_normalization_digest",
+            self._compute_normalization_digest(),
+        )
         object.__setattr__(self, "_digest", self._compute_digest())
         self.validate()
 
@@ -529,10 +536,21 @@ class OutputLineage:
         if list(self.site_digests) != sorted(self.site_digests):
             raise LineageError("output site digest multiset must be sorted")
 
+    def _normalization_record_unchecked(self) -> dict[str, object]:
+        return {
+            "contract_id": self.contract_id,
+            "schema": OUTPUT_NORMALIZATION_SCHEMA,
+            "site_sha256_multiset": _digest_multiset_record(self.site_digests),
+        }
+
+    def _compute_normalization_digest(self) -> str:
+        return sha256_hex(canonical_json_bytes(self._normalization_record_unchecked()))
+
     def _canonical_record_unchecked(self) -> dict[str, object]:
         return {
             "contract_id": self.contract_id,
             "expression_sha256": self.expression_digest,
+            "normalization_sha256": self._normalization_digest,
             "position": self.position,
             "site_sha256_multiset": _digest_multiset_record(self.site_digests),
             "value_id": self.value_id,
@@ -543,11 +561,28 @@ class OutputLineage:
 
     def validate(self) -> None:
         self._validate_structure()
+        normalization_digest = getattr(self, "_normalization_digest", None)
+        if (
+            type(normalization_digest) is not str
+            or SHA256_HEX.fullmatch(normalization_digest) is None
+            or not hmac.compare_digest(
+                normalization_digest,
+                self._compute_normalization_digest(),
+            )
+        ):
+            raise LineageError(
+                "output normalization digest does not match its contents"
+            )
         digest = getattr(self, "_digest", None)
         if type(digest) is not str or SHA256_HEX.fullmatch(digest) is None:
             raise LineageError("output lineage digest is malformed")
         if not hmac.compare_digest(digest, self._compute_digest()):
             raise LineageError("output lineage digest does not match its contents")
+
+    @property
+    def normalization_digest(self) -> str:
+        self.validate()
+        return self._normalization_digest
 
     @property
     def digest(self) -> str:
@@ -907,6 +942,18 @@ class NormalizationLineage:
                 return output.site_digests
         raise LineageError("output contract is not present in this lineage")
 
+    def output_normalization_digest(self, contract_id: str) -> str:
+        self.validate()
+        lookup = _require_identifier(
+            contract_id,
+            label="output normalization contract lookup",
+            max_length=MAX_CONTRACT_ID_LENGTH,
+        )
+        for output in self.outputs:
+            if output.contract_id == lookup:
+                return output.normalization_digest
+        raise LineageError("output contract is not present in this lineage")
+
     def canonical_record(self) -> dict[str, object]:
         self.validate()
         return self._canonical_record_unchecked()
@@ -1000,7 +1047,7 @@ def extract_normalization_lineage(
         policy,
     )
     _validate_source_bindings(plan, side, pins)
-    input_contracts, output_contracts = _interface_contracts(plan, side, graph)
+    _interface_contracts(plan, side, graph)
     _validate_verified_result(
         verification_result,
         graph=graph,
@@ -1018,42 +1065,12 @@ def extract_normalization_lineage(
         pins,
     )
 
-    contracts = {
-        contract.value_id: contract for contract in verification_result.contracts
-    }
-    expressions, expressions_by_value = _build_expressions(
-        graph,
-        contracts,
-        input_contracts,
-    )
-    output_routes = _route_outputs(graph, output_contracts)
-    sites = _build_sites(graph, expressions_by_value, output_routes)
-    outputs = _build_outputs(
-        graph,
-        output_contracts,
-        expressions_by_value,
-        sites,
-    )
-    _require_lineage_inputs_unchanged(
+    lineage = _derive_normalization_lineage(
         plan,
-        graph,
-        registry,
-        verification_result,
-        limits,
-        policy,
-        pins,
-    )
-    lineage = NormalizationLineage(
         side=side,
-        comparison_id=plan.comparison_id,
-        plan_digest=pins.plan_digest,
-        graph_digest=pins.graph_digest,
-        registry_digest=pins.registry_digest,
-        limits=limits,
+        graph=graph,
         verification_result=verification_result,
-        expressions=expressions,
-        sites=sites,
-        outputs=outputs,
+        limits=limits,
     )
     _require_lineage_inputs_unchanged(
         plan,
@@ -1403,3 +1420,44 @@ def _build_outputs(
         for position, value_id in enumerate(graph.outputs)
     )
     return tuple(sorted(outputs, key=lambda item: item.contract_id))
+
+
+def _derive_normalization_lineage(
+    plan: ComparisonPlan,
+    *,
+    side: LineageSide,
+    graph: ComputationGraph,
+    verification_result: VerificationResult,
+    limits: SolverLimits,
+) -> NormalizationLineage:
+    """Purely rebuild the exact canonical lineage implied by accepted inputs."""
+
+    input_contracts, output_contracts = _interface_contracts(plan, side, graph)
+    contracts = {
+        contract.value_id: contract for contract in verification_result.contracts
+    }
+    expressions, expressions_by_value = _build_expressions(
+        graph,
+        contracts,
+        input_contracts,
+    )
+    output_routes = _route_outputs(graph, output_contracts)
+    sites = _build_sites(graph, expressions_by_value, output_routes)
+    outputs = _build_outputs(
+        graph,
+        output_contracts,
+        expressions_by_value,
+        sites,
+    )
+    return NormalizationLineage(
+        side=side,
+        comparison_id=plan.comparison_id,
+        plan_digest=plan.digest,
+        graph_digest=graph.digest,
+        registry_digest=verification_result.registry_digest,
+        limits=limits,
+        verification_result=verification_result,
+        expressions=expressions,
+        sites=sites,
+        outputs=outputs,
+    )

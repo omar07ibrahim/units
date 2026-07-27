@@ -14,8 +14,8 @@ certificate for a positive result.
 > registry, deterministic CLI, detached certificate codec, independent strict
 > replay, bounded verification-backed annotation repair, and canonical
 > training/serving comparison engine are implemented. Bounded normalization
-> lineage extraction is implemented; cross-graph lineage comparison, its CLI,
-> and ONNX lowering remain future work.
+> lineage extraction and fresh cross-graph normalization-lineage comparison
+> are implemented; the comparison CLI and ONNX lowering remain future work.
 
 ![Implemented UnitSentinel verification pipeline and fail-closed outcomes](docs/assets/verification-pipeline.png)
 
@@ -314,6 +314,8 @@ The implementation includes:
   codes;
 - bounded, content-addressed normalization lineage with mapped logical roots,
   exact inferred metadata, output routing, and internal-rename invariance;
+- fail-closed cross-graph normalization-lineage comparison over two freshly
+  verified, graph-rederived lineages, including repeated-site multiplicity;
 - structural preflight limits on bytes, nesting, tokens, nodes, and items;
 - exact constraints for all 14 supported graph operations;
 - alternate-model uniqueness checks;
@@ -400,7 +402,7 @@ The timing snapshot changes only through the explicit
 
 ## Local quality gates
 
-The current suite contains 324 unit, integration, adversarial, and evidence
+The current suite contains 335 unit, integration, adversarial, and evidence
 tests with 97% statement coverage, 94% branch coverage, and 96% combined
 statement/branch coverage.
 
@@ -440,7 +442,7 @@ README coverage, and secret/PII exclusions.
 | Canonical training/serving alignment plan | Complete |
 | Fresh-verified training/serving comparison engine | Complete |
 | Bounded normalization-lineage extraction | Complete |
-| Fresh cross-graph normalization-lineage comparison | Planned |
+| Fresh cross-graph normalization-lineage comparison | Complete |
 | Comparison CLI and reproducible visual evidence | Planned |
 | Closed-subset ONNX metadata adapter | Planned |
 | Grouped synthetic fault benchmark with abstention metrics | Planned |

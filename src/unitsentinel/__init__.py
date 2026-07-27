@@ -22,6 +22,7 @@ from .comparison import (
     ContractComparison,
     InterfaceSnapshot,
     MismatchCode,
+    OutputNormalizationComparison,
     compare_graphs,
 )
 from .comparison_codec import (
@@ -74,6 +75,7 @@ from .lineage import (
     NORMALIZATION_LINEAGE_SCHEMA,
     NORMALIZATION_LINEAGE_SEMANTIC_SCHEMA,
     NORMALIZATION_SITE_SCHEMA,
+    OUTPUT_NORMALIZATION_SCHEMA,
     LineageError,
     LineageExpression,
     LineageSide,
@@ -138,6 +140,7 @@ __all__ = [
     "NORMALIZATION_LINEAGE_SCHEMA",
     "NORMALIZATION_LINEAGE_SEMANTIC_SCHEMA",
     "NORMALIZATION_SITE_SCHEMA",
+    "OUTPUT_NORMALIZATION_SCHEMA",
     "THERMODYNAMIC_TEMPERATURE",
     "TIME",
     "BaseDimension",
@@ -178,6 +181,7 @@ __all__ = [
     "NormalizationSite",
     "Operation",
     "OutputLineage",
+    "OutputNormalizationComparison",
     "ProofCertificate",
     "Quantity",
     "QuantityKind",

@@ -1,10 +1,10 @@
 # Training-serving comparison contract v1
 
-Status: the canonical comparison plan, bounded byte codec, fresh-verification
-engine, immutable comparison result, and standalone bounded normalization
-lineage extractor are implemented. Cross-graph lineage integration, the CLI
-surface, and reproducible comparison evidence are added in later commits on
-the comparison branch.
+Status: the canonical comparison plan, bounded plan byte codec,
+fresh-verification engine, immutable comparison result, bounded
+normalization-lineage extractor, and fresh cross-graph normalization-lineage
+comparison are implemented. The strict result codec, CLI surface, and
+reproducible comparison evidence remain future work.
 
 ## Objective
 
@@ -122,10 +122,15 @@ them in this order:
 5. freshly run the existing verifier for both graphs with the same registry
    snapshot and bounded solver policy;
 6. compare no interfaces unless both results are complete `verified` results;
-7. compare each aligned endpoint's role, dtype, declared shape, explicit unit
+7. extract both source-bound normalization lineages, recheck pinned inputs and
+   accepted verifier results, then independently rederive each full lineage
+   from its real graph before using either candidate;
+8. compare each aligned endpoint's role, dtype, declared shape, explicit unit
    identifier, dimension, quantity kind, exact scale, and exact offset;
-8. revalidate all nested objects and identities before publishing a result;
-9. emit `authentication: not-provided` and the exact plan digest in every
+9. compare the counted routed normalization-site multiset for every two-sided
+   output binding;
+10. revalidate all nested objects and identities before publishing a result;
+11. emit `authentication: not-provided` and the exact plan digest in every
    report.
 
 A conflict, underconstrained graph, unknown verification, timeout, resource
@@ -143,17 +148,19 @@ The immutable result uses schema
 
 | Status | Meaning |
 | --- | --- |
-| `compatible` | Both graphs freshly verify and every mapped interface field agrees |
+| `compatible` | Both freshly verify; mapped fields and output digests agree |
 | `drift` | Both graphs freshly verify and at least one exact mismatch is present |
-| `indeterminate` | A graph is not verified or a fresh verifier result is rejected; no partial interface findings are published |
+| `indeterminate` | A graph or lineage is not accepted; no partial findings |
 
 Each decisive binding lists mismatch codes in this fixed order:
 `missing-in-serving`, `extra-in-serving`, `role-drift`, `position-drift`,
 `dtype-drift`, `shape-drift`, `explicit-unit-drift`, `dimension-drift`,
-`kind-drift`, `scale-drift`, and `offset-drift`. Position is role-local:
-input and output ordinals are not compared across a role change. Different
-`value_id` strings are not themselves drift because the explicit binding
-already declares the logical alignment.
+`kind-drift`, `scale-drift`, `offset-drift`, and
+`normalization-lineage-drift`. The lineage code is possible only for a
+two-sided output and is always last. Position is role-local: input and output
+ordinals are not compared across a role change. Different `value_id` strings
+are not themselves drift because the explicit binding already declares the
+logical alignment.
 
 The work is structurally bounded by 256 bindings, the graph size limits, and
 two verifier calls. `SolverLimits.total_timeout_ms` and `max_memory_mb` apply
@@ -161,11 +168,12 @@ to each solver call; the documented worst-case solver time is therefore twice
 the per-call total plus bounded validation and replay overhead.
 
 `ComparisonResult` is an unsigned detached claim. Direct construction cannot
-prove freshness. Callers that rely on a result must obtain it from
-`compare_graphs`, retain the caller-trusted plan policy separately, and treat
-its content digest as integrity rather than author authentication.
+prove freshness or rerun graph-backed lineage derivation because the detached
+record does not carry either graph. Callers that rely on a result must obtain
+it from `compare_graphs`, retain the caller-trusted plan policy separately, and
+treat its content digest as integrity rather than author authentication.
 
-## Implemented lineage extraction boundary
+## Implemented lineage extraction and comparison boundary
 
 Version 1 normalization provenance is intentionally narrower than arbitrary
 graph equivalence. `extract_normalization_lineage` traces verified,
@@ -174,8 +182,8 @@ operations. It accepts one plan-scoped graph side and a supplied positive
 verification claim, then checks exact source bindings, complete contract
 coverage, current solver identity, and independent semantic replay before
 deriving lineage. This establishes consistency with the supplied claim, not
-that the verifier was invoked freshly; the comparison engine is responsible
-for that freshness boundary when integration is added.
+that the verifier was invoked freshly; the integrated comparison engine
+supplies that freshness boundary.
 
 The lineage fingerprint:
 
@@ -194,10 +202,16 @@ The lineage fingerprint:
   bounded expression DAG.
 
 The standalone output can establish a deterministic lineage for one accepted
-claim. Cross-graph drift reporting is not implemented in this slice. Even
-after integration, a difference will not establish that training is correct,
-serving is wrong, or two different algebraic forms are mathematically
-equivalent.
+claim. The fresh engine integrates two such claims only after accepting both
+verifier results. It revalidates source bindings, complete logical input/output
+mappings and positions, boundary metadata, routed output aggregates, and the
+first lineage again after extracting the second. Before accepting an extracted
+artifact, it independently rederives the complete canonical lineage—including
+every internal expression, operation attribute, site, route, and output—from
+the bound plan, graph, accepted verification result, and limits, then requires
+identical digest and canonical bytes. A difference does not establish that
+training is correct, serving is wrong, or two different algebraic forms are
+mathematically equivalent.
 
 ### Canonical lineage records
 
@@ -224,8 +238,18 @@ semantic record is
 multiset of site digests, so two identical site occurrences are not collapsed.
 
 Output records retain the public position and expression digest for review and
-store their routed site digests as a sorted multiset. Output position and
-diagnostic source IDs do not enter the bundle semantic digest.
+store their routed site digests as a sorted multiset. Each output also stores
+`normalization_sha256`, a domain-separated digest of its logical contract ID
+and counted routed site multiset under
+`unitsentinel.output-normalization/v1`. The engine compares this digest only
+for two-sided output bindings. Output position and diagnostic source IDs do
+not enter the bundle semantic digest.
+
+The outer comparison result stores each accepted lineage at
+`normalization_lineage.training` or `normalization_lineage.serving` as
+`{"record": ..., "sha256": ...}`. Each two-sided output binding contains
+`normalization.training_sha256` and `normalization.serving_sha256`; other
+binding shapes contain `normalization: null`.
 
 The construction is iterative. It computes each expression once in
 topological order and propagates logical outputs in reverse topological order;
@@ -240,6 +264,16 @@ wrong side or registry bindings, incomplete public mappings, non-positive or
 incomplete verification claims, failed semantic replay, noncanonical records,
 and mutation of the pinned plan, graph, registry, limits, policy, or supplied
 result during extraction.
+
+The integrated engine calls both extractors in deterministic training-then-
+serving order after both verifications succeed. While pinned comparison inputs
+remain unchanged, an extractor exception, unexpected value, wrong source,
+missing or swapped public mapping, or changed lineage evidence makes the result
+`indeterminate` with
+`reason: normalization-lineage-failure`. Both still-valid verification results
+are retained; both canonical lineage fields are `null`, and `bindings` is
+empty. Mutation of the pinned plan, graph, registry, limits, or policy remains
+an input error rather than a reportable drift.
 
 ## Security and nonclaims
 

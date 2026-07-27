@@ -6,6 +6,7 @@ from fractions import Fraction
 from unittest.mock import patch
 
 import unitsentinel.comparison as comparison_module
+import unitsentinel.lineage as lineage_module
 from unitsentinel.comparison import (
     AUTHENTICATION_NOT_PROVIDED,
     COMPARISON_RESULT_SCHEMA,
@@ -18,6 +19,7 @@ from unitsentinel.comparison import (
     ContractComparison,
     InterfaceSnapshot,
     MismatchCode,
+    OutputNormalizationComparison,
     compare_graphs,
 )
 from unitsentinel.comparison_contract import (
@@ -172,6 +174,66 @@ def interface_plan(
     )
 
 
+def public_plan(
+    training: ComputationGraph,
+    serving: ComputationGraph,
+    *,
+    inputs: tuple[tuple[str, str], ...],
+    outputs: tuple[tuple[str, str], ...],
+    comparison_id: str = "public-normalization",
+) -> ComparisonPlan:
+    bindings = tuple(
+        ContractBinding(
+            f"input-{index:02d}",
+            endpoint(InterfaceRole.INPUT, training_id),
+            endpoint(InterfaceRole.INPUT, serving_id),
+        )
+        for index, (training_id, serving_id) in enumerate(inputs)
+    ) + tuple(
+        ContractBinding(
+            f"output-{index:02d}",
+            endpoint(InterfaceRole.OUTPUT, training_id),
+            endpoint(InterfaceRole.OUTPUT, serving_id),
+        )
+        for index, (training_id, serving_id) in enumerate(outputs)
+    )
+    return plan(comparison_id, training, serving, bindings)
+
+
+def ratio_graph(
+    graph_id: str,
+    *,
+    left_id: str = "left",
+    right_id: str = "right",
+    output_id: str = "ratio",
+    reversed_divide: bool = False,
+) -> ComputationGraph:
+    operands = (right_id, left_id) if reversed_divide else (left_id, right_id)
+    return ComputationGraph(
+        graph_id=graph_id,
+        values=tuple(
+            sorted(
+                (
+                    value(left_id, "meter"),
+                    value(right_id, "meter"),
+                    value(output_id, "one"),
+                ),
+                key=lambda item: item.value_id,
+            )
+        ),
+        inputs=(left_id, right_id),
+        nodes=(
+            Node(
+                node_id="normalize-ratio",
+                operation=Operation.DIVIDE,
+                inputs=operands,
+                output=output_id,
+            ),
+        ),
+        outputs=(output_id,),
+    )
+
+
 def one_value_pair(
     *,
     training_id: str = "training-value",
@@ -208,6 +270,28 @@ def run(
         serving_graph=serving,
         limits=SolverLimits() if limits is None else limits,
         policy=ComparisonPolicy() if policy is None else policy,
+    )
+
+
+def rebind_lineage(
+    template: lineage_module.NormalizationLineage,
+    *,
+    comparison_plan: ComparisonPlan,
+    graph: ComputationGraph,
+    result: VerificationResult,
+    side: lineage_module.LineageSide,
+) -> lineage_module.NormalizationLineage:
+    return lineage_module.NormalizationLineage(
+        side=side,
+        comparison_id=comparison_plan.comparison_id,
+        plan_digest=comparison_plan.digest,
+        graph_digest=graph.digest,
+        registry_digest=result.registry_digest,
+        limits=result.limits,
+        verification_result=result,
+        expressions=template.expressions,
+        sites=template.sites,
+        outputs=template.outputs,
     )
 
 
@@ -322,6 +406,7 @@ class ComparisonOutcomeTests(unittest.TestCase):
                 MismatchCode.KIND_DRIFT,
                 MismatchCode.SCALE_DRIFT,
                 MismatchCode.OFFSET_DRIFT,
+                MismatchCode.NORMALIZATION_LINEAGE_DRIFT,
             ),
         )
 
@@ -539,6 +624,665 @@ class ComparisonOutcomeTests(unittest.TestCase):
         self.assertTrue(all(len(item.mismatches) == 1 for item in first.comparisons))
         self.assertEqual(first.canonical_bytes(), second.canonical_bytes())
         self.assertEqual(first.digest, second.digest)
+
+
+class NormalizationIntegrationTests(unittest.TestCase):
+    def test_public_renames_are_compatible_but_reversed_divide_drifts(self) -> None:
+        training = ratio_graph("training-ratio")
+        renamed = ratio_graph(
+            "renamed-serving-ratio",
+            left_id="feature-left",
+            right_id="feature-right",
+            output_id="prediction",
+        )
+        renamed_plan = public_plan(
+            training,
+            renamed,
+            inputs=(("left", "feature-left"), ("right", "feature-right")),
+            outputs=(("ratio", "prediction"),),
+        )
+
+        compatible = run(renamed_plan, training, renamed)
+
+        self.assertEqual(compatible.status, ComparisonStatus.COMPATIBLE)
+        self.assertIsNotNone(compatible.training_lineage)
+        self.assertIsNotNone(compatible.serving_lineage)
+        output = next(
+            item for item in compatible.comparisons if item.contract_id == "output-00"
+        )
+        assert output.normalization is not None
+        self.assertEqual(
+            output.normalization.training_digest,
+            output.normalization.serving_digest,
+        )
+        self.assertEqual(output.mismatches, ())
+
+        reversed_serving = ratio_graph(
+            "reversed-serving-ratio",
+            left_id="feature-left",
+            right_id="feature-right",
+            output_id="prediction",
+            reversed_divide=True,
+        )
+        reversed_plan = public_plan(
+            training,
+            reversed_serving,
+            inputs=(("left", "feature-left"), ("right", "feature-right")),
+            outputs=(("ratio", "prediction"),),
+            comparison_id="reversed-normalization",
+        )
+
+        drift = run(reversed_plan, training, reversed_serving)
+
+        self.assertEqual(drift.status, ComparisonStatus.DRIFT)
+        by_id = {item.contract_id: item for item in drift.comparisons}
+        self.assertEqual(by_id["input-00"].mismatches, ())
+        self.assertEqual(by_id["input-01"].mismatches, ())
+        self.assertEqual(
+            by_id["output-00"].mismatches,
+            (MismatchCode.NORMALIZATION_LINEAGE_DRIFT,),
+        )
+        assert by_id["output-00"].normalization is not None
+        self.assertNotEqual(
+            by_id["output-00"].normalization.training_digest,
+            by_id["output-00"].normalization.serving_digest,
+        )
+
+    def test_duplicate_normalization_sites_preserve_multiplicity(self) -> None:
+        training = ComputationGraph(
+            graph_id="duplicate-training-sites",
+            values=tuple(
+                sorted(
+                    (
+                        value("combined", "one"),
+                        value("left", "meter"),
+                        value("ratio-a", "one"),
+                        value("ratio-b", "one"),
+                        value("right", "meter"),
+                    ),
+                    key=lambda item: item.value_id,
+                )
+            ),
+            inputs=("left", "right"),
+            nodes=(
+                Node(
+                    "normalize-a",
+                    Operation.DIVIDE,
+                    ("left", "right"),
+                    "ratio-a",
+                ),
+                Node(
+                    "normalize-b",
+                    Operation.DIVIDE,
+                    ("left", "right"),
+                    "ratio-b",
+                ),
+                Node(
+                    "combine",
+                    Operation.ADD,
+                    ("ratio-a", "ratio-b"),
+                    "combined",
+                ),
+            ),
+            outputs=("combined",),
+        )
+        serving = ComputationGraph(
+            graph_id="single-serving-site",
+            values=tuple(
+                sorted(
+                    (
+                        value("left", "meter"),
+                        value("published", "one"),
+                        value("ratio", "one"),
+                        value("right", "meter"),
+                    ),
+                    key=lambda item: item.value_id,
+                )
+            ),
+            inputs=("left", "right"),
+            nodes=(
+                Node(
+                    "normalize",
+                    Operation.DIVIDE,
+                    ("left", "right"),
+                    "ratio",
+                ),
+                Node(
+                    "publish",
+                    Operation.IDENTITY,
+                    ("ratio",),
+                    "published",
+                ),
+            ),
+            outputs=("published",),
+        )
+        comparison_plan = public_plan(
+            training,
+            serving,
+            inputs=(("left", "left"), ("right", "right")),
+            outputs=(("combined", "published"),),
+            comparison_id="normalization-multiplicity",
+        )
+
+        result = run(comparison_plan, training, serving)
+        output = next(
+            item for item in result.comparisons if item.contract_id == "output-00"
+        )
+
+        self.assertEqual(result.status, ComparisonStatus.DRIFT)
+        self.assertEqual(
+            output.mismatches,
+            (MismatchCode.NORMALIZATION_LINEAGE_DRIFT,),
+        )
+        assert result.training_lineage is not None
+        assert result.serving_lineage is not None
+        self.assertEqual(
+            len(result.training_lineage.output_site_digest_multiset("output-00")),
+            2,
+        )
+        self.assertEqual(
+            len(result.serving_lineage.output_site_digest_multiset("output-00")),
+            1,
+        )
+
+    def test_exact_valid_internal_forgery_cannot_hide_or_fabricate_drift(
+        self,
+    ) -> None:
+        for label, actual_reversed, forged_reversed in (
+            ("hide-drift", True, False),
+            ("fabricate-drift", False, True),
+        ):
+            training = ratio_graph(f"{label}-training")
+            serving = ratio_graph(
+                f"{label}-serving",
+                reversed_divide=actual_reversed,
+            )
+            comparison_plan = public_plan(
+                training,
+                serving,
+                inputs=(("left", "left"), ("right", "right")),
+                outputs=(("ratio", "ratio"),),
+                comparison_id=label,
+            )
+            forged_graph = ratio_graph(
+                f"{label}-forged-template",
+                reversed_divide=forged_reversed,
+            )
+            forged_plan = public_plan(
+                training,
+                forged_graph,
+                inputs=(("left", "left"), ("right", "right")),
+                outputs=(("ratio", "ratio"),),
+                comparison_id=label,
+            )
+            forged_result = verify_graph(forged_graph)
+            forged_template = lineage_module.extract_normalization_lineage(
+                forged_plan,
+                side=lineage_module.LineageSide.SERVING,
+                graph=forged_graph,
+                verification_result=forged_result,
+                policy=ComparisonPolicy(forged_plan.digest),
+            )
+            real_extractor = lineage_module.extract_normalization_lineage
+
+            def forge_serving(
+                *args: object,
+                _real_extractor: object = real_extractor,
+                _forged_template: lineage_module.NormalizationLineage = forged_template,
+                **kwargs: object,
+            ) -> object:
+                side = kwargs["side"]
+                if side is not lineage_module.LineageSide.SERVING:
+                    assert callable(_real_extractor)
+                    return _real_extractor(*args, **kwargs)
+                actual_plan = args[0]
+                actual_graph = kwargs["graph"]
+                actual_result = kwargs["verification_result"]
+                assert type(actual_plan) is ComparisonPlan
+                assert type(actual_graph) is ComputationGraph
+                assert type(actual_result) is VerificationResult
+                forged = rebind_lineage(
+                    _forged_template,
+                    comparison_plan=actual_plan,
+                    graph=actual_graph,
+                    result=actual_result,
+                    side=lineage_module.LineageSide.SERVING,
+                )
+                forged.validate()
+                return forged
+
+            with (
+                self.subTest(label=label),
+                patch.object(
+                    lineage_module,
+                    "extract_normalization_lineage",
+                    side_effect=forge_serving,
+                ),
+            ):
+                result = run(comparison_plan, training, serving)
+
+            self.assertEqual(result.status, ComparisonStatus.INDETERMINATE)
+            self.assertEqual(
+                result.reason,
+                ComparisonReason.NORMALIZATION_LINEAGE_FAILURE,
+            )
+            self.assertIsNotNone(result.training_result)
+            self.assertIsNotNone(result.serving_result)
+            self.assertIsNone(result.training_lineage)
+            self.assertIsNone(result.serving_lineage)
+            self.assertEqual(result.comparisons, ())
+
+    def test_lineage_failure_attempts_both_sides_and_exposes_no_partial_claim(
+        self,
+    ) -> None:
+        training = ratio_graph("failed-training-lineage")
+        serving = ratio_graph("successful-serving-lineage")
+        comparison_plan = public_plan(
+            training,
+            serving,
+            inputs=(("left", "left"), ("right", "right")),
+            outputs=(("ratio", "ratio"),),
+        )
+        real_extractor = lineage_module.extract_normalization_lineage
+
+        def fail_training(*args: object, **kwargs: object) -> object:
+            side = kwargs["side"]
+            if side is lineage_module.LineageSide.TRAINING:
+                raise RuntimeError("private lineage detail")
+            return real_extractor(*args, **kwargs)  # type: ignore[arg-type]
+
+        with patch.object(
+            lineage_module,
+            "extract_normalization_lineage",
+            side_effect=fail_training,
+        ) as extractor:
+            result = run(comparison_plan, training, serving)
+
+        self.assertEqual(extractor.call_count, 2)
+        self.assertEqual(result.status, ComparisonStatus.INDETERMINATE)
+        self.assertEqual(
+            result.reason,
+            ComparisonReason.NORMALIZATION_LINEAGE_FAILURE,
+        )
+        self.assertIsNotNone(result.training_result)
+        self.assertIsNotNone(result.serving_result)
+        self.assertIsNone(result.training_lineage)
+        self.assertIsNone(result.serving_lineage)
+        self.assertEqual(result.comparisons, ())
+        self.assertNotIn("private lineage detail", result.canonical_bytes().decode())
+
+    def test_first_lineage_is_revalidated_after_serving(self) -> None:
+        training = ratio_graph("revalidated-training-lineage")
+        serving = ratio_graph("revalidated-serving-lineage")
+        comparison_plan = public_plan(
+            training,
+            serving,
+            inputs=(("left", "left"), ("right", "right")),
+            outputs=(("ratio", "ratio"),),
+        )
+
+        with patch.object(
+            comparison_module,
+            "_accept_extracted_lineage",
+            wraps=comparison_module._accept_extracted_lineage,
+        ) as accepter:
+            result = run(comparison_plan, training, serving)
+
+        self.assertEqual(result.status, ComparisonStatus.COMPATIBLE)
+        sides = [call.kwargs["side"] for call in accepter.call_args_list]
+        self.assertGreaterEqual(len(sides), 3)
+        self.assertEqual(sides[:3], ["training", "serving", "training"])
+
+    def test_first_lineage_mutation_during_serving_is_rejected(self) -> None:
+        training = ratio_graph("mutated-first-training")
+        serving = ratio_graph("mutated-first-serving")
+        comparison_plan = public_plan(
+            training,
+            serving,
+            inputs=(("left", "left"), ("right", "right")),
+            outputs=(("ratio", "ratio"),),
+        )
+        real_accept = comparison_module._accept_extracted_lineage
+        accepted_training: list[lineage_module.NormalizationLineage] = []
+
+        def mutate_after_serving(
+            lineage: object | None,
+            **kwargs: object,
+        ) -> lineage_module.NormalizationLineage | None:
+            accepted = real_accept(lineage, **kwargs)  # type: ignore[arg-type]
+            side = kwargs["side"]
+            if side == "training" and accepted is not None and not accepted_training:
+                accepted_training.append(accepted)
+            elif side == "serving" and accepted_training:
+                object.__setattr__(
+                    accepted_training[0].outputs[0],
+                    "_normalization_digest",
+                    "f" * 64,
+                )
+            return accepted
+
+        with patch.object(
+            comparison_module,
+            "_accept_extracted_lineage",
+            side_effect=mutate_after_serving,
+        ):
+            result = run(comparison_plan, training, serving)
+
+        self.assertEqual(result.status, ComparisonStatus.INDETERMINATE)
+        self.assertEqual(
+            result.reason,
+            ComparisonReason.NORMALIZATION_LINEAGE_FAILURE,
+        )
+        self.assertIsNotNone(result.training_result)
+        self.assertIsNotNone(result.serving_result)
+        self.assertIsNone(result.training_lineage)
+        self.assertIsNone(result.serving_lineage)
+        self.assertEqual(result.comparisons, ())
+
+    def test_verification_mutation_takes_precedence_over_lineage_failure(
+        self,
+    ) -> None:
+        training = ratio_graph("mutated-verification-training")
+        serving = ratio_graph("mutated-verification-serving")
+        comparison_plan = public_plan(
+            training,
+            serving,
+            inputs=(("left", "left"), ("right", "right")),
+            outputs=(("ratio", "ratio"),),
+        )
+        real_extractor = lineage_module.extract_normalization_lineage
+        training_results: list[VerificationResult] = []
+
+        def mutate_verification(*args: object, **kwargs: object) -> object:
+            side = kwargs["side"]
+            if side is lineage_module.LineageSide.TRAINING:
+                result = kwargs["verification_result"]
+                assert type(result) is VerificationResult
+                training_results.append(result)
+                return real_extractor(*args, **kwargs)  # type: ignore[arg-type]
+            assert training_results
+            training_result = training_results[0]
+            object.__setattr__(
+                training_result,
+                "checks_performed",
+                training_result.checks_performed + 1,
+            )
+            object.__setattr__(
+                training_result,
+                "_digest",
+                training_result._compute_digest(),
+            )
+            return real_extractor(*args, **kwargs)  # type: ignore[arg-type]
+
+        with patch.object(
+            lineage_module,
+            "extract_normalization_lineage",
+            side_effect=mutate_verification,
+        ):
+            result = run(comparison_plan, training, serving)
+
+        self.assertEqual(result.status, ComparisonStatus.INDETERMINATE)
+        self.assertEqual(result.reason, ComparisonReason.VERIFIER_FAILURE)
+        self.assertIsNone(result.training_result)
+        self.assertIsNotNone(result.serving_result)
+        self.assertIsNone(result.training_lineage)
+        self.assertIsNone(result.serving_lineage)
+        self.assertEqual(result.comparisons, ())
+
+    def test_source_mutation_during_lineage_extraction_still_raises(self) -> None:
+        training = ratio_graph("mutated-source-training")
+        serving = ratio_graph("mutated-source-serving")
+        comparison_plan = public_plan(
+            training,
+            serving,
+            inputs=(("left", "left"), ("right", "right")),
+            outputs=(("ratio", "ratio"),),
+        )
+
+        def mutate_plan(*args: object, **kwargs: object) -> object:
+            candidate = args[0]
+            assert type(candidate) is ComparisonPlan
+            object.__setattr__(candidate, "comparison_id", "INVALID")
+            raise RuntimeError("private mutation detail")
+
+        with (
+            patch.object(
+                lineage_module,
+                "extract_normalization_lineage",
+                side_effect=mutate_plan,
+            ),
+            self.assertRaisesRegex(ComparisonError, "inputs changed"),
+        ):
+            run(comparison_plan, training, serving)
+
+    def test_invalid_lineage_candidates_fail_atomically(self) -> None:
+        training = boundary_graph(
+            "candidate-training",
+            (value("left", "meter"), value("right", "meter")),
+        )
+        serving = boundary_graph(
+            "candidate-serving",
+            (value("left", "meter"), value("right", "meter")),
+        )
+        comparison_plan = public_plan(
+            training,
+            serving,
+            inputs=(("left", "left"), ("right", "right")),
+            outputs=(("left", "left"), ("right", "right")),
+            comparison_id="invalid-lineage-candidates",
+        )
+        serving_result = verify_graph(serving)
+        serving_template = lineage_module.extract_normalization_lineage(
+            comparison_plan,
+            side=lineage_module.LineageSide.SERVING,
+            graph=serving,
+            verification_result=serving_result,
+            policy=ComparisonPolicy(comparison_plan.digest),
+        )
+        real_extractor = lineage_module.extract_normalization_lineage
+
+        def rebuild(
+            source: lineage_module.NormalizationLineage,
+            *,
+            expressions: tuple[lineage_module.LineageExpression, ...] | None = None,
+            outputs: tuple[lineage_module.OutputLineage, ...] | None = None,
+        ) -> lineage_module.NormalizationLineage:
+            return lineage_module.NormalizationLineage(
+                side=source.side,
+                comparison_id=source.comparison_id,
+                plan_digest=source.plan_digest,
+                graph_digest=source.graph_digest,
+                registry_digest=source.registry_digest,
+                limits=source.limits,
+                verification_result=source.verification_result,
+                expressions=source.expressions if expressions is None else expressions,
+                sites=source.sites,
+                outputs=source.outputs if outputs is None else outputs,
+            )
+
+        def replace_expression(
+            source: lineage_module.LineageExpression,
+            *,
+            logical_roots: tuple[str, ...] | None = None,
+            declared_value: ValueSpec | None = None,
+        ) -> lineage_module.LineageExpression:
+            return lineage_module.LineageExpression(
+                value_id=source.value_id,
+                node_id=source.node_id,
+                operation=source.operation,
+                attributes=source.attributes,
+                input_value_ids=source.input_value_ids,
+                child_digests=source.child_digests,
+                logical_roots=(
+                    source.logical_roots if logical_roots is None else logical_roots
+                ),
+                collapsed_identity=source.collapsed_identity,
+                value=source.value if declared_value is None else declared_value,
+                inferred=source.inferred,
+            )
+
+        def outputs_for(
+            source: lineage_module.NormalizationLineage,
+            expressions: tuple[lineage_module.LineageExpression, ...],
+        ) -> tuple[lineage_module.OutputLineage, ...]:
+            by_value = {item.value_id: item for item in expressions}
+            return tuple(
+                lineage_module.OutputLineage(
+                    contract_id=output.contract_id,
+                    value_id=output.value_id,
+                    position=output.position,
+                    expression_digest=by_value[output.value_id].semantic_digest,
+                    site_digests=output.site_digests,
+                )
+                for output in source.outputs
+            )
+
+        def wrong_type(
+            source: lineage_module.NormalizationLineage,
+        ) -> object:
+            del source
+            return object()
+
+        def side_swap(
+            source: lineage_module.NormalizationLineage,
+        ) -> object:
+            return lineage_module.NormalizationLineage(
+                side=lineage_module.LineageSide.SERVING,
+                comparison_id=source.comparison_id,
+                plan_digest=source.plan_digest,
+                graph_digest=source.graph_digest,
+                registry_digest=source.registry_digest,
+                limits=source.limits,
+                verification_result=source.verification_result,
+                expressions=source.expressions,
+                sites=source.sites,
+                outputs=source.outputs,
+            )
+
+        def source_swap(
+            source: lineage_module.NormalizationLineage,
+        ) -> object:
+            del source
+            return lineage_module.NormalizationLineage(
+                side=lineage_module.LineageSide.TRAINING,
+                comparison_id=serving_template.comparison_id,
+                plan_digest=serving_template.plan_digest,
+                graph_digest=serving_template.graph_digest,
+                registry_digest=serving_template.registry_digest,
+                limits=serving_template.limits,
+                verification_result=serving_template.verification_result,
+                expressions=serving_template.expressions,
+                sites=serving_template.sites,
+                outputs=serving_template.outputs,
+            )
+
+        def input_root_swap(
+            source: lineage_module.NormalizationLineage,
+        ) -> object:
+            left, right = source.expressions
+            expressions = (
+                replace_expression(left, logical_roots=right.logical_roots),
+                replace_expression(right, logical_roots=left.logical_roots),
+            )
+            return rebuild(
+                source,
+                expressions=expressions,
+                outputs=outputs_for(source, expressions),
+            )
+
+        def output_map_swap(
+            source: lineage_module.NormalizationLineage,
+        ) -> object:
+            left, right = source.outputs
+            outputs = (
+                lineage_module.OutputLineage(
+                    contract_id=left.contract_id,
+                    value_id=right.value_id,
+                    position=right.position,
+                    expression_digest=right.expression_digest,
+                    site_digests=right.site_digests,
+                ),
+                lineage_module.OutputLineage(
+                    contract_id=right.contract_id,
+                    value_id=left.value_id,
+                    position=left.position,
+                    expression_digest=left.expression_digest,
+                    site_digests=left.site_digests,
+                ),
+            )
+            return rebuild(source, outputs=outputs)
+
+        def boundary_metadata_mismatch(
+            source: lineage_module.NormalizationLineage,
+        ) -> object:
+            left, right = source.expressions
+            expressions = (
+                replace_expression(
+                    left,
+                    declared_value=value(left.value_id, "centimeter"),
+                ),
+                right,
+            )
+            return rebuild(
+                source,
+                expressions=expressions,
+                outputs=outputs_for(source, expressions),
+            )
+
+        cases = (
+            ("wrong-type", wrong_type),
+            ("side-swap", side_swap),
+            ("source-swap", source_swap),
+            ("input-root-swap", input_root_swap),
+            ("output-map-swap", output_map_swap),
+            ("boundary-metadata", boundary_metadata_mismatch),
+        )
+        for label, candidate_builder in cases:
+
+            def candidate_extractor(
+                *args: object,
+                _candidate_builder: object = candidate_builder,
+                **kwargs: object,
+            ) -> object:
+                if kwargs["side"] is lineage_module.LineageSide.SERVING:
+                    return real_extractor(*args, **kwargs)  # type: ignore[arg-type]
+                plan_value = args[0]
+                graph_value = kwargs["graph"]
+                result_value = kwargs["verification_result"]
+                assert type(plan_value) is ComparisonPlan
+                assert type(graph_value) is ComputationGraph
+                assert type(result_value) is VerificationResult
+                template = real_extractor(*args, **kwargs)  # type: ignore[arg-type]
+                rebound = rebind_lineage(
+                    template,
+                    comparison_plan=plan_value,
+                    graph=graph_value,
+                    result=result_value,
+                    side=lineage_module.LineageSide.TRAINING,
+                )
+                assert callable(_candidate_builder)
+                return _candidate_builder(rebound)
+
+            with (
+                self.subTest(label=label),
+                patch.object(
+                    lineage_module,
+                    "extract_normalization_lineage",
+                    side_effect=candidate_extractor,
+                ),
+            ):
+                result = run(comparison_plan, training, serving)
+
+            self.assertEqual(result.status, ComparisonStatus.INDETERMINATE)
+            self.assertEqual(
+                result.reason,
+                ComparisonReason.NORMALIZATION_LINEAGE_FAILURE,
+            )
+            self.assertIsNotNone(result.training_result)
+            self.assertIsNotNone(result.serving_result)
+            self.assertIsNone(result.training_lineage)
+            self.assertIsNone(result.serving_lineage)
+            self.assertEqual(result.comparisons, ())
 
 
 class FailClosedInputTests(unittest.TestCase):
@@ -1257,6 +2001,79 @@ class FreshVerificationTests(unittest.TestCase):
 
 
 class ResultContractTests(unittest.TestCase):
+    def test_output_normalization_record_is_exact_frozen_and_orders_drift(
+        self,
+    ) -> None:
+        normalization = OutputNormalizationComparison("a" * 64, "b" * 64)
+
+        self.assertEqual(
+            normalization.canonical_record(),
+            {
+                "serving_sha256": "b" * 64,
+                "training_sha256": "a" * 64,
+            },
+        )
+        with self.assertRaises(FrozenInstanceError):
+            normalization.training_digest = "c" * 64  # type: ignore[misc]
+        with self.assertRaisesRegex(ComparisonError, "malformed"):
+            OutputNormalizationComparison("bad", "b" * 64)
+
+        class DerivedNormalization(OutputNormalizationComparison):
+            pass
+
+        derived = object.__new__(DerivedNormalization)
+        with self.assertRaisesRegex(ComparisonError, "must be exact"):
+            derived.validate()
+
+        training, serving, comparison_plan = one_value_pair(
+            training_unit="kelvin",
+            serving_unit="degree-celsius",
+        )
+        result = run(comparison_plan, training, serving)
+        output = next(
+            item
+            for item in result.comparisons
+            if item.training is not None
+            and item.training.endpoint.role is InterfaceRole.OUTPUT
+        )
+        assert output.training is not None
+        assert output.serving is not None
+        assert output.normalization is not None
+        changed = OutputNormalizationComparison(
+            output.normalization.training_digest,
+            "f" * 64,
+        )
+        comparison = ContractComparison(
+            contract_id=output.contract_id,
+            training=output.training,
+            serving=output.serving,
+            normalization=changed,
+            mismatches=(
+                MismatchCode.EXPLICIT_UNIT_DRIFT,
+                MismatchCode.OFFSET_DRIFT,
+                MismatchCode.NORMALIZATION_LINEAGE_DRIFT,
+            ),
+        )
+        self.assertEqual(
+            comparison.mismatches[-2:],
+            (
+                MismatchCode.OFFSET_DRIFT,
+                MismatchCode.NORMALIZATION_LINEAGE_DRIFT,
+            ),
+        )
+        with self.assertRaisesRegex(ComparisonError, "incomplete or out of order"):
+            ContractComparison(
+                contract_id=output.contract_id,
+                training=output.training,
+                serving=output.serving,
+                normalization=changed,
+                mismatches=(
+                    MismatchCode.NORMALIZATION_LINEAGE_DRIFT,
+                    MismatchCode.EXPLICIT_UNIT_DRIFT,
+                    MismatchCode.OFFSET_DRIFT,
+                ),
+            )
+
     def test_result_and_nested_values_are_frozen_and_mutation_detecting(
         self,
     ) -> None:
@@ -1343,19 +2160,33 @@ class ResultContractTests(unittest.TestCase):
 
         with self.assertRaisesRegex(ComparisonError, "incomplete or out of order"):
             ContractComparison(
-                first.contract_id,
-                first.training,
-                first.serving,
-                (MismatchCode.DTYPE_DRIFT,),
+                contract_id=first.contract_id,
+                training=first.training,
+                serving=first.serving,
+                normalization=first.normalization,
+                mismatches=(MismatchCode.DTYPE_DRIFT,),
             )
         with self.assertRaisesRegex(ComparisonError, "training or serving"):
-            ContractComparison("empty", None, None, ())
+            ContractComparison(
+                "empty",
+                None,
+                None,
+                None,
+                (),
+            )
         with self.assertRaisesRegex(ComparisonError, "not canonical"):
-            ContractComparison("INVALID", first.training, first.serving, ())
+            ContractComparison(
+                "INVALID",
+                first.training,
+                first.serving,
+                first.normalization,
+                (),
+            )
         with self.assertRaisesRegex(ComparisonError, "exact InterfaceSnapshot"):
             ContractComparison(
                 "bad-snapshot",
                 object(),  # type: ignore[arg-type]
+                None,
                 None,
                 (MismatchCode.MISSING_IN_SERVING,),
             )
@@ -1364,6 +2195,7 @@ class ResultContractTests(unittest.TestCase):
                 "bad-container",
                 first.training,
                 first.serving,
+                first.normalization,
                 [],  # type: ignore[arg-type]
             )
         with self.assertRaisesRegex(ComparisonError, "exact MismatchCode"):
@@ -1371,6 +2203,7 @@ class ResultContractTests(unittest.TestCase):
                 "bad-code",
                 first.training,
                 first.serving,
+                first.normalization,
                 ("dtype-drift",),  # type: ignore[arg-type]
             )
 
@@ -1392,6 +2225,8 @@ class ResultContractTests(unittest.TestCase):
                 limits=result.limits,
                 training_result=result.training_result,
                 serving_result=result.serving_result,
+                training_lineage=result.training_lineage,
+                serving_lineage=result.serving_lineage,
                 comparisons=(first, first),
             )
 
@@ -1429,6 +2264,7 @@ class ResultContractTests(unittest.TestCase):
             contract_id=first.contract_id,
             training=forged_training,
             serving=forged_serving,
+            normalization=first.normalization,
             mismatches=(),
         )
 
@@ -1447,6 +2283,8 @@ class ResultContractTests(unittest.TestCase):
                 limits=result.limits,
                 training_result=result.training_result,
                 serving_result=result.serving_result,
+                training_lineage=result.training_lineage,
+                serving_lineage=result.serving_lineage,
                 comparisons=(forged, *result.comparisons[1:]),
             )
 
@@ -1469,6 +2307,7 @@ class ResultContractTests(unittest.TestCase):
             contract_id=second.contract_id,
             training=changed_snapshot,
             serving=second.serving,
+            normalization=second.normalization,
             mismatches=(MismatchCode.EXPLICIT_UNIT_DRIFT,),
         )
         with self.assertRaisesRegex(
@@ -1486,6 +2325,8 @@ class ResultContractTests(unittest.TestCase):
                 limits=result.limits,
                 training_result=result.training_result,
                 serving_result=result.serving_result,
+                training_lineage=result.training_lineage,
+                serving_lineage=result.serving_lineage,
                 comparisons=(first, inconsistent_value),
             )
 
@@ -1504,13 +2345,20 @@ class ResultContractTests(unittest.TestCase):
             "limits": decisive.limits,
             "training_result": decisive.training_result,
             "serving_result": decisive.serving_result,
+            "training_lineage": decisive.training_lineage,
+            "serving_lineage": decisive.serving_lineage,
         }
+        indeterminate_common = dict(common)
+        indeterminate_common.update(
+            training_lineage=None,
+            serving_lineage=None,
+        )
         with self.assertRaisesRegex(ComparisonError, "indeterminate"):
             ComparisonResult(
                 status=ComparisonStatus.INDETERMINATE,
                 reason=ComparisonReason.TRAINING_NOT_VERIFIED,
                 comparisons=(),
-                **common,  # type: ignore[arg-type]
+                **indeterminate_common,  # type: ignore[arg-type]
             )
         with self.assertRaisesRegex(ComparisonError, "decisive"):
             ComparisonResult(
@@ -1570,6 +2418,8 @@ class ResultContractTests(unittest.TestCase):
                 limits=drift.limits,
                 training_result=drift.training_result,
                 serving_result=drift.serving_result,
+                training_lineage=drift.training_lineage,
+                serving_lineage=drift.serving_lineage,
                 comparisons=drift.comparisons,
             )
 
@@ -1589,6 +2439,8 @@ class ResultContractTests(unittest.TestCase):
             "limits": result.limits,
             "training_result": result.training_result,
             "serving_result": result.serving_result,
+            "training_lineage": result.training_lineage,
+            "serving_lineage": result.serving_lineage,
             "comparisons": result.comparisons,
         }
 
@@ -1614,6 +2466,8 @@ class ResultContractTests(unittest.TestCase):
         verifier_failure.update(
             status=ComparisonStatus.INDETERMINATE,
             reason=ComparisonReason.VERIFIER_FAILURE,
+            training_lineage=None,
+            serving_lineage=None,
             comparisons=(),
         )
         with self.assertRaisesRegex(ComparisonError, "indeterminate"):
@@ -1645,6 +2499,8 @@ class ResultContractTests(unittest.TestCase):
                 limits=ambiguous.limits,
                 training_result=ambiguous.training_result,
                 serving_result=ambiguous.serving_result,
+                training_lineage=ambiguous.training_lineage,
+                serving_lineage=ambiguous.serving_lineage,
                 comparisons=(),
             )
 
@@ -1653,6 +2509,8 @@ class ResultContractTests(unittest.TestCase):
             status=ComparisonStatus.INDETERMINATE,
             reason=ComparisonReason.TRAINING_NOT_VERIFIED,
             training_result=None,
+            training_lineage=None,
+            serving_lineage=None,
             comparisons=(),
         )
         with self.assertRaisesRegex(ComparisonError, "nonverified"):
@@ -1665,7 +2523,7 @@ class ResultContractTests(unittest.TestCase):
 
         damaged_contents = run(comparison_plan, training, serving)
         object.__setattr__(damaged_contents, "comparison_id", "changed")
-        with self.assertRaisesRegex(ComparisonError, "does not match"):
+        with self.assertRaisesRegex(ComparisonError, "source bindings"):
             damaged_contents.validate()
 
 
