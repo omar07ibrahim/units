@@ -72,7 +72,7 @@ COMPARE_CLI_SCHEMA: Final = "unitsentinel.cli.compare/v1"
 COMPARISON_ARTIFACTS_SCHEMA: Final = "unitsentinel.comparison-artifacts/v1"
 COMPARISON_PROVENANCE_SCHEMA: Final = "unitsentinel.comparison-evidence-provenance/v1"
 MEASUREMENT_SCOPE: Final = (
-    "exact canonical artifact byte lengths; no latency or performance claim"
+    "exact committed artifact byte lengths; no latency or performance claim"
 )
 
 CONTRACT_DIRECTORY: Final = EVIDENCE / "contracts"

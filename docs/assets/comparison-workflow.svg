@@ -1,0 +1,125 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="990" viewBox="0 0 1440 990" role="img" aria-labelledby="title description">
+  <title id="title">UnitSentinel training-serving comparison workflow</title>
+  <desc id="description">The implemented fail-closed sequence: validate limits, hash-pin the plan before decoding or graph reads, verify both graphs freshly, compare normalization lineage, strictly encode the result, atomically publish it when requested, and only then write stdout.</desc>
+  <defs>
+    <linearGradient id="background" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#07111f"/>
+      <stop offset="1" stop-color="#0a1730"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="10" stdDeviation="12" flood-color="#000814" flood-opacity=".45"/>
+    </filter>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L0,6 L9,3 z" fill="#8fa5bd"/>
+    </marker>
+  </defs>
+  <rect width="1440" height="990" fill="url(#background)"/>
+<text x="60" y="64" fill="#d8e4f2" font-family="DejaVu Sans, sans-serif" font-size="31" font-weight="700" text-anchor="start">Training-serving comparison workflow</text>
+<text x="60" y="100" fill="#8fa5bd" font-family="DejaVu Sans, sans-serif" font-size="17" font-weight="400" text-anchor="start">Bounded input ordering and durable output ordering shown explicitly.</text>
+<rect x="55" y="155" width="250" height="160" rx="18" fill="#0d1b2d" stroke="#253a55" stroke-width="2" filter="url(#shadow)"/>
+<rect x="55" y="155" width="7" height="160" rx="3.5" fill="#38d9f5"/>
+<text x="83" y="193" fill="#38d9f5" font-family="DejaVu Sans, sans-serif" font-size="20" font-weight="700" text-anchor="start">1 · Validate limits</text>
+<text x="83" y="225" fill="#d8e4f2" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="400" text-anchor="start">
+      <tspan x="83" dy="0">before file I/O</tspan>
+      <tspan x="83" dy="25">per-side solver budgets</tspan>
+      <tspan x="83" dy="25">closed numeric ranges</tspan>
+    </text>
+<rect x="355" y="155" width="300" height="160" rx="18" fill="#0d1b2d" stroke="#253a55" stroke-width="2" filter="url(#shadow)"/>
+<rect x="355" y="155" width="7" height="160" rx="3.5" fill="#38d9f5"/>
+<text x="383" y="193" fill="#38d9f5" font-family="DejaVu Sans, sans-serif" font-size="20" font-weight="700" text-anchor="start">2 · Pin raw plan</text>
+<text x="383" y="225" fill="#d8e4f2" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="400" text-anchor="start">
+      <tspan x="383" dy="0">bounded regular-file read</tspan>
+      <tspan x="383" dy="25">SHA-256 checked first</tspan>
+      <tspan x="383" dy="25">2038cbb9f82bae8249921ae0…</tspan>
+    </text>
+<rect x="705" y="155" width="300" height="160" rx="18" fill="#0d1b2d" stroke="#253a55" stroke-width="2" filter="url(#shadow)"/>
+<rect x="705" y="155" width="7" height="160" rx="3.5" fill="#b69cff"/>
+<text x="733" y="193" fill="#b69cff" font-family="DejaVu Sans, sans-serif" font-size="20" font-weight="700" text-anchor="start">3 · Strict plan decode</text>
+<text x="733" y="225" fill="#d8e4f2" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="400" text-anchor="start">
+      <tspan x="733" dy="0">only after expected pin</tspan>
+      <tspan x="733" dy="25">canonical closure</tspan>
+      <tspan x="733" dy="25">raw/model digest match</tspan>
+    </text>
+<rect x="1055" y="155" width="330" height="160" rx="18" fill="#0d1b2d" stroke="#253a55" stroke-width="2" filter="url(#shadow)"/>
+<rect x="1055" y="155" width="7" height="160" rx="3.5" fill="#b69cff"/>
+<text x="1083" y="193" fill="#b69cff" font-family="DejaVu Sans, sans-serif" font-size="20" font-weight="700" text-anchor="start">4 · Registry gate</text>
+<text x="1083" y="225" fill="#d8e4f2" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="400" text-anchor="start">
+      <tspan x="1083" dy="0">checked before graph reads</tspan>
+      <tspan x="1083" dy="25">fc80cbb596f3341b1d2ff137…</tspan>
+      <tspan x="1083" dy="25">mismatch fails closed</tspan>
+    </text>
+<path d="M305,235 L355,235" stroke="#8fa5bd" stroke-width="3" fill="none" marker-end="url(#arrow)"/>
+<path d="M655,235 L705,235" stroke="#8fa5bd" stroke-width="3" fill="none" marker-end="url(#arrow)"/>
+<path d="M1005,235 L1055,235" stroke="#8fa5bd" stroke-width="3" fill="none" marker-end="url(#arrow)"/>
+<rect x="80" y="405" width="360" height="180" rx="18" fill="#0d1b2d" stroke="#253a55" stroke-width="2" filter="url(#shadow)"/>
+<rect x="80" y="405" width="7" height="180" rx="3.5" fill="#38d9f5"/>
+<text x="108" y="443" fill="#38d9f5" font-family="DejaVu Sans, sans-serif" font-size="20" font-weight="700" text-anchor="start">5a · Training graph</text>
+<text x="108" y="475" fill="#d8e4f2" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="400" text-anchor="start">
+      <tspan x="108" dy="0">bounded raw read</tspan>
+      <tspan x="108" dy="25">plan SHA-256 before decode</tspan>
+      <tspan x="108" dy="25">0b1dcfd9df8c284c5101e601…</tspan>
+      <tspan x="108" dy="25">then strict graph decode</tspan>
+    </text>
+<rect x="510" y="405" width="360" height="180" rx="18" fill="#0d1b2d" stroke="#253a55" stroke-width="2" filter="url(#shadow)"/>
+<rect x="510" y="405" width="7" height="180" rx="3.5" fill="#38d9f5"/>
+<text x="538" y="443" fill="#38d9f5" font-family="DejaVu Sans, sans-serif" font-size="20" font-weight="700" text-anchor="start">5b · Serving graph</text>
+<text x="538" y="475" fill="#d8e4f2" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="400" text-anchor="start">
+      <tspan x="538" dy="0">read only after training passes</tspan>
+      <tspan x="538" dy="25">plan SHA-256 before decode</tspan>
+      <tspan x="538" dy="25">8b310b6d542181c7698bd455…</tspan>
+      <tspan x="538" dy="25">then strict graph decode</tspan>
+    </text>
+<rect x="940" y="405" width="390" height="180" rx="18" fill="#0d1b2d" stroke="#253a55" stroke-width="2" filter="url(#shadow)"/>
+<rect x="940" y="405" width="7" height="180" rx="3.5" fill="#5ee6a8"/>
+<text x="968" y="443" fill="#5ee6a8" font-family="DejaVu Sans, sans-serif" font-size="20" font-weight="700" text-anchor="start">6 · Two fresh verifications</text>
+<text x="968" y="475" fill="#d8e4f2" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="400" text-anchor="start">
+      <tspan x="968" dy="0">training: fresh bounded solve</tspan>
+      <tspan x="968" dy="25">serving: fresh bounded solve</tspan>
+      <tspan x="968" dy="25">same registry + exact limits</tspan>
+      <tspan x="968" dy="25">no stale certificate reuse</tspan>
+    </text>
+<path d="M1220,315 L260,405" stroke="#38d9f5" stroke-width="3" fill="none" marker-end="url(#arrow)"/>
+<text x="740.0" y="350.0" fill="#38d9f5" font-family="DejaVu Sans, sans-serif" font-size="14" font-weight="400" text-anchor="middle">registry accepted</text>
+<path d="M440,495 L510,495" stroke="#38d9f5" stroke-width="3" fill="none" marker-end="url(#arrow)"/>
+<text x="475.0" y="485.0" fill="#38d9f5" font-family="DejaVu Sans, sans-serif" font-size="14" font-weight="400" text-anchor="middle">training accepted</text>
+<path d="M870,495 L940,495" stroke="#8fa5bd" stroke-width="3" fill="none" marker-end="url(#arrow)"/>
+<rect x="55" y="700" width="295" height="170" rx="18" fill="#0d1b2d" stroke="#253a55" stroke-width="2" filter="url(#shadow)"/>
+<rect x="55" y="700" width="7" height="170" rx="3.5" fill="#b69cff"/>
+<text x="83" y="738" fill="#b69cff" font-family="DejaVu Sans, sans-serif" font-size="20" font-weight="700" text-anchor="start">7 · Interfaces + lineage</text>
+<text x="83" y="770" fill="#d8e4f2" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="400" text-anchor="start">
+      <tspan x="83" dy="0">bound interfaces</tspan>
+      <tspan x="83" dy="25">content vs semantic form</tspan>
+      <tspan x="83" dy="25">output normalization</tspan>
+    </text>
+<rect x="395" y="700" width="295" height="170" rx="18" fill="#0d1b2d" stroke="#253a55" stroke-width="2" filter="url(#shadow)"/>
+<rect x="395" y="700" width="7" height="170" rx="3.5" fill="#b69cff"/>
+<text x="423" y="738" fill="#b69cff" font-family="DejaVu Sans, sans-serif" font-size="20" font-weight="700" text-anchor="start">8 · Strict result</text>
+<text x="423" y="770" fill="#d8e4f2" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="400" text-anchor="start">
+      <tspan x="423" dy="0">canonical encode</tspan>
+      <tspan x="423" dy="25">self-decode + cross-bind</tspan>
+      <tspan x="423" dy="25">766454a47eecb6118dea46f4…</tspan>
+    </text>
+<rect x="735" y="700" width="295" height="170" rx="18" fill="#0d1b2d" stroke="#253a55" stroke-width="2" filter="url(#shadow)"/>
+<rect x="735" y="700" width="7" height="170" rx="3.5" fill="#5ee6a8"/>
+<text x="763" y="738" fill="#5ee6a8" font-family="DejaVu Sans, sans-serif" font-size="20" font-weight="700" text-anchor="start">9 · Optional output</text>
+<text x="763" y="770" fill="#d8e4f2" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="400" text-anchor="start">
+      <tspan x="763" dy="0">if --result is requested</tspan>
+      <tspan x="763" dy="25">new regular file only</tspan>
+      <tspan x="763" dy="25">fsync + atomic publish</tspan>
+    </text>
+<rect x="1075" y="700" width="295" height="170" rx="18" fill="#0d1b2d" stroke="#253a55" stroke-width="2" filter="url(#shadow)"/>
+<rect x="1075" y="700" width="7" height="170" rx="3.5" fill="#5ee6a8"/>
+<text x="1103" y="738" fill="#5ee6a8" font-family="DejaVu Sans, sans-serif" font-size="20" font-weight="700" text-anchor="start">10 · Stdout + exit</text>
+<text x="1103" y="770" fill="#d8e4f2" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="400" text-anchor="start">
+      <tspan x="1103" dy="0">only after output commit</tspan>
+      <tspan x="1103" dy="25">stable text / JSON report</tspan>
+      <tspan x="1103" dy="25">0 compatible · 5 drift · 3 indeterminate</tspan>
+    </text>
+<path d="M1135,585 L202,700" stroke="#5ee6a8" stroke-width="3" fill="none" marker-end="url(#arrow)"/>
+<text x="668.5" y="632.5" fill="#5ee6a8" font-family="DejaVu Sans, sans-serif" font-size="14" font-weight="400" text-anchor="middle">verified pair</text>
+<path d="M350,785 L395,785" stroke="#8fa5bd" stroke-width="3" fill="none" marker-end="url(#arrow)"/>
+<path d="M690,785 L735,785" stroke="#8fa5bd" stroke-width="3" fill="none" marker-end="url(#arrow)"/>
+<path d="M1030,785 L1075,785" stroke="#8fa5bd" stroke-width="3" fill="none" marker-end="url(#arrow)"/>
+<text x="720" y="950" fill="#ffc857" font-family="DejaVu Sans, sans-serif" font-size="17" font-weight="700" text-anchor="middle">Security ordering: pin → decode → graph reads → verify → compare → strict result → optional atomic file → stdout</text>
+</svg>

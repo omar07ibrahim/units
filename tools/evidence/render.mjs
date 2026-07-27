@@ -11,9 +11,19 @@
  *   docs/evidence/demo/frame-*.svg
  *     -> docs/assets/unitsentinel-demo.gif
  *
+ * Comparison sources:
+ *   docs/assets/comparison-*.svg
+ *   docs/assets/compare-*-terminal.svg
+ *     -> sibling *.png
+ *   docs/evidence/comparison-demo/frames.json
+ *   docs/evidence/comparison-demo/frame-*.svg
+ *     -> docs/assets/comparison-demo.gif
+ *
  * Usage:
- *   node render.mjs          Render and atomically publish expected outputs.
- *   node render.mjs --check  Rebuild in memory and verify committed bytes.
+ *   node render.mjs                       Render every expected output.
+ *   node render.mjs --check               Verify every committed output.
+ *   node render.mjs --render-comparison   Render comparison outputs only.
+ *   node render.mjs --check-comparison    Verify comparison outputs only.
  */
 
 import { constants as FS_CONSTANTS } from "node:fs";
@@ -44,13 +54,43 @@ const ASSET_DIRECTORY = join(REPOSITORY_ROOT, "docs", "assets");
 const DEMO_DIRECTORY = join(REPOSITORY_ROOT, "docs", "evidence", "demo");
 const DEMO_MANIFEST = join(DEMO_DIRECTORY, "frames.json");
 const DEMO_OUTPUT = join(ASSET_DIRECTORY, "unitsentinel-demo.gif");
+const COMPARISON_DEMO_DIRECTORY = join(
+  REPOSITORY_ROOT,
+  "docs",
+  "evidence",
+  "comparison-demo",
+);
+const COMPARISON_DEMO_MANIFEST = join(
+  COMPARISON_DEMO_DIRECTORY,
+  "frames.json",
+);
+const COMPARISON_DEMO_OUTPUT = join(
+  ASSET_DIRECTORY,
+  "comparison-demo.gif",
+);
 const REPAIR_SOURCE = join(ASSET_DIRECTORY, "unit-repair-lineage.svg");
 const REPAIR_OUTPUT = join(ASSET_DIRECTORY, "unit-repair-lineage.png");
 
 const DEMO_SCHEMA = "unitsentinel.demo-frames/v1";
+const COMPARISON_DEMO_SCHEMA = "unitsentinel.comparison-demo-frames/v1";
 const FONT_ENVIRONMENT_VARIABLE = "UNITSENTINEL_FONT_PATH";
 const PUBLIC_SVG_NAME = /^[a-z0-9]+(?:-[a-z0-9]+)*\.svg$/u;
 const DEMO_FRAME_NAME = /^frame-[a-z0-9]+(?:-[a-z0-9]+)*\.svg$/u;
+const COMPARISON_SOURCE_NAMES = Object.freeze([
+  "comparison-workflow.svg",
+  "comparison-lineage-drift.svg",
+  "comparison-artifact-sizes.svg",
+  "compare-compatible-terminal.svg",
+  "compare-drift-terminal.svg",
+  "compare-indeterminate-terminal.svg",
+]);
+const COMPARISON_FRAME_RECORDS = Object.freeze([
+  Object.freeze({ delayMs: 3_000, path: "frame-compatible.svg" }),
+  Object.freeze({ delayMs: 3_000, path: "frame-drift.svg" }),
+  Object.freeze({ delayMs: 3_000, path: "frame-indeterminate.svg" }),
+]);
+const COMPARISON_FRAME_WIDTH = 1_440;
+const COMPARISON_FRAME_HEIGHT = 1_100;
 
 const MAX_PUBLIC_SVGS = 64;
 const MAX_DEMO_FRAMES = 32;
@@ -62,6 +102,7 @@ const MAX_IMAGE_PIXELS = 16_777_216;
 const MAX_GIF_TOTAL_PIXELS = 20_000_000;
 const MAX_PNG_BYTES = 67_108_864;
 const MAX_GIF_BYTES = 134_217_728;
+const MAX_TOTAL_OUTPUT_BYTES = 268_435_456;
 const MAX_DELAY_MS = 60_000;
 const IO_CHUNK_BYTES = 65_536;
 const TEMP_ATTEMPTS = 16;
@@ -69,11 +110,13 @@ const TEMP_ATTEMPTS = 16;
 const ERROR_MESSAGES = Object.freeze({
   "arguments-not-supported": "command-line arguments are not supported",
   "asset-directory-invalid": "asset directory is unavailable or unsafe",
+  "comparison-directory-invalid":
+    "comparison demo directory is unavailable or unsafe",
   "demo-directory-invalid": "demo directory is unavailable or unsafe",
   "dependency-unavailable": "pinned renderer dependencies are unavailable",
   "font-invalid": "deterministic DejaVu font is unavailable or unsafe",
   "gif-encoding-failed": "demo GIF encoding failed",
-  "gif-frame-dimensions": "demo frames must have identical dimensions",
+  "gif-frame-dimensions": "demo frames have invalid dimensions",
   "gif-frame-limit": "demo frames exceed the bounded pixel budget",
   "internal-render-failure": "internal evidence rendering failure",
   "manifest-invalid": "demo frame manifest is invalid",
@@ -82,6 +125,7 @@ const ERROR_MESSAGES = Object.freeze({
   "output-durability-failed": "output durability could not be confirmed",
   "output-publish-failed": "rendered output could not be published atomically",
   "output-stale": "committed rendered evidence is missing or stale",
+  "output-size-limit": "rendered outputs exceed the aggregate byte budget",
   "output-target-invalid": "rendered output target is unsafe",
   "output-write-failed": "rendered output could not be written completely",
   "platform-unsupported": "renderer platform requirements are not satisfied",
@@ -172,7 +216,12 @@ async function readBoundedRegularFile(path, maxBytes, failureCode) {
   let handle = null;
   try {
     handle = await retry(() =>
-      open(path, FS_CONSTANTS.O_RDONLY | FS_CONSTANTS.O_NOFOLLOW),
+      open(
+        path,
+        FS_CONSTANTS.O_RDONLY |
+          FS_CONSTANTS.O_NOFOLLOW |
+          FS_CONSTANTS.O_NONBLOCK,
+      ),
     );
     const before = await retry(() => handle.stat({ bigint: true }));
     if (!before.isFile() || before.size > BigInt(maxBytes)) {
@@ -351,9 +400,14 @@ function hasExactKeys(value, expected) {
   );
 }
 
-async function readDemoManifest() {
+async function readFrameManifest({
+  directory,
+  expectedFrames = null,
+  manifest,
+  schema,
+}) {
   const payload = await readBoundedRegularFile(
-    DEMO_MANIFEST,
+    manifest,
     MAX_MANIFEST_BYTES,
     "manifest-read-failed",
   );
@@ -369,22 +423,27 @@ async function readDemoManifest() {
   if (
     !isPlainRecord(parsed) ||
     !hasExactKeys(parsed, ["schema", "frames"]) ||
-    parsed.schema !== DEMO_SCHEMA ||
+    parsed.schema !== schema ||
     !Array.isArray(parsed.frames) ||
     parsed.frames.length < 2 ||
-    parsed.frames.length > MAX_DEMO_FRAMES
+    parsed.frames.length > MAX_DEMO_FRAMES ||
+    (expectedFrames !== null &&
+      parsed.frames.length !== expectedFrames.length)
   ) {
     fail("manifest-invalid");
   }
 
   const seen = new Set();
-  return parsed.frames.map((frame) => {
+  return parsed.frames.map((frame, index) => {
     if (
       !isPlainRecord(frame) ||
       !hasExactKeys(frame, ["path", "delay_ms"]) ||
       typeof frame.path !== "string" ||
       !DEMO_FRAME_NAME.test(frame.path) ||
       basename(frame.path) !== frame.path ||
+      (expectedFrames !== null &&
+        (frame.path !== expectedFrames[index].path ||
+          frame.delay_ms !== expectedFrames[index].delayMs)) ||
       !Number.isSafeInteger(frame.delay_ms) ||
       frame.delay_ms < 10 ||
       frame.delay_ms > MAX_DELAY_MS ||
@@ -394,11 +453,28 @@ async function readDemoManifest() {
       fail("manifest-invalid");
     }
     seen.add(frame.path);
-    const path = resolve(DEMO_DIRECTORY, frame.path);
-    if (!isInside(DEMO_DIRECTORY, path)) {
+    const path = resolve(directory, frame.path);
+    if (!isInside(directory, path)) {
       fail("manifest-invalid");
     }
     return { path, delayMs: frame.delay_ms };
+  });
+}
+
+async function readDemoManifest() {
+  return readFrameManifest({
+    directory: DEMO_DIRECTORY,
+    manifest: DEMO_MANIFEST,
+    schema: DEMO_SCHEMA,
+  });
+}
+
+async function readComparisonDemoManifest() {
+  return readFrameManifest({
+    directory: COMPARISON_DEMO_DIRECTORY,
+    expectedFrames: COMPARISON_FRAME_RECORDS,
+    manifest: COMPARISON_DEMO_MANIFEST,
+    schema: COMPARISON_DEMO_SCHEMA,
   });
 }
 
@@ -434,6 +510,25 @@ async function listPublicSvgSources() {
     }
     return source;
   });
+}
+
+function comparisonSvgSources() {
+  return COMPARISON_SOURCE_NAMES.map((name) => {
+    const source = resolve(ASSET_DIRECTORY, name);
+    if (!isInside(ASSET_DIRECTORY, source)) {
+      fail("repository-layout-invalid");
+    }
+    return source;
+  });
+}
+
+function requireComparisonSources(publicSources) {
+  const available = new Set(publicSources);
+  for (const source of comparisonSvgSources()) {
+    if (!available.has(source)) {
+      fail("public-svg-invalid");
+    }
+  }
 }
 
 function validateSvgText(text) {
@@ -762,12 +857,20 @@ async function atomicWrite(path, payload) {
   }
 }
 
-async function buildOutputs(context, dependencies, fontPath) {
-  const publicSources = await listPublicSvgSources();
-  const manifestFrames = await readDemoManifest();
-  const outputs = [];
+function appendBoundedOutput(outputs, output) {
+  const retainedBytes = outputs.reduce(
+    (total, current) => total + current.payload.length,
+    0,
+  );
+  if (retainedBytes + output.payload.length > MAX_TOTAL_OUTPUT_BYTES) {
+    fail("output-size-limit");
+  }
+  outputs.push(output);
+}
 
-  for (const source of publicSources) {
+async function renderPngOutputs(sources, dependencies, fontPath) {
+  const outputs = [];
+  for (const source of sources) {
     const payload = await readBoundedRegularFile(
       source,
       MAX_SVG_BYTES,
@@ -775,10 +878,19 @@ async function buildOutputs(context, dependencies, fontPath) {
     );
     const rendered = renderSvg(payload, fontPath, dependencies);
     const output = source.slice(0, -".svg".length) + ".png";
-    outputs.push({ path: output, payload: rendered.png });
+    appendBoundedOutput(outputs, { path: output, payload: rendered.png });
   }
+  return outputs;
+}
 
-  const demoFrames = [];
+async function renderGifOutput(
+  manifestFrames,
+  output,
+  dependencies,
+  fontPath,
+  expectedDimensions = null,
+) {
+  const frames = [];
   for (const frame of manifestFrames) {
     const payload = await readBoundedRegularFile(
       frame.path,
@@ -786,22 +898,94 @@ async function buildOutputs(context, dependencies, fontPath) {
       "svg-read-failed",
     );
     const rendered = renderSvg(payload, fontPath, dependencies);
-    demoFrames.push({
+    if (
+      expectedDimensions !== null &&
+      (rendered.width !== expectedDimensions.width ||
+        rendered.height !== expectedDimensions.height)
+    ) {
+      fail("gif-frame-dimensions");
+    }
+    frames.push({
       delayMs: frame.delayMs,
       height: rendered.height,
       rgba: rendered.rgba,
       width: rendered.width,
     });
   }
-  outputs.push({
-    path: DEMO_OUTPUT,
-    payload: encodeDemoGif(demoFrames, dependencies),
-  });
+  return {
+    path: output,
+    payload: encodeDemoGif(frames, dependencies),
+  };
+}
+
+async function buildOutputs(context, dependencies, fontPath) {
+  const publicSources = await listPublicSvgSources();
+  requireComparisonSources(publicSources);
+  const manifestFrames = await readDemoManifest();
+  const comparisonManifestFrames = await readComparisonDemoManifest();
+  const outputs = await renderPngOutputs(
+    publicSources,
+    dependencies,
+    fontPath,
+  );
+  appendBoundedOutput(
+    outputs,
+    await renderGifOutput(
+      manifestFrames,
+      DEMO_OUTPUT,
+      dependencies,
+      fontPath,
+    ),
+  );
+  appendBoundedOutput(
+    outputs,
+    await renderGifOutput(
+      comparisonManifestFrames,
+      COMPARISON_DEMO_OUTPUT,
+      dependencies,
+      fontPath,
+      {
+        height: COMPARISON_FRAME_HEIGHT,
+        width: COMPARISON_FRAME_WIDTH,
+      },
+    ),
+  );
 
   for (const output of outputs) {
     await validateOutputTarget(output.path, context.repositoryRoot);
   }
-  return { outputs, publicCount: publicSources.length };
+  return { gifCount: 2, outputs, publicCount: publicSources.length };
+}
+
+async function buildComparisonOutputs(context, dependencies, fontPath) {
+  const publicSources = comparisonSvgSources();
+  const manifestFrames = await readComparisonDemoManifest();
+  const outputs = await renderPngOutputs(
+    publicSources,
+    dependencies,
+    fontPath,
+  );
+  appendBoundedOutput(
+    outputs,
+    await renderGifOutput(
+      manifestFrames,
+      COMPARISON_DEMO_OUTPUT,
+      dependencies,
+      fontPath,
+      {
+        height: COMPARISON_FRAME_HEIGHT,
+        width: COMPARISON_FRAME_WIDTH,
+      },
+    ),
+  );
+  for (const output of outputs) {
+    await validateOutputTarget(output.path, context.repositoryRoot);
+  }
+  return {
+    gifCount: 1,
+    outputs,
+    publicCount: publicSources.length,
+  };
 }
 
 async function buildRepairOutput(context, dependencies, fontPath) {
@@ -812,8 +996,14 @@ async function buildRepairOutput(context, dependencies, fontPath) {
   );
   const rendered = renderSvg(payload, fontPath, dependencies);
   await validateOutputTarget(REPAIR_OUTPUT, context.repositoryRoot);
+  const outputs = [];
+  appendBoundedOutput(outputs, {
+    path: REPAIR_OUTPUT,
+    payload: rendered.png,
+  });
   return {
-    outputs: [{ path: REPAIR_OUTPUT, payload: rendered.png }],
+    gifCount: 0,
+    outputs,
     publicCount: 1,
   };
 }
@@ -837,10 +1027,11 @@ async function verifyOutputs(outputs, repositoryRoot) {
   }
 }
 
-async function prepareContext() {
+async function prepareContext(mode) {
   if (
     typeof FS_CONSTANTS.O_NOFOLLOW !== "number" ||
-    typeof FS_CONSTANTS.O_DIRECTORY !== "number"
+    typeof FS_CONSTANTS.O_DIRECTORY !== "number" ||
+    typeof FS_CONSTANTS.O_NONBLOCK !== "number"
   ) {
     fail("platform-unsupported");
   }
@@ -858,11 +1049,20 @@ async function prepareContext() {
     repositoryRoot,
     "asset-directory-invalid",
   );
-  await requireSafeDirectory(
-    DEMO_DIRECTORY,
-    repositoryRoot,
-    "demo-directory-invalid",
-  );
+  if (mode.endsWith("-all")) {
+    await requireSafeDirectory(
+      DEMO_DIRECTORY,
+      repositoryRoot,
+      "demo-directory-invalid",
+    );
+  }
+  if (mode.endsWith("-all") || mode.endsWith("-comparison")) {
+    await requireSafeDirectory(
+      COMPARISON_DEMO_DIRECTORY,
+      repositoryRoot,
+      "comparison-directory-invalid",
+    );
+  }
   return { repositoryRoot };
 }
 
@@ -879,33 +1079,68 @@ function requestedMode() {
   if (process.argv.length === 3 && process.argv[2] === "--check-repair") {
     return "check-repair";
   }
+  if (
+    process.argv.length === 3 &&
+    process.argv[2] === "--render-comparison"
+  ) {
+    return "render-comparison";
+  }
+  if (
+    process.argv.length === 3 &&
+    process.argv[2] === "--check-comparison"
+  ) {
+    return "check-comparison";
+  }
   fail("arguments-not-supported");
+}
+
+function completionMessage(action, scope, publicCount, gifCount) {
+  if (scope === "repair") {
+    return `unitsentinel-evidence: ${action} 1 repair PNG\n`;
+  }
+  const qualifier = scope === "comparison" ? "comparison " : "";
+  const gifLabel = gifCount === 1 ? "GIF" : "GIF files";
+  return (
+    `unitsentinel-evidence: ${action} ${publicCount} ${qualifier}` +
+    `PNG files and ${gifCount} ${gifLabel}\n`
+  );
 }
 
 async function main() {
   const mode = requestedMode();
-  const context = await prepareContext();
+  const context = await prepareContext(mode);
   const dependencies = await loadDependencies();
   const fontPath = await selectFont(context.repositoryRoot);
   const repairOnly = mode.endsWith("-repair");
-  const { outputs, publicCount } = repairOnly
-    ? await buildRepairOutput(context, dependencies, fontPath)
-    : await buildOutputs(context, dependencies, fontPath);
+  const comparisonOnly = mode.endsWith("-comparison");
+  let build;
+  let scope;
+  if (repairOnly) {
+    build = await buildRepairOutput(context, dependencies, fontPath);
+    scope = "repair";
+  } else if (comparisonOnly) {
+    build = await buildComparisonOutputs(
+      context,
+      dependencies,
+      fontPath,
+    );
+    scope = "comparison";
+  } else {
+    build = await buildOutputs(context, dependencies, fontPath);
+    scope = "all";
+  }
+  const { gifCount, outputs, publicCount } = build;
   if (mode.startsWith("check-")) {
     await verifyOutputs(outputs, context.repositoryRoot);
     process.stdout.write(
-      repairOnly
-        ? "unitsentinel-evidence: verified 1 repair PNG\n"
-        : `unitsentinel-evidence: verified ${publicCount} PNG files and 1 GIF\n`,
+      completionMessage("verified", scope, publicCount, gifCount),
     );
   } else {
     for (const output of outputs) {
       await atomicWrite(output.path, output.payload);
     }
     process.stdout.write(
-      repairOnly
-        ? "unitsentinel-evidence: rendered 1 repair PNG\n"
-        : `unitsentinel-evidence: rendered ${publicCount} PNG files and 1 GIF\n`,
+      completionMessage("rendered", scope, publicCount, gifCount),
     );
   }
 }

@@ -325,7 +325,7 @@ class ComparisonEvidenceTests(unittest.TestCase):
         )
         self.assertEqual(
             data["measurement_scope"],
-            ("exact canonical artifact byte lengths; no latency or performance claim"),
+            ("exact committed artifact byte lengths; no latency or performance claim"),
         )
         rows = data["artifacts"]
         self.assertIs(type(rows), list)

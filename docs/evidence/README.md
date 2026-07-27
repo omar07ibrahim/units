@@ -18,6 +18,8 @@ npm --prefix tools/evidence run check
 .venv/bin/python -m tools.evidence.repair_evidence --check
 npm --prefix tools/evidence run check:repair
 .venv/bin/python -m tools.evidence.comparison_evidence --check
+.venv/bin/python -m tools.evidence.comparison_visuals --check
+npm --prefix tools/evidence run check:comparison
 ```
 
 The Python command re-executes the verified, conflict, and strict-replay CLI
@@ -42,21 +44,28 @@ Those write modes are closed to the repair transcript, canonical record,
 repair provenance, lineage SVG, lineage PNG, and final manifest. They do not
 publish the existing demo GIF, scaling snapshot, or legacy PNGs.
 
-To intentionally refresh only the canonical comparison records:
+To intentionally refresh only the canonical comparison records and visuals:
 
 ```bash
 .venv/bin/python -m tools.evidence.comparison_evidence --record
+.venv/bin/python -m tools.evidence.comparison_visuals --record
+npm --prefix tools/evidence run render:comparison
 .venv/bin/python -m tools.evidence.comparison_evidence --check
+.venv/bin/python -m tools.evidence.comparison_visuals --check
+npm --prefix tools/evidence run check:comparison
 .venv/bin/python -m tools.evidence.generate --write-manifest
 ```
 
 This recorder can publish only the four fixed ratio graphs, three exact plans,
 three raw result claims, six CLI captures, byte-size data, and comparison
-provenance listed below. It runs the production CLI twice per case and requires
+provenance listed below. The visual recorder can publish only the six fixed
+SVG sources, three byte-identical terminal frames, and their closed frame
+manifest. The renderer can publish only the corresponding six PNGs and one
+GIF. The evidence recorder runs the production CLI twice per case and requires
 the text and JSON runs to emit the same strict result bytes.
 
-To intentionally refresh deterministic evidence while retaining the recorded
-benchmark:
+To intentionally refresh the legacy verify/conflict/replay evidence while
+retaining the recorded benchmark:
 
 ```bash
 .venv/bin/python -m tools.evidence.generate --record
@@ -81,9 +90,19 @@ goldens.
 | How is a claim bound and replayed? | [Certificate lineage SVG](../assets/certificate-lineage.svg) | [Certificate lineage PNG](../assets/certificate-lineage.png) |
 | What did strict replay return? | [Replay terminal SVG](../assets/replay-terminal.svg) | [Replay terminal PNG](../assets/replay-terminal.png) |
 | How did bounded graph size affect this host? | [Scaling plot SVG](../assets/scaling.svg) | [Scaling plot PNG](../assets/scaling.png) |
+| In what order does comparison fail closed? | [Comparison workflow SVG](../assets/comparison-workflow.svg) | [Comparison workflow PNG](../assets/comparison-workflow.png) |
+| Which normalization identities agree or drift? | [Comparison lineage SVG](../assets/comparison-lineage-drift.svg) | [Comparison lineage PNG](../assets/comparison-lineage-drift.png) |
+| How large are the exact comparison artifacts? | [Comparison artifact-size SVG](../assets/comparison-artifact-sizes.svg) | [Comparison artifact-size PNG](../assets/comparison-artifact-sizes.png) |
+| What did a compatible comparison return? | [Compatible terminal SVG](../assets/compare-compatible-terminal.svg) | [Compatible terminal PNG](../assets/compare-compatible-terminal.png) |
+| What did normalization drift return? | [Drift terminal SVG](../assets/compare-drift-terminal.svg) | [Drift terminal PNG](../assets/compare-drift-terminal.png) |
+| What did an indeterminate comparison return? | [Indeterminate terminal SVG](../assets/compare-indeterminate-terminal.svg) | [Indeterminate terminal PNG](../assets/compare-indeterminate-terminal.png) |
 
 The [7.6-second CLI demo GIF](../assets/unitsentinel-demo.gif) is presentation,
 not the primary record. Its three frames loop in the order declared below.
+The separate [9-second comparison demo GIF](../assets/comparison-demo.gif)
+loops through the complete compatible, drift, and indeterminate terminal
+records. Both GIFs are derived presentation; the captures and strict claims
+remain the primary records.
 
 ## Canonical inputs and outputs
 
@@ -169,10 +188,15 @@ or performance guarantee.
 - [Conflict frame](demo/frame-01.svg)
 - [Verified frame](demo/frame-02.svg)
 - [Replay frame](demo/frame-03.svg)
+- [Comparison frame manifest and delays](comparison-demo/frames.json)
+- [Compatible comparison frame](comparison-demo/frame-compatible.svg)
+- [Drift comparison frame](comparison-demo/frame-drift.svg)
+- [Indeterminate comparison frame](comparison-demo/frame-indeterminate.svg)
 
-The frames are byte-identical copies of the corresponding public terminal SVG
-sources. The renderer rejects undeclared frames, mixed dimensions, external
-resources, and malformed delays.
+The frames are byte-identical copies of their corresponding public terminal
+SVG sources. The renderer rejects undeclared frames, mixed dimensions,
+external resources, malformed delays, and any comparison frame order or delay
+outside the compiled-in three-case sequence.
 
 ## Interpretation limits
 

@@ -123,7 +123,10 @@ def _read_regular_file(path: Path, *, purpose: str) -> bytes:
     try:
         descriptor = os.open(
             path,
-            os.O_RDONLY | getattr(os, "O_CLOEXEC", 0) | getattr(os, "O_NOFOLLOW", 0),
+            os.O_RDONLY
+            | getattr(os, "O_CLOEXEC", 0)
+            | getattr(os, "O_NOFOLLOW", 0)
+            | getattr(os, "O_NONBLOCK", 0),
         )
         before = os.fstat(descriptor)
         if (
@@ -630,8 +633,11 @@ def _build_evidence(
             _atomic_write(path, payload)
         else:
             try:
-                current = path.read_bytes()
-            except OSError:
+                current = _read_regular_file(
+                    path,
+                    purpose=f"evidence input {_relative(path)}",
+                )
+            except EvidenceError:
                 raise EvidenceError(
                     f"stale evidence input: {_relative(path)}"
                 ) from None
