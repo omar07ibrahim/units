@@ -40,6 +40,11 @@ from .comparison_contract import (
     InterfaceEndpoint,
     InterfaceRole,
 )
+from .comparison_result_codec import (
+    ComparisonResultDecodeError,
+    decode_comparison_result,
+    encode_comparison_result,
+)
 from .domain import (
     AMOUNT_OF_SUBSTANCE,
     DIMENSIONLESS,
@@ -155,6 +160,7 @@ __all__ = [
     "ComparisonPolicy",
     "ComparisonReason",
     "ComparisonResult",
+    "ComparisonResultDecodeError",
     "ComparisonStatus",
     "ComparisonValidationError",
     "ComputationGraph",
@@ -213,9 +219,11 @@ __all__ = [
     "create_certificate",
     "decode_certificate",
     "decode_comparison_plan",
+    "decode_comparison_result",
     "decode_graph",
     "encode_certificate",
     "encode_comparison_plan",
+    "encode_comparison_result",
     "encode_graph",
     "extract_normalization_lineage",
     "propose_unit_annotation_repair",
