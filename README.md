@@ -388,8 +388,9 @@ The timing snapshot changes only through the explicit
 
 ## Local quality gates
 
-The current suite contains 238 unit, integration, adversarial, and evidence
-tests with 96% combined statement/branch coverage.
+The current suite contains 239 unit, integration, adversarial, and evidence
+tests with 96% statement coverage, 91% branch coverage, and 95% combined
+statement/branch coverage.
 
 ```bash
 PYTHONPATH=src .venv/bin/python -m unittest discover -s tests -v
