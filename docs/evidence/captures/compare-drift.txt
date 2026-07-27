@@ -1,0 +1,39 @@
+$ .venv/bin/python -m unitsentinel compare \
+    docs/evidence/plans/ratio-drift.plan.json \
+    --training-graph docs/evidence/contracts/ratio-training.json \
+    --serving-graph docs/evidence/contracts/ratio-serving-reversed.json \
+    --expect-plan-sha256 9e0163fba563e9bf73114fd756c5edfe0c3fd2bf2e9a0dc6d555e38b75765009 \
+    --result .unitsentinel/evidence-run/compare-drift-text.result.json \
+    --per-check-timeout-ms 250 \
+    --total-timeout-ms 5000 \
+    --max-memory-mb 256 \
+    --max-core-shrink-checks 64 \
+    --max-uniqueness-checks 577
+UnitSentinel comparison: DRIFT
+exit code: 5
+tool: unitsentinel 0.1.0
+reason: none
+result scope: under-plan
+comparison id: ratio-normalization-drift
+plan sha256: 9e0163fba563e9bf73114fd756c5edfe0c3fd2bf2e9a0dc6d555e38b75765009
+expected plan sha256: 9e0163fba563e9bf73114fd756c5edfe0c3fd2bf2e9a0dc6d555e38b75765009
+plan authentication: not-provided
+training graph id: ratio-training
+training graph sha256: 0b1dcfd9df8c284c5101e601fd4f291443daee9867a23e4bb3eec64d61db5a8a
+serving graph id: ratio-serving-reversed
+serving graph sha256: 8f63f427c0bc35583dcb7864f1f3b67c2684ae52517bffbbbe010a002270f4a0
+registry version: 1.0.0
+registry sha256: fc80cbb596f3341b1d2ff13795e50d2d1e05c792b34f24804afc97c3470913e5
+solver limits per graph side: check=250ms total=5000ms memory=256MiB core-shrink=64 uniqueness=577
+result sha256: f89c3bd8e6437cf828d09c166f0032e0f25843afde5b177b5ca526e12166befb
+result authentication: not-provided
+training verification: verified f9d3c50d925b1228aeb9889f1892700cc4b0d45c5b9a7bd61ebe63944e65a15a
+serving verification: verified 20bbdacaa0d1875af3527f6cfa0552862ffe63a029e52e32ce42a01516d2ab8c
+training normalization lineage: ddb0d2b3b7d70139b8140e3df5ca1a2030c63ca2f777d70c15c7f5adc224fe11
+serving normalization lineage: eeb0cd452b8437871233859a7bb988213f5e1a0a21a190f8fd561b4dd28b9a89
+bindings (3, mismatches=1):
+  input-00 | input:numerator@0 -> input:request-numerator@0 | compatible
+  input-01 | input:denominator@1 -> input:request-denominator@1 | compatible
+  output-00 | output:ratio@0 -> output:prediction@0 | normalization-lineage-drift | normalization=cfff192e349c9a054c76d72aa1326a94de16c4103b22cfb8232f192eefae72ef->9587d4ba76f68f853a19110587955336735ec64482ce8d6c02ed59c612ff3733
+comparison result output: written
+[exit 5]

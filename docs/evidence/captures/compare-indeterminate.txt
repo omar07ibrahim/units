@@ -1,0 +1,36 @@
+$ .venv/bin/python -m unitsentinel compare \
+    docs/evidence/plans/ratio-indeterminate.plan.json \
+    --training-graph docs/evidence/contracts/ratio-training.json \
+    --serving-graph docs/evidence/contracts/ratio-serving-underconstrained.json \
+    --expect-plan-sha256 12e6f51405f6c421f7a22daf511186195c3de0505901aea0dc5989f3408329fe \
+    --result .unitsentinel/evidence-run/compare-indeterminate-text.result.json \
+    --per-check-timeout-ms 250 \
+    --total-timeout-ms 5000 \
+    --max-memory-mb 256 \
+    --max-core-shrink-checks 64 \
+    --max-uniqueness-checks 577
+UnitSentinel comparison: INDETERMINATE
+exit code: 3
+tool: unitsentinel 0.1.0
+reason: serving-not-verified
+result scope: under-plan
+comparison id: ratio-serving-indeterminate
+plan sha256: 12e6f51405f6c421f7a22daf511186195c3de0505901aea0dc5989f3408329fe
+expected plan sha256: 12e6f51405f6c421f7a22daf511186195c3de0505901aea0dc5989f3408329fe
+plan authentication: not-provided
+training graph id: ratio-training
+training graph sha256: 0b1dcfd9df8c284c5101e601fd4f291443daee9867a23e4bb3eec64d61db5a8a
+serving graph id: ratio-serving-underconstrained
+serving graph sha256: ee1262a22dbdd3d1bcd6460abe4dca1d4fc88440348b71244845727125d89d01
+registry version: 1.0.0
+registry sha256: fc80cbb596f3341b1d2ff13795e50d2d1e05c792b34f24804afc97c3470913e5
+solver limits per graph side: check=250ms total=5000ms memory=256MiB core-shrink=64 uniqueness=577
+result sha256: d3b2cb4e9883cd369b0b725a5ea8eaa15b0b677d547a780581e934ab02766683
+result authentication: not-provided
+training verification: verified f9d3c50d925b1228aeb9889f1892700cc4b0d45c5b9a7bd61ebe63944e65a15a
+serving verification: underconstrained 5124cdbc64d9d3e0976220945e87e1b2942c28deabe089e9216a3aa7ffdfbf4c
+training normalization lineage: unavailable
+serving normalization lineage: unavailable
+bindings (0, mismatches=0):
+comparison result output: written
+[exit 3]
