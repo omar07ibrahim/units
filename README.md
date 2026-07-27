@@ -13,8 +13,9 @@ certificate for a positive result.
 > **Status:** the v0.1 verification core, canonical graph codec, 33-unit
 > registry, deterministic CLI, detached certificate codec, independent strict
 > replay, bounded verification-backed annotation repair, and canonical
-> training/serving comparison engine are implemented. Normalization-lineage
-> comparison and ONNX lowering remain future work.
+> training/serving comparison engine are implemented. Bounded normalization
+> lineage extraction is implemented; cross-graph lineage comparison, its CLI,
+> and ONNX lowering remain future work.
 
 ![Implemented UnitSentinel verification pipeline and fail-closed outcomes](docs/assets/verification-pipeline.png)
 
@@ -311,6 +312,8 @@ The implementation includes:
 - a fresh-verification comparison engine with caller-trusted plan pinning,
   exact public-occurrence coverage, semantic replay, and deterministic drift
   codes;
+- bounded, content-addressed normalization lineage with mapped logical roots,
+  exact inferred metadata, output routing, and internal-rename invariance;
 - structural preflight limits on bytes, nesting, tokens, nodes, and items;
 - exact constraints for all 14 supported graph operations;
 - alternate-model uniqueness checks;
@@ -397,8 +400,8 @@ The timing snapshot changes only through the explicit
 
 ## Local quality gates
 
-The current suite contains 291 unit, integration, adversarial, and evidence
-tests with 96% statement coverage, 93% branch coverage, and 96% combined
+The current suite contains 324 unit, integration, adversarial, and evidence
+tests with 97% statement coverage, 94% branch coverage, and 96% combined
 statement/branch coverage.
 
 ```bash
@@ -436,7 +439,8 @@ README coverage, and secret/PII exclusions.
 | Bounded formally reverified repair candidates | Complete |
 | Canonical training/serving alignment plan | Complete |
 | Fresh-verified training/serving comparison engine | Complete |
-| Bounded normalization-lineage comparison | Planned |
+| Bounded normalization-lineage extraction | Complete |
+| Fresh cross-graph normalization-lineage comparison | Planned |
 | Comparison CLI and reproducible visual evidence | Planned |
 | Closed-subset ONNX metadata adapter | Planned |
 | Grouped synthetic fault benchmark with abstention metrics | Planned |

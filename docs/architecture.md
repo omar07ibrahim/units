@@ -202,8 +202,8 @@ ordinals are separate namespaces. The complete plan and result contract is
 documented in
 [training-serving-comparison-v1.md](training-serving-comparison-v1.md).
 
-Two individually verified graphs may still disagree. Contract comparison will
-align declared public inputs and outputs, then report exact missing/extra,
+Two individually verified graphs may still disagree. Contract comparison
+aligns declared public inputs and outputs, then reports exact missing/extra,
 role, position, dtype, shape, explicit-unit, dimension, kind, scale, and offset
 differences. A negative, underconstrained, unknown, malformed, or
 identity-mismatched verifier result produces `indeterminate` with no partial
@@ -211,8 +211,18 @@ interface findings.
 
 Both sides are freshly verified with the same registry and solver limits even
 when the first ordinary result is not positive. Complete positive assignments
-are independently replayed before snapshots are built. Normalization
-provenance comparison remains a separate planned layer.
+are independently replayed before snapshots are built.
+
+The standalone normalization-lineage extractor is also implemented. It
+derives a bounded, content-addressed expression DAG from one plan-scoped
+positive verification claim, maps public input roots and outputs through the
+explicit comparison plan, collapses only metadata-preserving identities, and
+records every dimensionless linear `divide` site as a counted semantic
+multiset. Semantic hashes exclude internal graph, node, and value identifiers;
+the outer artifact retains those diagnostics and source digests. The extractor
+replays and validates a supplied claim but does not prove it was produced
+freshly. Feeding the two fresh engine results into a fail-closed cross-graph
+lineage comparison remains the next layer.
 
 Statistical drift tools remain complementary: UnitSentinel finds semantic
 contract skew even when no representative payload samples are available.
@@ -254,11 +264,11 @@ boundary explicitly.
 
 | Area | Current | Next |
 | --- | --- | --- |
-| Package boundary | Typed exact values, graph, registry, verification/repair/comparison results, certificates, replay reports, and content-addressed comparison plans | Strict comparison-result decoder |
-| Dimension semantics | Exact bounded rational algebra, graph inference, and training/serving interface comparison | Normalization lineage comparison |
+| Package boundary | Typed exact values, graph, registry, verification/repair/comparison/lineage results, certificates, replay reports, and content-addressed comparison plans | Strict comparison-result decoder |
+| Dimension semantics | Exact bounded rational algebra, graph inference, training/serving interface comparison, and bounded normalization-lineage extraction | Fresh cross-graph lineage comparison |
 | Unit registry | Immutable 33-unit snapshot with pinned SHA-256 | External snapshot decoder |
 | Graph IR | Content-addressed bounded IR and strict decoder | ONNX lowering |
-| Solver | Tracked dimension/kind/scale/offset constraints, uniqueness, replay, bounded cores, repair re-verification, and two-sided fresh comparison | Normalization lineage evidence |
+| Solver | Tracked dimension/kind/scale/offset constraints, uniqueness, replay, bounded cores, repair re-verification, two-sided fresh comparison, and replay-bound lineage extraction | Cross-graph lineage evidence |
 | Repairs | One bounded, non-mutating, exact-registry annotation replacement with independent verification and abstention | Additional operators require separate design and review |
 | Certificates | Positive-only canonical codec, content digest, and detached replay with optional strict-toolchain policy | Contract-comparison evidence |
 | CLI | Bounded regular-file reads, stable exits, atomic no-overwrite certificate publication, and read-only repair reports | Contract-comparison command |

@@ -1,9 +1,10 @@
 # Training-serving comparison contract v1
 
 Status: the canonical comparison plan, bounded byte codec, fresh-verification
-engine, and immutable comparison result are implemented. Normalization lineage,
-the CLI surface, and reproducible comparison evidence are added in later
-commits on the comparison branch.
+engine, immutable comparison result, and standalone bounded normalization
+lineage extractor are implemented. Cross-graph lineage integration, the CLI
+surface, and reproducible comparison evidence are added in later commits on
+the comparison branch.
 
 ## Objective
 
@@ -164,25 +165,81 @@ prove freshness. Callers that rely on a result must obtain it from
 `compare_graphs`, retain the caller-trusted plan policy separately, and treat
 its content digest as integrity rather than author authentication.
 
-## Planned lineage boundary
+## Implemented lineage extraction boundary
 
 Version 1 normalization provenance is intentionally narrower than arbitrary
-graph equivalence. It will trace dimensionless ratio-normalization sites
-created by `divide` operations.
+graph equivalence. `extract_normalization_lineage` traces verified,
+dimensionless, linear ratio-normalization sites created by `divide`
+operations. It accepts one plan-scoped graph side and a supplied positive
+verification claim, then checks exact source bindings, complete contract
+coverage, current solver identity, and independent semantic replay before
+deriving lineage. This establishes consistency with the supplied claim, not
+that the verifier was invoked freshly; the comparison engine is responsible
+for that freshness boundary when integration is added.
 
-The lineage fingerprint will:
+The lineage fingerprint:
 
 - use mapped logical contract IDs for public input roots;
-- include closed operation attributes and exact inferred contracts;
-- collapse identity nodes;
+- include closed operation attributes, dtype, shape, explicit unit annotation,
+  and exact inferred dimension, kind, scale, and offset;
+- collapse an identity node only when all of that metadata is unchanged;
 - sort children only for operations that are actually commutative;
 - preserve order for subtract, divide, and matrix multiplication;
 - ignore internal node/value renames;
-- bind every canonical record by SHA-256.
+- bind each site to its sorted reachable logical public outputs;
+- preserve repeated identical sites as a counted multiset;
+- separate the rename-invariant semantic digest from source diagnostics and
+  provenance;
+- bind every canonical record by SHA-256 without recursively expanding the
+  bounded expression DAG.
 
-The output can establish that the normalization lineage changed. It does not
-establish that training is correct, serving is wrong, or two different
-algebraic forms are mathematically equivalent.
+The standalone output can establish a deterministic lineage for one accepted
+claim. Cross-graph drift reporting is not implemented in this slice. Even
+after integration, a difference will not establish that training is correct,
+serving is wrong, or two different algebraic forms are mathematically
+equivalent.
+
+### Canonical lineage records
+
+The outer artifact schema is
+`unitsentinel.normalization-lineage/v1`. It binds:
+
+- `comparison_id`, selected `side`, plan, graph, and registry SHA-256 values;
+- the exact solver limits and supplied verification record plus its digest;
+- a topologically ordered table of diagnostic expression records;
+- every qualifying site and every logical public output record;
+- `authentication: not-provided`; and
+- one rename-invariant `semantic_sha256`.
+
+Expression semantics use
+`unitsentinel.normalization-expression/v1`. An input record contains its
+mapped logical contract ID and normalized value metadata. An operation record
+contains only the closed operation, canonical `power` exponent or `convert`
+target where applicable, child expression digests, and normalized output
+metadata. Graph-local node and value IDs appear only in diagnostic records.
+A site uses `unitsentinel.normalization-site/v1` and binds the expression
+digest, sorted logical roots, and sorted reachable logical outputs. The bundle
+semantic record is
+`unitsentinel.normalization-lineage-semantic/v1` and contains a sorted counted
+multiset of site digests, so two identical site occurrences are not collapsed.
+
+Output records retain the public position and expression digest for review and
+store their routed site digests as a sorted multiset. Output position and
+diagnostic source IDs do not enter the bundle semantic digest.
+
+The construction is iterative. It computes each expression once in
+topological order and propagates logical outputs in reverse topological order;
+it never serializes a recursive expression tree or enumerates downstream
+paths. Existing graph limits bound it to 64 inputs, 512 nodes, 64 outputs, 576
+values, 512 sites, 1,024 graph edges, and at most 32,768 site/output
+associations.
+
+Direct dataclass construction is an unsigned claim and cannot prove graph
+provenance or verifier freshness. The public extractor additionally rejects
+wrong side or registry bindings, incomplete public mappings, non-positive or
+incomplete verification claims, failed semantic replay, noncanonical records,
+and mutation of the pinned plan, graph, registry, limits, policy, or supplied
+result during extraction.
 
 ## Security and nonclaims
 
