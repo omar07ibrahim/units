@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="1100" viewBox="0 0 1440 1100" role="img" aria-labelledby="title description">
+  <title id="title">unitsentinel compare · drift</title>
+  <desc id="description">The full genuine 39-line committed CLI transcript for the drift training-serving comparison.</desc>
+  <defs>
+    <linearGradient id="background" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#07111f"/>
+      <stop offset="1" stop-color="#0a1730"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="10" stdDeviation="12" flood-color="#000814" flood-opacity=".45"/>
+    </filter>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L0,6 L9,3 z" fill="#8fa5bd"/>
+    </marker>
+  </defs>
+  <rect width="1440" height="1100" fill="url(#background)"/>
+<rect x="32" y="30" width="1376" height="1040" rx="20" fill="#0d1b2d" stroke="#253a55" stroke-width="2" filter="url(#shadow)"/>
+<rect x="32" y="30" width="1376" height="66" rx="20" fill="#12233a"/>
+<rect x="32" y="76" width="1376" height="20" fill="#12233a"/>
+<circle cx="70" cy="63" r="8" fill="#ff6b7a"/>
+<circle cx="98" cy="63" r="8" fill="#ffc857"/>
+<circle cx="126" cy="63" r="8" fill="#5ee6a8"/>
+<text x="720" y="70" fill="#d8e4f2" font-family="DejaVu Sans, sans-serif" font-size="19" font-weight="700" text-anchor="middle">unitsentinel compare · drift</text>
+<rect x="32" y="94" width="1376" height="4" fill="#ff6b7a"/>
+<text x="62" y="128" data-source-line="1" data-continuation="false" xml:space="preserve" fill="#38d9f5" font-family="DejaVu Sans Mono, monospace" font-size="14" font-weight="400">$ .venv/bin/python -m unitsentinel compare \</text>
+<text x="62" y="151" data-source-line="2" data-continuation="false" xml:space="preserve" fill="#38d9f5" font-family="DejaVu Sans Mono, monospace" font-size="14" font-weight="400">    docs/evidence/plans/ratio-drift.plan.json \</text>
+<text x="62" y="174" data-source-line="3" data-continuation="false" xml:space="preserve" fill="#38d9f5" font-family="DejaVu Sans Mono, monospace" font-size="14" font-weight="400">    --training-graph docs/evidence/contracts/ratio-training.json \</text>
+<text x="62" y="197" data-source-line="4" data-continuation="false" xml:space="preserve" fill="#38d9f5" font-family="DejaVu Sans Mono, monospace" font-size="14" font-weight="400">    --serving-graph docs/evidence/contracts/ratio-serving-reversed.json \</text>
+<text x="62" y="220" data-source-line="5" data-continuation="false" xml:space="preserve" fill="#38d9f5" font-family="DejaVu Sans Mono, monospace" font-size="14" font-weight="400">    --expect-plan-sha256 9e0163fba563e9bf73114fd756c5edfe0c3fd2bf2e9a0dc6d555e38b75765009 \</text>
+<text x="62" y="243" data-source-line="6" data-continuation="false" xml:space="preserve" fill="#38d9f5" font-family="DejaVu Sans Mono, monospace" font-size="14" font-weight="400">    --result .unitsentinel/evidence-run/compare-drift-text.result.json \</text>
+<text x="62" y="266" data-source-line="7" data-continuation="false" xml:space="preserve" fill="#38d9f5" font-family="DejaVu Sans Mono, monospace" font-size="14" font-weight="400">    --per-check-timeout-ms 250 \</text>
+<text x="62" y="289" data-source-line="8" data-continuation="false" xml:space="preserve" fill="#38d9f5" font-family="DejaVu Sans Mono, monospace" font-size="14" font-weight="400">    --total-timeout-ms 5000 \</text>
+<text x="62" y="312" data-source-line="9" data-continuation="false" xml:space="preserve" fill="#38d9f5" font-family="DejaVu Sans Mono, monospace" font-size="14" font-weight="400">    --max-memory-mb 256 \</text>
+<text x="62" y="335" data-source-line="10" data-continuation="false" xml:space="preserve" fill="#38d9f5" font-family="DejaVu Sans Mono, monospace" font-size="14" font-weight="400">    --max-core-shrink-checks 64 \</text>
+<text x="62" y="358" data-source-line="11" data-continuation="false" xml:space="preserve" fill="#38d9f5" font-family="DejaVu Sans Mono, monospace" font-size="14" font-weight="400">    --max-uniqueness-checks 577</text>
+<text x="62" y="381" data-source-line="12" data-continuation="false" xml:space="preserve" fill="#ff6b7a" font-family="DejaVu Sans Mono, monospace" font-size="14" font-weight="700">UnitSentinel comparison: DRIFT</text>
+<text x="62" y="404" data-source-line="13" data-continuation="false" xml:space="preserve" fill="#d8e4f2" font-family="DejaVu Sans Mono, monospace" font-size="14" font-weight="400">exit code: 5</text>
+<text x="62" y="427" data-source-line="14" data-continuation="false" xml:space="preserve" fill="#d8e4f2" font-family="DejaVu Sans Mono, monospace" font-size="14" font-weight="400">tool: unitsentinel 0.1.0</text>
+<text x="62" y="450" data-source-line="15" data-continuation="false" xml:space="preserve" fill="#d8e4f2" font-family="DejaVu Sans Mono, monospace" font-size="14" font-weight="400">reason: none</text>
+<text x="62" y="473" data-source-line="16" data-continuation="false" xml:space="preserve" fill="#d8e4f2" font-family="DejaVu Sans Mono, monospace" font-size="14" font-weight="400">result scope: under-plan</text>
+<text x="62" y="496" data-source-line="17" data-continuation="false" xml:space="preserve" fill="#d8e4f2" font-family="DejaVu Sans Mono, monospace" font-size="14" font-weight="400">comparison id: ratio-normalization-drift</text>
+<text x="62" y="519" data-source-line="18" data-continuation="false" xml:space="preserve" fill="#b69cff" font-family="DejaVu Sans Mono, monospace" font-size="14" font-weight="400">plan sha256: 9e0163fba563e9bf73114fd756c5edfe0c3fd2bf2e9a0dc6d555e38b75765009</text>
+<text x="62" y="542" data-source-line="19" data-continuation="false" xml:space="preserve" fill="#b69cff" font-family="DejaVu Sans Mono, monospace" font-size="14" font-weight="400">expected plan sha256: 9e0163fba563e9bf73114fd756c5edfe0c3fd2bf2e9a0dc6d555e38b75765009</text>
+<text x="62" y="565" data-source-line="20" data-continuation="false" xml:space="preserve" fill="#d8e4f2" font-family="DejaVu Sans Mono, monospace" font-size="14" font-weight="400">plan authentication: not-provided</text>
+<text x="62" y="588" data-source-line="21" data-continuation="false" xml:space="preserve" fill="#d8e4f2" font-family="DejaVu Sans Mono, monospace" font-size="14" font-weight="400">training graph id: ratio-training</text>
+<text x="62" y="611" data-source-line="22" data-continuation="false" xml:space="preserve" fill="#b69cff" font-family="DejaVu Sans Mono, monospace" font-size="14" font-weight="400">training graph sha256: 0b1dcfd9df8c284c5101e601fd4f291443daee9867a23e4bb3eec64d61db5a8a</text>
+<text x="62" y="634" data-source-line="23" data-continuation="false" xml:space="preserve" fill="#d8e4f2" font-family="DejaVu Sans Mono, monospace" font-size="14" font-weight="400">serving graph id: ratio-serving-reversed</text>
+<text x="62" y="657" data-source-line="24" data-continuation="false" xml:space="preserve" fill="#b69cff" font-family="DejaVu Sans Mono, monospace" font-size="14" font-weight="400">serving graph sha256: 8f63f427c0bc35583dcb7864f1f3b67c2684ae52517bffbbbe010a002270f4a0</text>
+<text x="62" y="680" data-source-line="25" data-continuation="false" xml:space="preserve" fill="#d8e4f2" font-family="DejaVu Sans Mono, monospace" font-size="14" font-weight="400">registry version: 1.0.0</text>
+<text x="62" y="703" data-source-line="26" data-continuation="false" xml:space="preserve" fill="#b69cff" font-family="DejaVu Sans Mono, monospace" font-size="14" font-weight="400">registry sha256: fc80cbb596f3341b1d2ff13795e50d2d1e05c792b34f24804afc97c3470913e5</text>
+<text x="62" y="726" data-source-line="27" data-continuation="false" xml:space="preserve" fill="#d8e4f2" font-family="DejaVu Sans Mono, monospace" font-size="14" font-weight="400">solver limits per graph side: check=250ms total=5000ms memory=256MiB core-shrink=64 uniqueness=577</text>
+<text x="62" y="749" data-source-line="28" data-continuation="false" xml:space="preserve" fill="#b69cff" font-family="DejaVu Sans Mono, monospace" font-size="14" font-weight="400">result sha256: f89c3bd8e6437cf828d09c166f0032e0f25843afde5b177b5ca526e12166befb</text>
+<text x="62" y="772" data-source-line="29" data-continuation="false" xml:space="preserve" fill="#d8e4f2" font-family="DejaVu Sans Mono, monospace" font-size="14" font-weight="400">result authentication: not-provided</text>
+<text x="62" y="795" data-source-line="30" data-continuation="false" xml:space="preserve" fill="#5ee6a8" font-family="DejaVu Sans Mono, monospace" font-size="14" font-weight="400">training verification: verified f9d3c50d925b1228aeb9889f1892700cc4b0d45c5b9a7bd61ebe63944e65a15a</text>
+<text x="62" y="818" data-source-line="31" data-continuation="false" xml:space="preserve" fill="#5ee6a8" font-family="DejaVu Sans Mono, monospace" font-size="14" font-weight="400">serving verification: verified 20bbdacaa0d1875af3527f6cfa0552862ffe63a029e52e32ce42a01516d2ab8c</text>
+<text x="62" y="841" data-source-line="32" data-continuation="false" xml:space="preserve" fill="#d8e4f2" font-family="DejaVu Sans Mono, monospace" font-size="14" font-weight="400">training normalization lineage: ddb0d2b3b7d70139b8140e3df5ca1a2030c63ca2f777d70c15c7f5adc224fe11</text>
+<text x="62" y="864" data-source-line="33" data-continuation="false" xml:space="preserve" fill="#d8e4f2" font-family="DejaVu Sans Mono, monospace" font-size="14" font-weight="400">serving normalization lineage: eeb0cd452b8437871233859a7bb988213f5e1a0a21a190f8fd561b4dd28b9a89</text>
+<text x="62" y="887" data-source-line="34" data-continuation="false" xml:space="preserve" fill="#d8e4f2" font-family="DejaVu Sans Mono, monospace" font-size="14" font-weight="400">bindings (3, mismatches=1):</text>
+<text x="62" y="910" data-source-line="35" data-continuation="false" xml:space="preserve" fill="#5ee6a8" font-family="DejaVu Sans Mono, monospace" font-size="14" font-weight="400">  input-00 | input:numerator@0 -&gt; input:request-numerator@0 | compatible</text>
+<text x="62" y="933" data-source-line="36" data-continuation="false" xml:space="preserve" fill="#5ee6a8" font-family="DejaVu Sans Mono, monospace" font-size="14" font-weight="400">  input-01 | input:denominator@1 -&gt; input:request-denominator@1 | compatible</text>
+<text x="62" y="956" data-source-line="37" data-continuation="false" xml:space="preserve" fill="#ff6b7a" font-family="DejaVu Sans Mono, monospace" font-size="14" font-weight="400">  output-00 | output:ratio@0 -&gt; output:prediction@0 | normalization-lineage-drift | normalization=cfff192e349c9a054c76d72aa1326a94de16c4103b22cfb8232f</text>
+<text x="78" y="979" data-source-line="37" data-continuation="true" xml:space="preserve" fill="#ff6b7a" font-family="DejaVu Sans Mono, monospace" font-size="14" font-weight="400">192eefae72ef-&gt;9587d4ba76f68f853a19110587955336735ec64482ce8d6c02ed59c612ff3733</text>
+<text x="62" y="1002" data-source-line="38" data-continuation="false" xml:space="preserve" fill="#d8e4f2" font-family="DejaVu Sans Mono, monospace" font-size="14" font-weight="400">comparison result output: written</text>
+<text x="62" y="1025" data-source-line="39" data-continuation="false" xml:space="preserve" fill="#ff6b7a" font-family="DejaVu Sans Mono, monospace" font-size="14" font-weight="700">[exit 5]</text>
+<text x="62" y="1053" fill="#8fa5bd" font-family="DejaVu Sans Mono, monospace" font-size="12" font-weight="400" text-anchor="start">docs/evidence/captures/compare-drift.txt · 39 source lines</text>
+<text x="1378" y="1053" fill="#8fa5bd" font-family="DejaVu Sans Mono, monospace" font-size="12" font-weight="400" text-anchor="end">sha256 1e9c0912cf954821977b3901d538d9d55e04e937a2a406325032c0bb9809b982</text>
+</svg>

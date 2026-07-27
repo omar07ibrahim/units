@@ -1,4 +1,4 @@
-"""Deterministic command-line verification, replay, and repair reporting."""
+"""Deterministic verification, replay, comparison, and repair reporting."""
 
 from __future__ import annotations
 
@@ -14,7 +14,7 @@ from contextlib import suppress
 from fractions import Fraction
 from typing import Final, NoReturn, cast
 
-from .canonical import canonical_json_bytes
+from .canonical import canonical_json_bytes, sha256_hex
 from .certificate import (
     CERTIFICATE_SCHEMA,
     MAX_CERTIFICATE_BYTES,
@@ -24,6 +24,26 @@ from .certificate import (
     _create_certificate_attempt,
     decode_certificate,
     encode_certificate,
+)
+from .comparison import (
+    AUTHENTICATION_NOT_PROVIDED,
+    COMPARISON_RESULT_SCHEMA,
+    ComparisonError,
+    ComparisonPolicy,
+    ComparisonResult,
+    ComparisonStatus,
+    InterfaceSnapshot,
+    compare_graphs,
+)
+from .comparison_codec import (
+    MAX_COMPARISON_BYTES,
+    ComparisonDecodeError,
+    decode_comparison_plan,
+)
+from .comparison_contract import COMPARISON_SCHEMA, ComparisonPlan
+from .comparison_result_codec import (
+    ComparisonResultDecodeError,
+    encode_comparison_result,
 )
 from .domain import UnitSentinelError
 from .graph import GRAPH_SCHEMA, ComputationGraph
@@ -47,11 +67,21 @@ from .replay import (
     ReplayStatus,
     replay_certificate,
 )
-from .verification import SolverLimits, VerificationResult, VerificationStatus
+from .verification import (
+    MAX_CORE_SHRINK_CHECKS,
+    MAX_SOLVER_MEMORY_MB,
+    MAX_SOLVER_TIMEOUT_MS,
+    MAX_TOTAL_TIMEOUT_MS,
+    MAX_UNIQUENESS_CHECKS,
+    SolverLimits,
+    VerificationResult,
+    VerificationStatus,
+)
 from .version import VERSION
 
 VERIFY_OUTPUT_SCHEMA: Final = "unitsentinel.cli.verify/v1"
 REPLAY_OUTPUT_SCHEMA: Final = "unitsentinel.cli.replay/v1"
+COMPARE_OUTPUT_SCHEMA: Final = "unitsentinel.cli.compare/v1"
 REPAIR_OUTPUT_SCHEMA: Final = "unitsentinel.cli.repair/v1"
 
 EXIT_SUCCESS: Final = 0
@@ -119,7 +149,8 @@ def _parser() -> argparse.ArgumentParser:
         prog="unitsentinel",
         description=(
             "Verify exact dimensional contracts, replay detached proof claims, "
-            "and report bounded repair proposals."
+            "compare training and serving graphs, and report bounded repair "
+            "proposals."
         ),
     )
     parser.add_argument(
@@ -168,6 +199,78 @@ def _parser() -> argparse.ArgumentParser:
         help="require current verifier and solver versions to match the claim",
     )
     replay.add_argument(
+        "--json",
+        action="store_true",
+        help="emit one canonical machine-readable record",
+    )
+
+    compare = commands.add_parser(
+        "compare",
+        help="compare canonical training and serving graph contracts",
+    )
+    compare.add_argument("plan", help="canonical comparison plan JSON file")
+    compare.add_argument(
+        "--training-graph",
+        required=True,
+        help="canonical training graph JSON file",
+    )
+    compare.add_argument(
+        "--serving-graph",
+        required=True,
+        help="canonical serving graph JSON file",
+    )
+    compare.add_argument(
+        "--expect-plan-sha256",
+        required=True,
+        type=_sha256_argument,
+        metavar="DIGEST",
+        help="reject the plan bytes before decoding unless this digest matches",
+    )
+    compare.add_argument(
+        "--result",
+        dest="result_output",
+        metavar="FILE",
+        help="atomically write a new canonical comparison-result claim",
+    )
+    compare.add_argument(
+        "--per-check-timeout-ms",
+        type=_bounded_integer_argument(1, MAX_SOLVER_TIMEOUT_MS),
+        default=_DEFAULT_SOLVER_LIMITS.per_check_timeout_ms,
+        metavar="MILLISECONDS",
+        help=f"bound each solver check (1..{MAX_SOLVER_TIMEOUT_MS})",
+    )
+    compare.add_argument(
+        "--total-timeout-ms",
+        type=_bounded_integer_argument(1, MAX_TOTAL_TIMEOUT_MS),
+        default=_DEFAULT_SOLVER_LIMITS.total_timeout_ms,
+        metavar="MILLISECONDS",
+        help=(
+            "bound each graph-side verification; two sides may use twice this "
+            f"budget (1..{MAX_TOTAL_TIMEOUT_MS})"
+        ),
+    )
+    compare.add_argument(
+        "--max-memory-mb",
+        type=_bounded_integer_argument(32, MAX_SOLVER_MEMORY_MB),
+        default=_DEFAULT_SOLVER_LIMITS.max_memory_mb,
+        metavar="MEBIBYTES",
+        help=f"bound solver memory per graph side (32..{MAX_SOLVER_MEMORY_MB})",
+    )
+    compare.add_argument(
+        "--max-core-shrink-checks",
+        type=_bounded_integer_argument(0, MAX_CORE_SHRINK_CHECKS),
+        default=_DEFAULT_SOLVER_LIMITS.max_core_shrink_checks,
+        metavar="COUNT",
+        help=f"perform at most COUNT core-shrink checks (0..{MAX_CORE_SHRINK_CHECKS})",
+    )
+    compare.add_argument(
+        "--max-uniqueness-checks",
+        type=_bounded_integer_argument(1, MAX_UNIQUENESS_CHECKS),
+        default=_DEFAULT_SOLVER_LIMITS.max_uniqueness_checks,
+        metavar="COUNT",
+        help=f"perform at most COUNT uniqueness checks (1..{MAX_UNIQUENESS_CHECKS})",
+    )
+    compare.add_argument(
         "--json",
         action="store_true",
         help="emit one canonical machine-readable record",
@@ -305,10 +408,14 @@ def _write_all(descriptor: int, payload: bytes) -> None:
         written += count
 
 
-def _open_output_directory(path: str) -> tuple[int, str]:
+def _open_output_directory(
+    path: str,
+    *,
+    label: str = "certificate output",
+) -> tuple[int, str]:
     parent, name = os.path.split(path)
     if not name or name in {".", ".."}:
-        raise _CLIError(EXIT_INPUT, "certificate output path is invalid")
+        raise _CLIError(EXIT_INPUT, f"{label} path is invalid")
     directory = parent or "."
     flags = (
         os.O_RDONLY
@@ -321,12 +428,16 @@ def _open_output_directory(path: str) -> tuple[int, str]:
     except OSError:
         raise _CLIError(
             EXIT_INPUT,
-            "certificate output directory could not be opened",
+            f"{label} directory could not be opened",
         ) from None
     return descriptor, name
 
 
-def _create_output_temp(directory: int) -> tuple[int, str]:
+def _create_output_temp(
+    directory: int,
+    *,
+    label: str = "certificate output",
+) -> tuple[int, str]:
     flags = (
         os.O_WRONLY
         | os.O_CREAT
@@ -343,11 +454,11 @@ def _create_output_temp(directory: int) -> tuple[int, str]:
         except OSError:
             raise _CLIError(
                 EXIT_INPUT,
-                "certificate output could not be created",
+                f"{label} could not be created",
             ) from None
     raise _CLIError(
         EXIT_INPUT,
-        "certificate output could not be created",
+        f"{label} could not be created",
     )
 
 
@@ -361,12 +472,17 @@ def _unlink_temp(directory: int, name: str | None) -> bool:
     return True
 
 
-def _atomic_write_new(path: str, payload: bytes) -> None:
-    directory, target = _open_output_directory(path)
+def _atomic_write_new(
+    path: str,
+    payload: bytes,
+    *,
+    label: str = "certificate output",
+) -> None:
+    directory, target = _open_output_directory(path, label=label)
     temporary: str | None = None
     descriptor = -1
     try:
-        descriptor, temporary = _create_output_temp(directory)
+        descriptor, temporary = _create_output_temp(directory, label=label)
         try:
             os.fchmod(descriptor, 0o600)
             _write_all(descriptor, payload)
@@ -374,7 +490,7 @@ def _atomic_write_new(path: str, payload: bytes) -> None:
         except OSError:
             raise _CLIError(
                 EXIT_INPUT,
-                "certificate output could not be written",
+                f"{label} could not be written",
             ) from None
         finally:
             with suppress(OSError):
@@ -392,18 +508,18 @@ def _atomic_write_new(path: str, payload: bytes) -> None:
         except FileExistsError:
             raise _CLIError(
                 EXIT_INPUT,
-                "certificate output already exists",
+                f"{label} already exists",
             ) from None
         except OSError:
             raise _CLIError(
                 EXIT_INPUT,
-                "certificate output could not be published",
+                f"{label} could not be published",
             ) from None
 
         if not _unlink_temp(directory, temporary):
             raise _CLIError(
                 EXIT_INPUT,
-                "certificate output cleanup could not be confirmed",
+                f"{label} cleanup could not be confirmed",
             )
         temporary = None
         try:
@@ -411,7 +527,7 @@ def _atomic_write_new(path: str, payload: bytes) -> None:
         except OSError:
             raise _CLIError(
                 EXIT_INPUT,
-                "certificate output durability could not be confirmed",
+                f"{label} durability could not be confirmed",
             ) from None
     finally:
         if descriptor >= 0:
@@ -422,19 +538,70 @@ def _atomic_write_new(path: str, payload: bytes) -> None:
             os.close(directory)
 
 
-def _decode_graph_file(path: str) -> ComputationGraph:
+def _decode_graph_file(
+    path: str,
+    *,
+    label: str = "graph input",
+    expected_digest: str | None = None,
+) -> ComputationGraph:
     payload = _read_bounded_file(
         path,
-        label="graph input",
+        label=label,
         max_bytes=MAX_GRAPH_BYTES,
     )
+    actual_digest = sha256_hex(payload)
+    if expected_digest is not None and not hmac.compare_digest(
+        actual_digest,
+        expected_digest,
+    ):
+        raise _CLIError(
+            EXIT_INPUT,
+            f"{label} sha256 does not match the comparison plan",
+        )
     try:
-        return decode_graph(payload)
+        graph = decode_graph(payload)
     except GraphDecodeError as error:
         raise _CLIError(
             EXIT_INPUT,
-            f"graph input is invalid: {error}",
+            f"{label} is invalid: {error}",
         ) from None
+    if not hmac.compare_digest(graph.digest, actual_digest):
+        raise _CLIError(
+            EXIT_INTERNAL,
+            f"{label} digest could not be confirmed",
+        )
+    return graph
+
+
+def _decode_comparison_plan_file(
+    path: str,
+    *,
+    expected_digest: str,
+) -> ComparisonPlan:
+    payload = _read_bounded_file(
+        path,
+        label="comparison plan input",
+        max_bytes=MAX_COMPARISON_BYTES,
+    )
+    actual_digest = sha256_hex(payload)
+    if not hmac.compare_digest(actual_digest, expected_digest):
+        raise _CLIError(
+            EXIT_MISMATCH,
+            "comparison plan sha256 does not match the expected digest",
+        )
+    try:
+        plan = decode_comparison_plan(payload)
+    except ComparisonDecodeError as error:
+        raise _CLIError(
+            EXIT_INPUT,
+            f"comparison plan input is invalid: {error}",
+        ) from None
+    if not hmac.compare_digest(plan.digest, actual_digest):
+        raise _CLIError(
+            EXIT_INTERNAL,
+            "comparison plan digest could not be confirmed",
+        )
+    return plan
 
 
 def _decode_certificate_file(path: str) -> ProofCertificate:
@@ -648,6 +815,147 @@ def _replay_json(
     return canonical_json_bytes(record).decode("utf-8") + "\n"
 
 
+def _comparison_snapshot_text(snapshot: InterfaceSnapshot | None) -> str:
+    if snapshot is None:
+        return "absent"
+    return (
+        f"{snapshot.endpoint.role.value}:{snapshot.endpoint.value_id}"
+        f"@{snapshot.position}"
+    )
+
+
+def _comparison_text(
+    plan: ComparisonPlan,
+    training_graph: ComputationGraph,
+    serving_graph: ComputationGraph,
+    result: ComparisonResult,
+    *,
+    expected_plan_digest: str,
+    result_written: bool,
+    exit_code: int,
+) -> str:
+    reason = "none" if result.reason is None else result.reason.value
+    lines = [
+        f"UnitSentinel comparison: {result.status.value.upper()}",
+        f"exit code: {exit_code}",
+        f"tool: unitsentinel {VERSION}",
+        f"reason: {reason}",
+        f"result scope: {result.scope}",
+        f"comparison id: {plan.comparison_id}",
+        f"plan sha256: {plan.digest}",
+        f"expected plan sha256: {expected_plan_digest}",
+        f"plan authentication: {AUTHENTICATION_NOT_PROVIDED}",
+        f"training graph id: {training_graph.graph_id}",
+        f"training graph sha256: {training_graph.digest}",
+        f"serving graph id: {serving_graph.graph_id}",
+        f"serving graph sha256: {serving_graph.digest}",
+        f"registry version: {BUILTIN_REGISTRY.version}",
+        f"registry sha256: {result.registry_digest}",
+        (
+            "solver limits per graph side: "
+            f"check={result.limits.per_check_timeout_ms}ms "
+            f"total={result.limits.total_timeout_ms}ms "
+            f"memory={result.limits.max_memory_mb}MiB "
+            f"core-shrink={result.limits.max_core_shrink_checks} "
+            f"uniqueness={result.limits.max_uniqueness_checks}"
+        ),
+        f"result sha256: {result.digest}",
+        f"result authentication: {result.authentication}",
+    ]
+    for side, verification in (
+        ("training", result.training_result),
+        ("serving", result.serving_result),
+    ):
+        if verification is None:
+            lines.append(f"{side} verification: unavailable")
+        else:
+            lines.append(
+                f"{side} verification: {verification.status.value} "
+                f"{verification.digest}"
+            )
+    for side, lineage in (
+        ("training", result.training_lineage),
+        ("serving", result.serving_lineage),
+    ):
+        lines.append(
+            f"{side} normalization lineage: "
+            + ("unavailable" if lineage is None else lineage.digest)
+        )
+    lines.append(
+        f"bindings ({len(result.comparisons)}, mismatches={result.mismatch_count}):"
+    )
+    for comparison in result.comparisons:
+        mismatch_text = (
+            "compatible"
+            if not comparison.mismatches
+            else ",".join(code.value for code in comparison.mismatches)
+        )
+        line = (
+            f"  {comparison.contract_id} | "
+            f"{_comparison_snapshot_text(comparison.training)} -> "
+            f"{_comparison_snapshot_text(comparison.serving)} | "
+            f"{mismatch_text}"
+        )
+        if comparison.normalization is not None:
+            line += (
+                " | normalization="
+                f"{comparison.normalization.training_digest}->"
+                f"{comparison.normalization.serving_digest}"
+            )
+        lines.append(line)
+    output_state = "written" if result_written else "not-requested"
+    lines.append(f"comparison result output: {output_state}")
+    return "\n".join(lines) + "\n"
+
+
+def _comparison_json(
+    plan: ComparisonPlan,
+    training_graph: ComputationGraph,
+    serving_graph: ComputationGraph,
+    result: ComparisonResult,
+    *,
+    expected_plan_digest: str,
+    result_written: bool,
+    exit_code: int,
+) -> str:
+    record = {
+        "exit_code": exit_code,
+        "graphs": {
+            "serving": {
+                "graph_id": serving_graph.graph_id,
+                "schema": GRAPH_SCHEMA,
+                "sha256": serving_graph.digest,
+            },
+            "training": {
+                "graph_id": training_graph.graph_id,
+                "schema": GRAPH_SCHEMA,
+                "sha256": training_graph.digest,
+            },
+        },
+        "plan": {
+            "authentication": AUTHENTICATION_NOT_PROVIDED,
+            "expected_sha256": expected_plan_digest,
+            "schema": COMPARISON_SCHEMA,
+            "sha256": plan.digest,
+        },
+        "registry": {
+            "schema": REGISTRY_SCHEMA,
+            "sha256": result.registry_digest,
+            "version": BUILTIN_REGISTRY.version,
+        },
+        "result": {
+            "authentication": result.authentication,
+            "record": result.canonical_record(),
+            "schema": COMPARISON_RESULT_SCHEMA,
+            "sha256": result.digest,
+        },
+        "result_output": "written" if result_written else "not-requested",
+        "schema": COMPARE_OUTPUT_SCHEMA,
+        "tool": {"name": "unitsentinel", "version": VERSION},
+    }
+    return canonical_json_bytes(record).decode("utf-8") + "\n"
+
+
 def _repair_json(
     graph: ComputationGraph,
     report: UnitRepairResult,
@@ -721,6 +1029,14 @@ def _replay_exit(status: ReplayStatus) -> int:
         ReplayStatus.REPRODUCED: EXIT_SUCCESS,
         ReplayStatus.MISMATCH: EXIT_MISMATCH,
         ReplayStatus.INDETERMINATE: EXIT_INDETERMINATE,
+    }[status]
+
+
+def _comparison_exit(status: ComparisonStatus) -> int:
+    return {
+        ComparisonStatus.COMPATIBLE: EXIT_SUCCESS,
+        ComparisonStatus.DRIFT: EXIT_MISMATCH,
+        ComparisonStatus.INDETERMINATE: EXIT_INDETERMINATE,
     }[status]
 
 
@@ -821,6 +1137,145 @@ def _run_replay(arguments: argparse.Namespace) -> int:
     return exit_code
 
 
+def _run_compare(arguments: argparse.Namespace) -> int:
+    per_check_timeout_ms = cast(int, arguments.per_check_timeout_ms)
+    total_timeout_ms = cast(int, arguments.total_timeout_ms)
+    if total_timeout_ms < per_check_timeout_ms:
+        raise _CLIError(
+            EXIT_USAGE,
+            "invalid command-line arguments; use --help",
+        )
+    try:
+        limits = SolverLimits(
+            per_check_timeout_ms=per_check_timeout_ms,
+            total_timeout_ms=total_timeout_ms,
+            max_memory_mb=cast(int, arguments.max_memory_mb),
+            max_core_shrink_checks=cast(int, arguments.max_core_shrink_checks),
+            max_uniqueness_checks=cast(int, arguments.max_uniqueness_checks),
+        )
+    except UnitSentinelError:
+        raise _CLIError(
+            EXIT_USAGE,
+            "invalid command-line arguments; use --help",
+        ) from None
+
+    expected_plan_digest = cast(str, arguments.expect_plan_sha256)
+    plan = _decode_comparison_plan_file(
+        cast(str, arguments.plan),
+        expected_digest=expected_plan_digest,
+    )
+    if not hmac.compare_digest(plan.registry_digest, BUILTIN_REGISTRY.digest):
+        raise _CLIError(
+            EXIT_INPUT,
+            "comparison plan registry does not match the current registry",
+        )
+
+    training_graph = _decode_graph_file(
+        cast(str, arguments.training_graph),
+        label="training graph input",
+        expected_digest=plan.training_graph_digest,
+    )
+    serving_graph = _decode_graph_file(
+        cast(str, arguments.serving_graph),
+        label="serving graph input",
+        expected_digest=plan.serving_graph_digest,
+    )
+    policy = ComparisonPolicy(expected_plan_digest=expected_plan_digest)
+    try:
+        result = compare_graphs(
+            plan,
+            training_graph=training_graph,
+            serving_graph=serving_graph,
+            limits=limits,
+            policy=policy,
+        )
+    except ComparisonError:
+        raise _CLIError(
+            EXIT_INPUT,
+            "comparison inputs are inconsistent",
+        ) from None
+    except UnitSentinelError:
+        raise _CLIError(
+            EXIT_INTERNAL,
+            "comparison could not be completed safely",
+        ) from None
+    if type(result) is not ComparisonResult:
+        raise _CLIError(
+            EXIT_INTERNAL,
+            "comparison returned an unexpected result",
+        )
+    try:
+        result.validate()
+        result_is_bound = (
+            result.comparison_id == plan.comparison_id
+            and hmac.compare_digest(result.plan_digest, plan.digest)
+            and hmac.compare_digest(
+                result.training_graph_digest,
+                training_graph.digest,
+            )
+            and hmac.compare_digest(
+                result.serving_graph_digest,
+                serving_graph.digest,
+            )
+            and hmac.compare_digest(
+                result.registry_digest,
+                BUILTIN_REGISTRY.digest,
+            )
+            and result.limits == limits
+        )
+    except UnitSentinelError:
+        result_is_bound = False
+    if not result_is_bound:
+        raise _CLIError(
+            EXIT_INTERNAL,
+            "comparison result does not bind the CLI request",
+        )
+    try:
+        result_payload = encode_comparison_result(result)
+    except ComparisonResultDecodeError:
+        raise _CLIError(
+            EXIT_INTERNAL,
+            "comparison result could not be encoded safely",
+        ) from None
+    if not hmac.compare_digest(sha256_hex(result_payload), result.digest):
+        raise _CLIError(
+            EXIT_INTERNAL,
+            "comparison result digest could not be confirmed",
+        )
+
+    output_path = cast(str | None, arguments.result_output)
+    result_written = output_path is not None
+    exit_code = _comparison_exit(result.status)
+    if cast(bool, arguments.json):
+        report = _comparison_json(
+            plan,
+            training_graph,
+            serving_graph,
+            result,
+            expected_plan_digest=expected_plan_digest,
+            result_written=result_written,
+            exit_code=exit_code,
+        )
+    else:
+        report = _comparison_text(
+            plan,
+            training_graph,
+            serving_graph,
+            result,
+            expected_plan_digest=expected_plan_digest,
+            result_written=result_written,
+            exit_code=exit_code,
+        )
+    if output_path is not None:
+        _atomic_write_new(
+            output_path,
+            result_payload,
+            label="comparison result output",
+        )
+    sys.stdout.write(report)
+    return exit_code
+
+
 def _run_repair(arguments: argparse.Namespace) -> int:
     graph_path = cast(str, arguments.graph)
     graph = _decode_graph_file(graph_path)
@@ -871,6 +1326,8 @@ def _dispatch(arguments: argparse.Namespace) -> int:
         return _run_verify(arguments)
     if command == "replay":
         return _run_replay(arguments)
+    if command == "compare":
+        return _run_compare(arguments)
     if command == "repair":
         return _run_repair(arguments)
     raise _CLIError(EXIT_USAGE, "command is required; use --help")

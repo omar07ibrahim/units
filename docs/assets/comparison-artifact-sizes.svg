@@ -1,0 +1,106 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="980" viewBox="0 0 1440 980" role="img" aria-labelledby="title description">
+  <title id="title">Exact UnitSentinel comparison artifact sizes</title>
+  <desc id="description">A common-zero-scale small-multiple bar chart of exact committed JSON capture, result claim, text capture, plan, serving graph, and training graph byte lengths for compatible, drift, and indeterminate cases. The figure makes no performance claim.</desc>
+  <defs>
+    <linearGradient id="background" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#07111f"/>
+      <stop offset="1" stop-color="#0a1730"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="10" stdDeviation="12" flood-color="#000814" flood-opacity=".45"/>
+    </filter>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L0,6 L9,3 z" fill="#8fa5bd"/>
+    </marker>
+  </defs>
+  <rect width="1440" height="980" fill="url(#background)"/>
+<text x="60" y="64" fill="#d8e4f2" font-family="DejaVu Sans, sans-serif" font-size="31" font-weight="700" text-anchor="start">Exact comparison artifact sizes</text>
+<text x="60" y="100" fill="#8fa5bd" font-family="DejaVu Sans, sans-serif" font-size="17" font-weight="400" text-anchor="start">Committed file bytes · common 0-15,000 scale · direct labels.</text>
+<rect x="55" y="145" width="420" height="700" rx="18" fill="#0d1b2d" stroke="#253a55" stroke-width="2"/>
+<text x="75" y="184" fill="#5ee6a8" font-family="DejaVu Sans, sans-serif" font-size="19" font-weight="700" text-anchor="start">COMPATIBLE · EXIT 0</text>
+<text x="75" y="233" fill="#d8e4f2" font-family="DejaVu Sans, sans-serif" font-size="14" font-weight="700" text-anchor="start">JSON capture</text>
+<rect x="75" y="245" width="285" height="24" rx="4" fill="#12233a" stroke="#253a55"/>
+<rect x="75" y="245" width="272.1" height="24" rx="4" fill="#5ee6a8" stroke="#5ee6a8"/>
+<text x="380" y="263" fill="#d8e4f2" font-family="DejaVu Sans Mono, monospace" font-size="13" font-weight="700" text-anchor="start">14,319 B</text>
+<text x="75" y="321" fill="#d8e4f2" font-family="DejaVu Sans, sans-serif" font-size="14" font-weight="700" text-anchor="start">result claim</text>
+<rect x="75" y="333" width="285" height="24" rx="4" fill="#12233a" stroke="#253a55"/>
+<rect x="75" y="333" width="252.2" height="24" rx="4" fill="#5ee6a8" stroke="#5ee6a8"/>
+<text x="380" y="351" fill="#d8e4f2" font-family="DejaVu Sans Mono, monospace" font-size="13" font-weight="700" text-anchor="start">13,276 B</text>
+<text x="75" y="409" fill="#d8e4f2" font-family="DejaVu Sans, sans-serif" font-size="14" font-weight="700" text-anchor="start">text capture</text>
+<rect x="75" y="421" width="285" height="24" rx="4" fill="#12233a" stroke="#253a55"/>
+<rect x="75" y="421" width="43.6" height="24" rx="4" fill="#5ee6a8" stroke="#5ee6a8"/>
+<text x="380" y="439" fill="#d8e4f2" font-family="DejaVu Sans Mono, monospace" font-size="13" font-weight="700" text-anchor="start">2,295 B</text>
+<text x="75" y="497" fill="#d8e4f2" font-family="DejaVu Sans, sans-serif" font-size="14" font-weight="700" text-anchor="start">plan</text>
+<rect x="75" y="509" width="285" height="24" rx="4" fill="#12233a" stroke="#253a55"/>
+<rect x="75" y="509" width="14.7" height="24" rx="4" fill="#5ee6a8" stroke="#5ee6a8"/>
+<text x="380" y="527" fill="#d8e4f2" font-family="DejaVu Sans Mono, monospace" font-size="13" font-weight="700" text-anchor="start">774 B</text>
+<text x="75" y="585" fill="#d8e4f2" font-family="DejaVu Sans, sans-serif" font-size="14" font-weight="700" text-anchor="start">serving graph</text>
+<rect x="75" y="597" width="285" height="24" rx="4" fill="#12233a" stroke="#253a55"/>
+<rect x="75" y="597" width="10.7" height="24" rx="4" fill="#5ee6a8" stroke="#5ee6a8"/>
+<text x="380" y="615" fill="#d8e4f2" font-family="DejaVu Sans Mono, monospace" font-size="13" font-weight="700" text-anchor="start">564 B</text>
+<text x="75" y="673" fill="#d8e4f2" font-family="DejaVu Sans, sans-serif" font-size="14" font-weight="700" text-anchor="start">training graph</text>
+<rect x="75" y="685" width="285" height="24" rx="4" fill="#12233a" stroke="#253a55"/>
+<rect x="75" y="685" width="9.4" height="24" rx="4" fill="#5ee6a8" stroke="#5ee6a8"/>
+<text x="380" y="703" fill="#d8e4f2" font-family="DejaVu Sans Mono, monospace" font-size="13" font-weight="700" text-anchor="start">494 B</text>
+<text x="75" y="780" fill="#8fa5bd" font-family="DejaVu Sans Mono, monospace" font-size="12" font-weight="400" text-anchor="start">0 B</text>
+<text x="360" y="780" fill="#8fa5bd" font-family="DejaVu Sans Mono, monospace" font-size="12" font-weight="400" text-anchor="end">15,000 B</text>
+<rect x="510" y="145" width="420" height="700" rx="18" fill="#0d1b2d" stroke="#253a55" stroke-width="2"/>
+<text x="530" y="184" fill="#ff6b7a" font-family="DejaVu Sans, sans-serif" font-size="19" font-weight="700" text-anchor="start">DRIFT · EXIT 5</text>
+<text x="530" y="233" fill="#d8e4f2" font-family="DejaVu Sans, sans-serif" font-size="14" font-weight="700" text-anchor="start">JSON capture</text>
+<rect x="530" y="245" width="285" height="24" rx="4" fill="#12233a" stroke="#253a55"/>
+<rect x="530" y="245" width="273.0" height="24" rx="4" fill="#ff6b7a" stroke="#ff6b7a"/>
+<text x="835" y="263" fill="#d8e4f2" font-family="DejaVu Sans Mono, monospace" font-size="13" font-weight="700" text-anchor="start">14,371 B</text>
+<text x="530" y="321" fill="#d8e4f2" font-family="DejaVu Sans, sans-serif" font-size="14" font-weight="700" text-anchor="start">result claim</text>
+<rect x="530" y="333" width="285" height="24" rx="4" fill="#12233a" stroke="#253a55"/>
+<rect x="530" y="333" width="253.2" height="24" rx="4" fill="#ff6b7a" stroke="#ff6b7a"/>
+<text x="835" y="351" fill="#d8e4f2" font-family="DejaVu Sans Mono, monospace" font-size="13" font-weight="700" text-anchor="start">13,327 B</text>
+<text x="530" y="409" fill="#d8e4f2" font-family="DejaVu Sans, sans-serif" font-size="14" font-weight="700" text-anchor="start">text capture</text>
+<rect x="530" y="421" width="285" height="24" rx="4" fill="#12233a" stroke="#253a55"/>
+<rect x="530" y="421" width="43.9" height="24" rx="4" fill="#ff6b7a" stroke="#ff6b7a"/>
+<text x="835" y="439" fill="#d8e4f2" font-family="DejaVu Sans Mono, monospace" font-size="13" font-weight="700" text-anchor="start">2,308 B</text>
+<text x="530" y="497" fill="#d8e4f2" font-family="DejaVu Sans, sans-serif" font-size="14" font-weight="700" text-anchor="start">plan</text>
+<rect x="530" y="509" width="285" height="24" rx="4" fill="#12233a" stroke="#253a55"/>
+<rect x="530" y="509" width="14.9" height="24" rx="4" fill="#ff6b7a" stroke="#ff6b7a"/>
+<text x="835" y="527" fill="#d8e4f2" font-family="DejaVu Sans Mono, monospace" font-size="13" font-weight="700" text-anchor="start">783 B</text>
+<text x="530" y="585" fill="#d8e4f2" font-family="DejaVu Sans, sans-serif" font-size="14" font-weight="700" text-anchor="start">serving graph</text>
+<rect x="530" y="597" width="285" height="24" rx="4" fill="#12233a" stroke="#253a55"/>
+<rect x="530" y="597" width="10.7" height="24" rx="4" fill="#ff6b7a" stroke="#ff6b7a"/>
+<text x="835" y="615" fill="#d8e4f2" font-family="DejaVu Sans Mono, monospace" font-size="13" font-weight="700" text-anchor="start">565 B</text>
+<text x="530" y="673" fill="#d8e4f2" font-family="DejaVu Sans, sans-serif" font-size="14" font-weight="700" text-anchor="start">training graph</text>
+<rect x="530" y="685" width="285" height="24" rx="4" fill="#12233a" stroke="#253a55"/>
+<rect x="530" y="685" width="9.4" height="24" rx="4" fill="#ff6b7a" stroke="#ff6b7a"/>
+<text x="835" y="703" fill="#d8e4f2" font-family="DejaVu Sans Mono, monospace" font-size="13" font-weight="700" text-anchor="start">494 B</text>
+<text x="530" y="780" fill="#8fa5bd" font-family="DejaVu Sans Mono, monospace" font-size="12" font-weight="400" text-anchor="start">0 B</text>
+<text x="815" y="780" fill="#8fa5bd" font-family="DejaVu Sans Mono, monospace" font-size="12" font-weight="400" text-anchor="end">15,000 B</text>
+<rect x="965" y="145" width="420" height="700" rx="18" fill="#0d1b2d" stroke="#253a55" stroke-width="2"/>
+<text x="985" y="184" fill="#ffc857" font-family="DejaVu Sans, sans-serif" font-size="19" font-weight="700" text-anchor="start">INDETERMINATE · EXIT 3</text>
+<text x="985" y="233" fill="#d8e4f2" font-family="DejaVu Sans, sans-serif" font-size="14" font-weight="700" text-anchor="start">JSON capture</text>
+<rect x="985" y="245" width="285" height="24" rx="4" fill="#12233a" stroke="#253a55"/>
+<rect x="985" y="245" width="65.2" height="24" rx="4" fill="#ffc857" stroke="#ffc857"/>
+<text x="1290" y="263" fill="#d8e4f2" font-family="DejaVu Sans Mono, monospace" font-size="13" font-weight="700" text-anchor="start">3,430 B</text>
+<text x="985" y="321" fill="#d8e4f2" font-family="DejaVu Sans, sans-serif" font-size="14" font-weight="700" text-anchor="start">result claim</text>
+<rect x="985" y="333" width="285" height="24" rx="4" fill="#12233a" stroke="#253a55"/>
+<rect x="985" y="333" width="45.2" height="24" rx="4" fill="#ffc857" stroke="#ffc857"/>
+<text x="1290" y="351" fill="#d8e4f2" font-family="DejaVu Sans Mono, monospace" font-size="13" font-weight="700" text-anchor="start">2,378 B</text>
+<text x="985" y="409" fill="#d8e4f2" font-family="DejaVu Sans, sans-serif" font-size="14" font-weight="700" text-anchor="start">text capture</text>
+<rect x="985" y="421" width="285" height="24" rx="4" fill="#12233a" stroke="#253a55"/>
+<rect x="985" y="421" width="35.9" height="24" rx="4" fill="#ffc857" stroke="#ffc857"/>
+<text x="1290" y="439" fill="#d8e4f2" font-family="DejaVu Sans Mono, monospace" font-size="13" font-weight="700" text-anchor="start">1,889 B</text>
+<text x="985" y="497" fill="#d8e4f2" font-family="DejaVu Sans, sans-serif" font-size="14" font-weight="700" text-anchor="start">plan</text>
+<rect x="985" y="509" width="285" height="24" rx="4" fill="#12233a" stroke="#253a55"/>
+<rect x="985" y="509" width="14.9" height="24" rx="4" fill="#ffc857" stroke="#ffc857"/>
+<text x="1290" y="527" fill="#d8e4f2" font-family="DejaVu Sans Mono, monospace" font-size="13" font-weight="700" text-anchor="start">785 B</text>
+<text x="985" y="585" fill="#d8e4f2" font-family="DejaVu Sans, sans-serif" font-size="14" font-weight="700" text-anchor="start">serving graph</text>
+<rect x="985" y="597" width="285" height="24" rx="4" fill="#12233a" stroke="#253a55"/>
+<rect x="985" y="597" width="10.8" height="24" rx="4" fill="#ffc857" stroke="#ffc857"/>
+<text x="1290" y="615" fill="#d8e4f2" font-family="DejaVu Sans Mono, monospace" font-size="13" font-weight="700" text-anchor="start">567 B</text>
+<text x="985" y="673" fill="#d8e4f2" font-family="DejaVu Sans, sans-serif" font-size="14" font-weight="700" text-anchor="start">training graph</text>
+<rect x="985" y="685" width="285" height="24" rx="4" fill="#12233a" stroke="#253a55"/>
+<rect x="985" y="685" width="9.4" height="24" rx="4" fill="#ffc857" stroke="#ffc857"/>
+<text x="1290" y="703" fill="#d8e4f2" font-family="DejaVu Sans Mono, monospace" font-size="13" font-weight="700" text-anchor="start">494 B</text>
+<text x="985" y="780" fill="#8fa5bd" font-family="DejaVu Sans Mono, monospace" font-size="12" font-weight="400" text-anchor="start">0 B</text>
+<text x="1270" y="780" fill="#8fa5bd" font-family="DejaVu Sans Mono, monospace" font-size="12" font-weight="400" text-anchor="end">15,000 B</text>
+<text x="720" y="900" fill="#ffc857" font-family="DejaVu Sans, sans-serif" font-size="18" font-weight="700" text-anchor="middle">exact committed artifact byte lengths; no latency or performance claim</text>
+<text x="720" y="938" fill="#8fa5bd" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="400" text-anchor="middle">These byte lengths describe the committed files only; they are not latency, throughput, or memory measurements.</text>
+</svg>

@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="1020" viewBox="0 0 1440 1020" role="img" aria-labelledby="title description">
+  <title id="title">UnitSentinel normalization lineage comparison</title>
+  <desc id="description">Real compatible and drift claims showing full content-lineage, semantic-lineage, and output-normalization SHA-256 digests. Content identity differs in both cases; semantic and output normalization match only for the compatible case. The whole-lineage semantic digest is reviewer evidence, not a comparison-decision input.</desc>
+  <defs>
+    <linearGradient id="background" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#07111f"/>
+      <stop offset="1" stop-color="#0a1730"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="10" stdDeviation="12" flood-color="#000814" flood-opacity=".45"/>
+    </filter>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L0,6 L9,3 z" fill="#8fa5bd"/>
+    </marker>
+  </defs>
+  <rect width="1440" height="1020" fill="url(#background)"/>
+<text x="60" y="64" fill="#d8e4f2" font-family="DejaVu Sans, sans-serif" font-size="31" font-weight="700" text-anchor="start">Normalization lineage: compatible vs drift</text>
+<text x="60" y="100" fill="#8fa5bd" font-family="DejaVu Sans, sans-serif" font-size="17" font-weight="400" text-anchor="start">Full SHA-256 values from strictly decoded comparison result claims.</text>
+<rect x="55" y="145" width="645" height="790" rx="20" fill="#0d1b2d" stroke="#5ee6a8" stroke-width="2"/>
+<rect x="740" y="145" width="645" height="790" rx="20" fill="#0d1b2d" stroke="#ff6b7a" stroke-width="2" stroke-dasharray="10 7"/>
+<text x="82" y="190" fill="#5ee6a8" font-family="DejaVu Sans, sans-serif" font-size="21" font-weight="700" text-anchor="start">COMPATIBLE · renamed serving interface</text>
+<text x="767" y="190" fill="#ff6b7a" font-family="DejaVu Sans, sans-serif" font-size="21" font-weight="700" text-anchor="start">DRIFT · reversed serving divide</text>
+<text x="82" y="240" fill="#b69cff" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="700" text-anchor="start">Content lineage SHA-256 · identity-bound · DIFFERENT</text>
+<text x="82" y="265" fill="#d8e4f2" font-family="DejaVu Sans Mono, monospace" font-size="12" font-weight="400" text-anchor="start">train  2d462e91e713f6353040521790cb6389</text>
+<text x="134" y="286" fill="#d8e4f2" font-family="DejaVu Sans Mono, monospace" font-size="12" font-weight="400" text-anchor="start">0e6c20b2cff4652a156dce80dd373ea6</text>
+<text x="82" y="311" fill="#d8e4f2" font-family="DejaVu Sans Mono, monospace" font-size="12" font-weight="400" text-anchor="start">serve  fd25c96450d04afc03bbdb2e583bf9ae</text>
+<text x="134" y="332" fill="#d8e4f2" font-family="DejaVu Sans Mono, monospace" font-size="12" font-weight="400" text-anchor="start">9379c819b5a956a04e3a1fb54d4ba8dd</text>
+<text x="767" y="240" fill="#b69cff" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="700" text-anchor="start">Content lineage SHA-256 · identity-bound · DIFFERENT</text>
+<text x="767" y="265" fill="#d8e4f2" font-family="DejaVu Sans Mono, monospace" font-size="12" font-weight="400" text-anchor="start">train  ddb0d2b3b7d70139b8140e3df5ca1a20</text>
+<text x="819" y="286" fill="#d8e4f2" font-family="DejaVu Sans Mono, monospace" font-size="12" font-weight="400" text-anchor="start">30c63ca2f777d70c15c7f5adc224fe11</text>
+<text x="767" y="311" fill="#d8e4f2" font-family="DejaVu Sans Mono, monospace" font-size="12" font-weight="400" text-anchor="start">serve  eeb0cd452b8437871233859a7bb98821</text>
+<text x="819" y="332" fill="#d8e4f2" font-family="DejaVu Sans Mono, monospace" font-size="12" font-weight="400" text-anchor="start">3f5e1a0a21a190f8fd561b4dd28b9a89</text>
+<text x="82" y="405" fill="#5ee6a8" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="700" text-anchor="start">Semantic lineage SHA-256 · renaming-insensitive · MATCH</text>
+<text x="82" y="430" fill="#d8e4f2" font-family="DejaVu Sans Mono, monospace" font-size="12" font-weight="400" text-anchor="start">train  cfb6bb56340a07705d271a8fc9a55964</text>
+<text x="134" y="451" fill="#d8e4f2" font-family="DejaVu Sans Mono, monospace" font-size="12" font-weight="400" text-anchor="start">d06778b95bf870957d949a187d679476</text>
+<text x="82" y="476" fill="#d8e4f2" font-family="DejaVu Sans Mono, monospace" font-size="12" font-weight="400" text-anchor="start">serve  cfb6bb56340a07705d271a8fc9a55964</text>
+<text x="134" y="497" fill="#d8e4f2" font-family="DejaVu Sans Mono, monospace" font-size="12" font-weight="400" text-anchor="start">d06778b95bf870957d949a187d679476</text>
+<text x="767" y="405" fill="#ff6b7a" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="700" text-anchor="start">Semantic lineage SHA-256 · operation-sensitive · DIFFERENT</text>
+<text x="767" y="430" fill="#d8e4f2" font-family="DejaVu Sans Mono, monospace" font-size="12" font-weight="400" text-anchor="start">train  cfb6bb56340a07705d271a8fc9a55964</text>
+<text x="819" y="451" fill="#d8e4f2" font-family="DejaVu Sans Mono, monospace" font-size="12" font-weight="400" text-anchor="start">d06778b95bf870957d949a187d679476</text>
+<text x="767" y="476" fill="#d8e4f2" font-family="DejaVu Sans Mono, monospace" font-size="12" font-weight="400" text-anchor="start">serve  6f8abe7a471044291aec5bfa16253c07</text>
+<text x="819" y="497" fill="#d8e4f2" font-family="DejaVu Sans Mono, monospace" font-size="12" font-weight="400" text-anchor="start">c6f41bdee08b8d61b8bafece4b820939</text>
+<text x="82" y="570" fill="#5ee6a8" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="700" text-anchor="start">Output normalization SHA-256 · output-00 · MATCH</text>
+<text x="82" y="595" fill="#d8e4f2" font-family="DejaVu Sans Mono, monospace" font-size="12" font-weight="400" text-anchor="start">train  cfff192e349c9a054c76d72aa1326a94</text>
+<text x="134" y="616" fill="#d8e4f2" font-family="DejaVu Sans Mono, monospace" font-size="12" font-weight="400" text-anchor="start">de16c4103b22cfb8232f192eefae72ef</text>
+<text x="82" y="641" fill="#d8e4f2" font-family="DejaVu Sans Mono, monospace" font-size="12" font-weight="400" text-anchor="start">serve  cfff192e349c9a054c76d72aa1326a94</text>
+<text x="134" y="662" fill="#d8e4f2" font-family="DejaVu Sans Mono, monospace" font-size="12" font-weight="400" text-anchor="start">de16c4103b22cfb8232f192eefae72ef</text>
+<text x="767" y="570" fill="#ff6b7a" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="700" text-anchor="start">Output normalization SHA-256 · output-00 · DIFFERENT</text>
+<text x="767" y="595" fill="#d8e4f2" font-family="DejaVu Sans Mono, monospace" font-size="12" font-weight="400" text-anchor="start">train  cfff192e349c9a054c76d72aa1326a94</text>
+<text x="819" y="616" fill="#d8e4f2" font-family="DejaVu Sans Mono, monospace" font-size="12" font-weight="400" text-anchor="start">de16c4103b22cfb8232f192eefae72ef</text>
+<text x="767" y="641" fill="#d8e4f2" font-family="DejaVu Sans Mono, monospace" font-size="12" font-weight="400" text-anchor="start">serve  9587d4ba76f68f853a19110587955336</text>
+<text x="819" y="662" fill="#d8e4f2" font-family="DejaVu Sans Mono, monospace" font-size="12" font-weight="400" text-anchor="start">735ec64482ce8d6c02ed59c612ff3733</text>
+<rect x="82" y="755" width="590" height="135" rx="18" fill="#0d1b2d" stroke="#253a55" stroke-width="2" filter="url(#shadow)"/>
+<rect x="82" y="755" width="7" height="135" rx="3.5" fill="#5ee6a8"/>
+<text x="110" y="793" fill="#5ee6a8" font-family="DejaVu Sans, sans-serif" font-size="20" font-weight="700" text-anchor="start">Outcome · COMPATIBLE</text>
+<text x="110" y="825" fill="#d8e4f2" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="400" text-anchor="start">
+      <tspan x="110" dy="0">3 bound interfaces · 0 mismatches</tspan>
+      <tspan x="110" dy="25">different value names do not create drift</tspan>
+    </text>
+<rect x="767" y="755" width="590" height="135" rx="18" fill="#0d1b2d" stroke="#253a55" stroke-width="2" filter="url(#shadow)"/>
+<rect x="767" y="755" width="7" height="135" rx="3.5" fill="#ff6b7a"/>
+<text x="795" y="793" fill="#ff6b7a" font-family="DejaVu Sans, sans-serif" font-size="20" font-weight="700" text-anchor="start">Outcome · NORMALIZATION-LINEAGE-DRIFT</text>
+<text x="795" y="825" fill="#d8e4f2" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="400" text-anchor="start">
+      <tspan x="795" dy="0">input contracts remain compatible</tspan>
+      <tspan x="795" dy="25">output-00 records the one mismatch</tspan>
+    </text>
+<text x="720" y="982" fill="#ffc857" font-family="DejaVu Sans, sans-serif" font-size="16" font-weight="700" text-anchor="middle">Whole-lineage hashes aid review; decisions use mapped interface metadata and per-output normalization digests.</text>
+</svg>

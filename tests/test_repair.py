@@ -745,6 +745,68 @@ class FailureAndIntegrityTests(unittest.TestCase):
 
 
 class RepairModelContractTests(unittest.TestCase):
+    def test_result_and_candidate_reject_corrupted_top_level_fields(self) -> None:
+        result = propose_unit_annotation_repair(exp_graph("percent"))
+        candidate = result.candidate
+        assert candidate is not None
+
+        def assert_rejected(
+            target: UnitRepairResult | UnitRepairCandidate,
+            attribute: str,
+            replacement: object,
+            message: str,
+        ) -> None:
+            original = getattr(target, attribute)
+            object.__setattr__(target, attribute, replacement)
+            try:
+                with self.assertRaisesRegex(RepairError, message):
+                    target.validate()
+            finally:
+                object.__setattr__(target, attribute, original)
+
+        result_cases = (
+            ("status", "proposed", "status is unknown"),
+            ("reason", "deadline", "reason is unknown"),
+            ("source_graph", object(), "source must be an exact"),
+            ("registry", object(), "registry must be an exact"),
+            ("repair_limits", object(), "repair limits must be an exact"),
+            ("solver_limits", object(), "solver limits must be an exact"),
+            ("sites_considered", -1, "site count is out of bounds"),
+            (
+                "source_verification",
+                object(),
+                "source verification must be an exact",
+            ),
+            ("candidate", object(), "candidate must be an exact"),
+        )
+        for attribute, replacement, message in result_cases:
+            with self.subTest(model="result", attribute=attribute):
+                assert_rejected(result, attribute, replacement, message)
+
+        candidate_cases = (
+            (
+                "constraint_id",
+                "declaration/output/unit",
+                "constraint identifier is not canonical",
+            ),
+            ("value_id", "NOT-CANONICAL", "identifier is not canonical"),
+            (
+                "replacement_unit_id",
+                candidate.previous_unit_id,
+                "replacement must change",
+            ),
+            ("relaxed_graph", object(), "relaxed graph must be an exact"),
+            ("repaired_graph", object(), "repaired graph must be an exact"),
+            (
+                "relaxed_verification",
+                object(),
+                "relaxed verification must be an exact",
+            ),
+        )
+        for attribute, replacement, message in candidate_cases:
+            with self.subTest(model="candidate", attribute=attribute):
+                assert_rejected(candidate, attribute, replacement, message)
+
     def test_candidate_and_result_subclasses_are_rejected(self) -> None:
         result = propose_unit_annotation_repair(exp_graph("percent"))
         proposal = result.candidate

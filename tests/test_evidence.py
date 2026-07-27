@@ -9,14 +9,17 @@ import statistics
 import struct
 import subprocess
 import sys
+import tempfile
 import unittest
 import xml.etree.ElementTree as ElementTree
 import zlib
 from datetime import datetime, timedelta
 from pathlib import Path, PurePosixPath
+from unittest.mock import patch
 from urllib.parse import unquote, urlsplit
 
 from examples.build_wheel_anomaly_contract import build_graph
+from tools.evidence import generate as evidence_generate
 from unitsentinel import (
     BUILTIN_REGISTRY,
     VerificationStatus,
@@ -56,6 +59,12 @@ EXPECTED_CONFLICT_CORE = (
 )
 EXPECTED_VISUAL_DIMENSIONS = {
     "certificate-lineage": (1_440, 900),
+    "compare-compatible-terminal": (1_440, 1_100),
+    "compare-drift-terminal": (1_440, 1_100),
+    "compare-indeterminate-terminal": (1_440, 1_100),
+    "comparison-artifact-sizes": (1_440, 980),
+    "comparison-lineage-drift": (1_440, 1_020),
+    "comparison-workflow": (1_440, 990),
     "conflict-core": (1_440, 930),
     "conflict-terminal": (1_440, 900),
     "replay-terminal": (1_440, 900),
@@ -67,6 +76,13 @@ EXPECTED_VISUAL_DIMENSIONS = {
 }
 REQUIRED_README_EMBEDS = {
     "docs/assets/certificate-lineage.png",
+    "docs/assets/compare-compatible-terminal.png",
+    "docs/assets/compare-drift-terminal.png",
+    "docs/assets/compare-indeterminate-terminal.png",
+    "docs/assets/comparison-artifact-sizes.png",
+    "docs/assets/comparison-demo.gif",
+    "docs/assets/comparison-lineage-drift.png",
+    "docs/assets/comparison-workflow.png",
     "docs/assets/conflict-core.png",
     "docs/assets/conflict-terminal.png",
     "docs/assets/replay-terminal.png",
@@ -418,6 +434,60 @@ def _parse_gif(
 
 
 class EvidenceIntegrityTests(unittest.TestCase):
+    def test_general_recorder_preflights_graphs_with_bounded_reader(self) -> None:
+        with (
+            patch.object(
+                evidence_generate,
+                "_read_regular_file",
+                side_effect=evidence_generate.EvidenceError("unsafe fixture"),
+            ) as reader,
+            self.assertRaisesRegex(
+                evidence_generate.EvidenceError,
+                "stale evidence input",
+            ),
+        ):
+            evidence_generate._build_evidence({}, prepare_inputs=False)
+        reader.assert_called_once()
+        self.assertEqual(
+            reader.call_args.kwargs["purpose"],
+            "evidence input docs/evidence/contracts/wheel-anomaly-verified.json",
+        )
+
+    def test_evidence_reader_rejects_fifo_without_blocking(self) -> None:
+        with tempfile.TemporaryDirectory(dir=ROOT) as directory:
+            fifo = Path(directory) / "evidence-fifo"
+            os.mkfifo(fifo)
+            program = (
+                "from pathlib import Path\n"
+                "from tools.evidence.generate import EvidenceError, "
+                "_read_regular_file\n"
+                f"path = Path({str(fifo)!r})\n"
+                "try:\n"
+                "    _read_regular_file(path, purpose='test evidence')\n"
+                "except EvidenceError:\n"
+                "    raise SystemExit(0)\n"
+                "raise SystemExit(1)\n"
+            )
+            completed = subprocess.run(
+                [sys.executable, "-c", program],
+                cwd=ROOT,
+                env={
+                    "HOME": str(ROOT / ".unitsentinel" / "fifo-test-home"),
+                    "LANG": "C.UTF-8",
+                    "LC_ALL": "C.UTF-8",
+                    "PATH": os.defpath,
+                    "PYTHONHASHSEED": "0",
+                    "PYTHONPATH": str(ROOT / "src"),
+                },
+                stdin=subprocess.DEVNULL,
+                capture_output=True,
+                check=False,
+                timeout=2,
+            )
+            self.assertEqual(completed.returncode, 0, completed.stderr)
+            self.assertEqual(completed.stdout, b"")
+            self.assertEqual(completed.stderr, b"")
+
     def test_generator_reproduces_committed_evidence(self) -> None:
         completed = subprocess.run(
             [
@@ -901,6 +971,50 @@ class EvidenceIntegrityTests(unittest.TestCase):
                     frame_path.read_bytes(),
                     expected_source.read_bytes(),
                 )
+
+    def test_comparison_gif_has_closed_frames_delays_and_loop(self) -> None:
+        frame_manifest = _canonical_document(
+            EVIDENCE / "comparison-demo" / "frames.json"
+        )
+        expected_manifest = {
+            "frames": [
+                {"delay_ms": 3_000, "path": "frame-compatible.svg"},
+                {"delay_ms": 3_000, "path": "frame-drift.svg"},
+                {"delay_ms": 3_000, "path": "frame-indeterminate.svg"},
+            ],
+            "schema": "unitsentinel.comparison-demo-frames/v1",
+        }
+        self.assertEqual(frame_manifest, expected_manifest)
+
+        logical_screen, applications, frames = _parse_gif(
+            (ASSETS / "comparison-demo.gif").read_bytes()
+        )
+        self.assertEqual(logical_screen[:2], (1_440, 1_100))
+        self.assertTrue(logical_screen[2] & 0x80)
+        self.assertEqual(applications, [(b"NETSCAPE2.0", b"\x01\x00\x00")])
+        self.assertEqual(len(frames), 3)
+        self.assertEqual([frame[6] for frame in frames], [300, 300, 300])
+        for frame in frames:
+            with self.subTest(frame=frame):
+                self.assertEqual(frame[:4], (0, 0, 1_440, 1_100))
+                self.assertEqual(frame[4], 0)
+                self.assertEqual(frame[5], 0x04)
+                self.assertEqual(frame[7], 8)
+
+        expected_sources = (
+            ASSETS / "compare-compatible-terminal.svg",
+            ASSETS / "compare-drift-terminal.svg",
+            ASSETS / "compare-indeterminate-terminal.svg",
+        )
+        for frame_record, expected_source in zip(
+            frame_manifest["frames"],
+            expected_sources,
+            strict=True,
+        ):
+            frame_path = EVIDENCE / "comparison-demo" / frame_record["path"]
+            with self.subTest(frame_source=frame_path.name):
+                _assert_inside_repository(frame_path)
+                self.assertEqual(frame_path.read_bytes(), expected_source.read_bytes())
 
     def test_text_evidence_has_no_local_identity_credentials_or_controls(
         self,

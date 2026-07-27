@@ -8,6 +8,7 @@ from typing import Any, Final
 
 SVG_WIDTH: Final = 1_440
 TERMINAL_HEIGHT: Final = 900
+COMPARISON_TERMINAL_HEIGHT: Final = 1_100
 BACKGROUND: Final = "#07111f"
 PANEL: Final = "#0d1b2d"
 BORDER: Final = "#253a55"
@@ -202,6 +203,663 @@ def terminal_svg(
         height=TERMINAL_HEIGHT,
         title=title,
         description=description,
+        body="\n".join(body),
+    )
+
+
+def comparison_terminal_svg(
+    *,
+    title: str,
+    transcript: str,
+    transcript_digest: str,
+    source_path: str,
+    expected_lines: int,
+    accent: str,
+    description: str,
+) -> str:
+    """Render every source line from one committed comparison transcript."""
+
+    lines = transcript.rstrip("\n").splitlines()
+    if not transcript.endswith("\n") or len(lines) != expected_lines:
+        raise ValueError("comparison transcript line count is not exact")
+    if expected_lines not in (36, 39):
+        raise ValueError("comparison transcript is outside the closed line budget")
+    if len(transcript_digest) != 64:
+        raise ValueError("comparison transcript digest must be a full SHA-256")
+
+    max_characters = 150
+    wrapped = [
+        (source_line, line[index : index + max_characters])
+        for source_line, line in enumerate(lines, start=1)
+        for index in range(0, max(len(line), 1), max_characters)
+    ]
+    if len(wrapped) > 41:
+        raise ValueError("comparison transcript exceeds the visual row budget")
+
+    body = [
+        '<rect x="32" y="30" width="1376" height="1040" rx="20" '
+        f'fill="{PANEL}" stroke="{BORDER}" stroke-width="2" '
+        'filter="url(#shadow)"/>',
+        '<rect x="32" y="30" width="1376" height="66" rx="20" fill="#12233a"/>',
+        '<rect x="32" y="76" width="1376" height="20" fill="#12233a"/>',
+        '<circle cx="70" cy="63" r="8" fill="#ff6b7a"/>',
+        '<circle cx="98" cy="63" r="8" fill="#ffc857"/>',
+        '<circle cx="126" cy="63" r="8" fill="#5ee6a8"/>',
+        _text(720, 70, title, size=19, fill=TEXT, weight=700, anchor="middle"),
+        f'<rect x="32" y="94" width="1376" height="4" fill="{accent}"/>',
+    ]
+
+    for visual_row, (source_line, chunk) in enumerate(wrapped):
+        line = lines[source_line - 1]
+        fill = TEXT
+        weight = 400
+        if line.startswith("$") or line.startswith("    "):
+            fill = CYAN
+        elif (
+            "COMPATIBLE" in line
+            or "verification: verified" in line
+            or "compatible" in line
+        ):
+            fill = GREEN
+            weight = 700 if "COMPATIBLE" in line else 400
+        elif "DRIFT" in line or "normalization-lineage-drift" in line:
+            fill = RED
+            weight = 700 if "DRIFT" in line else 400
+        elif "INDETERMINATE" in line or "underconstrained" in line:
+            fill = AMBER
+            weight = 700 if "INDETERMINATE" in line else 400
+        elif "sha256:" in line:
+            fill = VIOLET
+        elif line.startswith("[exit "):
+            fill = accent
+            weight = 700
+
+        continuation = visual_row > 0 and wrapped[visual_row - 1][0] == source_line
+        body.append(
+            f'<text x="{78 if continuation else 62}" '
+            f'y="{128 + visual_row * 23}" '
+            f'data-source-line="{source_line}" '
+            f'data-continuation="{"true" if continuation else "false"}" '
+            'xml:space="preserve" '
+            f'fill="{fill}" font-family="DejaVu Sans Mono, monospace" '
+            f'font-size="14" font-weight="{weight}">{escape(chunk)}</text>'
+        )
+    body.extend(
+        (
+            _text(
+                62,
+                1053,
+                f"{source_path} · {expected_lines} source lines",
+                size=12,
+                fill=MUTED,
+                family="DejaVu Sans Mono, monospace",
+            ),
+            _text(
+                1378,
+                1053,
+                f"sha256 {transcript_digest}",
+                size=12,
+                fill=MUTED,
+                anchor="end",
+                family="DejaVu Sans Mono, monospace",
+            ),
+        )
+    )
+    return _document(
+        width=SVG_WIDTH,
+        height=COMPARISON_TERMINAL_HEIGHT,
+        title=title,
+        description=description,
+        body="\n".join(body),
+    )
+
+
+def comparison_workflow_svg(
+    *,
+    plan_digest: str,
+    registry_digest: str,
+    training_graph_digest: str,
+    serving_graph_digest: str,
+    result_digest: str,
+) -> str:
+    """Render the implemented comparison ordering from bound evidence."""
+
+    body = [
+        _text(60, 64, "Training-serving comparison workflow", size=31, weight=700),
+        _text(
+            60,
+            100,
+            "Bounded input ordering and durable output ordering shown explicitly.",
+            size=17,
+            fill=MUTED,
+        ),
+        _box(
+            55,
+            155,
+            250,
+            160,
+            title="1 · Validate limits",
+            lines=(
+                "before file I/O",
+                "per-side solver budgets",
+                "closed numeric ranges",
+            ),
+            accent=CYAN,
+        ),
+        _box(
+            355,
+            155,
+            300,
+            160,
+            title="2 · Pin raw plan",
+            lines=(
+                "bounded regular-file read",
+                "SHA-256 checked first",
+                f"{plan_digest[:24]}…",
+            ),
+            accent=CYAN,
+        ),
+        _box(
+            705,
+            155,
+            300,
+            160,
+            title="3 · Strict plan decode",
+            lines=(
+                "only after expected pin",
+                "canonical closure",
+                "raw/model digest match",
+            ),
+            accent=VIOLET,
+        ),
+        _box(
+            1055,
+            155,
+            330,
+            160,
+            title="4 · Registry gate",
+            lines=(
+                "checked before graph reads",
+                f"{registry_digest[:24]}…",
+                "mismatch fails closed",
+            ),
+            accent=VIOLET,
+        ),
+        _arrow(305, 235, 355, 235),
+        _arrow(655, 235, 705, 235),
+        _arrow(1005, 235, 1055, 235),
+        _box(
+            80,
+            405,
+            360,
+            180,
+            title="5a · Training graph",
+            lines=(
+                "bounded raw read",
+                "plan SHA-256 before decode",
+                f"{training_graph_digest[:24]}…",
+                "then strict graph decode",
+            ),
+            accent=CYAN,
+        ),
+        _box(
+            510,
+            405,
+            360,
+            180,
+            title="5b · Serving graph",
+            lines=(
+                "read only after training passes",
+                "plan SHA-256 before decode",
+                f"{serving_graph_digest[:24]}…",
+                "then strict graph decode",
+            ),
+            accent=CYAN,
+        ),
+        _box(
+            940,
+            405,
+            390,
+            180,
+            title="6 · Two fresh verifications",
+            lines=(
+                "training: fresh bounded solve",
+                "serving: fresh bounded solve",
+                "same registry + exact limits",
+                "no stale certificate reuse",
+            ),
+            accent=GREEN,
+        ),
+        _arrow(1220, 315, 260, 405, label="registry accepted", color=CYAN),
+        _arrow(440, 495, 510, 495, label="training accepted", color=CYAN),
+        _arrow(870, 495, 940, 495),
+        _box(
+            55,
+            700,
+            295,
+            170,
+            title="7 · Interfaces + lineage",
+            lines=(
+                "bound interfaces",
+                "content vs semantic form",
+                "output normalization",
+            ),
+            accent=VIOLET,
+        ),
+        _box(
+            395,
+            700,
+            295,
+            170,
+            title="8 · Strict result",
+            lines=(
+                "canonical encode",
+                "self-decode + cross-bind",
+                f"{result_digest[:24]}…",
+            ),
+            accent=VIOLET,
+        ),
+        _box(
+            735,
+            700,
+            295,
+            170,
+            title="9 · Optional output",
+            lines=(
+                "if --result is requested",
+                "new regular file only",
+                "fsync + atomic publish",
+            ),
+            accent=GREEN,
+        ),
+        _box(
+            1075,
+            700,
+            295,
+            170,
+            title="10 · Stdout + exit",
+            lines=(
+                "only after output commit",
+                "stable text / JSON report",
+                "0 compatible · 5 drift · 3 indeterminate",
+            ),
+            accent=GREEN,
+        ),
+        _arrow(1135, 585, 202, 700, label="verified pair", color=GREEN),
+        _arrow(350, 785, 395, 785),
+        _arrow(690, 785, 735, 785),
+        _arrow(1030, 785, 1075, 785),
+        _text(
+            720,
+            950,
+            "Security ordering: pin → decode → graph reads → verify → compare → "
+            "strict result → optional atomic file → stdout",
+            size=17,
+            fill=AMBER,
+            weight=700,
+            anchor="middle",
+        ),
+    ]
+    return _document(
+        width=SVG_WIDTH,
+        height=990,
+        title="UnitSentinel training-serving comparison workflow",
+        description=(
+            "The implemented fail-closed sequence: validate limits, hash-pin the "
+            "plan before decoding or graph reads, verify both graphs freshly, "
+            "compare normalization lineage, strictly encode the result, atomically "
+            "publish it when requested, and only then write stdout."
+        ),
+        body="\n".join(body),
+    )
+
+
+def _digest_rows(
+    *,
+    x: int,
+    y: int,
+    label: str,
+    training: str,
+    serving: str,
+    accent: str,
+) -> list[str]:
+    return [
+        _text(x, y, label, size=15, fill=accent, weight=700),
+        _text(
+            x,
+            y + 25,
+            f"train  {training[:32]}",
+            size=12,
+            fill=TEXT,
+            family="DejaVu Sans Mono, monospace",
+        ),
+        _text(
+            x + 52,
+            y + 46,
+            training[32:],
+            size=12,
+            fill=TEXT,
+            family="DejaVu Sans Mono, monospace",
+        ),
+        _text(
+            x,
+            y + 71,
+            f"serve  {serving[:32]}",
+            size=12,
+            fill=TEXT,
+            family="DejaVu Sans Mono, monospace",
+        ),
+        _text(
+            x + 52,
+            y + 92,
+            serving[32:],
+            size=12,
+            fill=TEXT,
+            family="DejaVu Sans Mono, monospace",
+        ),
+    ]
+
+
+def comparison_lineage_drift_svg(
+    *,
+    compatible: dict[str, str],
+    drift: dict[str, str],
+) -> str:
+    """Contrast content identity with semantic and output normalization."""
+
+    required = {
+        "content_serving",
+        "content_training",
+        "output_serving",
+        "output_training",
+        "semantic_serving",
+        "semantic_training",
+    }
+    if set(compatible) != required or set(drift) != required:
+        raise ValueError("comparison lineage digest fields are not closed")
+    if any(len(value) != 64 for value in (*compatible.values(), *drift.values())):
+        raise ValueError("comparison lineage values must be full SHA-256 digests")
+
+    body = [
+        _text(
+            60,
+            64,
+            "Normalization lineage: compatible vs drift",
+            size=31,
+            weight=700,
+        ),
+        _text(
+            60,
+            100,
+            "Full SHA-256 values from strictly decoded comparison result claims.",
+            size=17,
+            fill=MUTED,
+        ),
+        '<rect x="55" y="145" width="645" height="790" rx="20" '
+        f'fill="{PANEL}" stroke="{GREEN}" stroke-width="2"/>',
+        '<rect x="740" y="145" width="645" height="790" rx="20" '
+        f'fill="{PANEL}" stroke="{RED}" stroke-width="2" '
+        'stroke-dasharray="10 7"/>',
+        _text(
+            82,
+            190,
+            "COMPATIBLE · renamed serving interface",
+            size=21,
+            fill=GREEN,
+            weight=700,
+        ),
+        _text(
+            767,
+            190,
+            "DRIFT · reversed serving divide",
+            size=21,
+            fill=RED,
+            weight=700,
+        ),
+    ]
+    body.extend(
+        _digest_rows(
+            x=82,
+            y=240,
+            label="Content lineage SHA-256 · identity-bound · DIFFERENT",
+            training=compatible["content_training"],
+            serving=compatible["content_serving"],
+            accent=VIOLET,
+        )
+    )
+    body.extend(
+        _digest_rows(
+            x=767,
+            y=240,
+            label="Content lineage SHA-256 · identity-bound · DIFFERENT",
+            training=drift["content_training"],
+            serving=drift["content_serving"],
+            accent=VIOLET,
+        )
+    )
+    body.extend(
+        _digest_rows(
+            x=82,
+            y=405,
+            label="Semantic lineage SHA-256 · renaming-insensitive · MATCH",
+            training=compatible["semantic_training"],
+            serving=compatible["semantic_serving"],
+            accent=GREEN,
+        )
+    )
+    body.extend(
+        _digest_rows(
+            x=767,
+            y=405,
+            label="Semantic lineage SHA-256 · operation-sensitive · DIFFERENT",
+            training=drift["semantic_training"],
+            serving=drift["semantic_serving"],
+            accent=RED,
+        )
+    )
+    body.extend(
+        _digest_rows(
+            x=82,
+            y=570,
+            label="Output normalization SHA-256 · output-00 · MATCH",
+            training=compatible["output_training"],
+            serving=compatible["output_serving"],
+            accent=GREEN,
+        )
+    )
+    body.extend(
+        _digest_rows(
+            x=767,
+            y=570,
+            label="Output normalization SHA-256 · output-00 · DIFFERENT",
+            training=drift["output_training"],
+            serving=drift["output_serving"],
+            accent=RED,
+        )
+    )
+    body.extend(
+        (
+            _box(
+                82,
+                755,
+                590,
+                135,
+                title="Outcome · COMPATIBLE",
+                lines=(
+                    "3 bound interfaces · 0 mismatches",
+                    "different value names do not create drift",
+                ),
+                accent=GREEN,
+            ),
+            _box(
+                767,
+                755,
+                590,
+                135,
+                title="Outcome · NORMALIZATION-LINEAGE-DRIFT",
+                lines=(
+                    "input contracts remain compatible",
+                    "output-00 records the one mismatch",
+                ),
+                accent=RED,
+            ),
+            _text(
+                720,
+                982,
+                "Whole-lineage hashes aid review; decisions use mapped interface "
+                "metadata and per-output normalization digests.",
+                size=16,
+                fill=AMBER,
+                weight=700,
+                anchor="middle",
+            ),
+        )
+    )
+    return _document(
+        width=SVG_WIDTH,
+        height=1_020,
+        title="UnitSentinel normalization lineage comparison",
+        description=(
+            "Real compatible and drift claims showing full content-lineage, "
+            "semantic-lineage, and output-normalization SHA-256 digests. Content "
+            "identity differs in both cases; semantic and output normalization "
+            "match only for the compatible case. The whole-lineage semantic digest "
+            "is reviewer evidence, not a comparison-decision input."
+        ),
+        body="\n".join(body),
+    )
+
+
+def comparison_artifact_sizes_svg(
+    *,
+    rows: tuple[dict[str, int | str], ...],
+    measurement_scope: str,
+) -> str:
+    """Render exact recorded artifact byte lengths with a shared zero scale."""
+
+    if len(rows) != 3:
+        raise ValueError("comparison artifact chart requires exactly three cases")
+    metrics = (
+        ("JSON capture", "capture_json_bytes"),
+        ("result claim", "claim_bytes"),
+        ("text capture", "capture_text_bytes"),
+        ("plan", "plan_bytes"),
+        ("serving graph", "serving_graph_bytes"),
+        ("training graph", "training_graph_bytes"),
+    )
+    maximum = max(
+        int(row[field])
+        for row in rows
+        for _, field in metrics
+        if type(row[field]) is int
+    )
+    scale_max = int(math.ceil(maximum / 1_000) * 1_000)
+    panel_width = 420
+    chart_width = 285
+    colors = (GREEN, RED, AMBER)
+    body = [
+        _text(60, 64, "Exact comparison artifact sizes", size=31, weight=700),
+        _text(
+            60,
+            100,
+            f"Committed file bytes · common 0-{scale_max:,} scale · direct labels.",
+            size=17,
+            fill=MUTED,
+        ),
+    ]
+    for panel_index, (row, accent) in enumerate(zip(rows, colors, strict=True)):
+        x = 55 + panel_index * 455
+        name = str(row["name"]).upper()
+        exit_code = int(row["exit_code"])
+        body.extend(
+            (
+                f'<rect x="{x}" y="145" width="{panel_width}" height="700" '
+                f'rx="18" fill="{PANEL}" stroke="{BORDER}" stroke-width="2"/>',
+                _text(
+                    x + 20,
+                    184,
+                    f"{name} · EXIT {exit_code}",
+                    size=19,
+                    fill=accent,
+                    weight=700,
+                ),
+            )
+        )
+        for metric_index, (label, field) in enumerate(metrics):
+            value = int(row[field])
+            y = 245 + metric_index * 88
+            width = round(chart_width * value / scale_max, 1)
+            body.extend(
+                (
+                    _text(x + 20, y - 12, label, size=14, fill=TEXT, weight=700),
+                    f'<rect x="{x + 20}" y="{y}" width="{chart_width}" '
+                    f'height="24" rx="4" fill="#12233a" stroke="{BORDER}"/>',
+                    f'<rect x="{x + 20}" y="{y}" width="{width}" height="24" '
+                    f'rx="4" fill="{accent}" stroke="{accent}"/>',
+                    _text(
+                        x + 325,
+                        y + 18,
+                        f"{value:,} B",
+                        size=13,
+                        fill=TEXT,
+                        weight=700,
+                        family="DejaVu Sans Mono, monospace",
+                    ),
+                )
+            )
+        body.extend(
+            (
+                _text(
+                    x + 20,
+                    780,
+                    "0 B",
+                    size=12,
+                    fill=MUTED,
+                    family="DejaVu Sans Mono, monospace",
+                ),
+                _text(
+                    x + 305,
+                    780,
+                    f"{scale_max:,} B",
+                    size=12,
+                    fill=MUTED,
+                    anchor="end",
+                    family="DejaVu Sans Mono, monospace",
+                ),
+            )
+        )
+    body.extend(
+        (
+            _text(
+                720,
+                900,
+                measurement_scope,
+                size=18,
+                fill=AMBER,
+                weight=700,
+                anchor="middle",
+            ),
+            _text(
+                720,
+                938,
+                "These byte lengths describe the committed files only; "
+                "they are not latency, throughput, or memory measurements.",
+                size=15,
+                fill=MUTED,
+                anchor="middle",
+            ),
+        )
+    )
+    return _document(
+        width=SVG_WIDTH,
+        height=980,
+        title="Exact UnitSentinel comparison artifact sizes",
+        description=(
+            "A common-zero-scale small-multiple bar chart of exact committed JSON "
+            "capture, result claim, text capture, plan, serving graph, and training "
+            "graph byte lengths for compatible, drift, and indeterminate cases. "
+            "The figure makes no performance claim."
+        ),
         body="\n".join(body),
     )
 

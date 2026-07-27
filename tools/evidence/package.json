@@ -10,8 +10,10 @@
   "scripts": {
     "audit": "npm audit --audit-level=high",
     "check": "node render.mjs --check",
+    "check:comparison": "node render.mjs --check-comparison",
     "check:repair": "node render.mjs --check-repair",
     "render": "node render.mjs",
+    "render:comparison": "node render.mjs --render-comparison",
     "render:repair": "node render.mjs --repair"
   },
   "dependencies": {

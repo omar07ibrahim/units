@@ -9,6 +9,7 @@ import math
 import os
 import platform
 import re
+import selectors
 import shutil
 import stat
 import statistics
@@ -61,6 +62,10 @@ BENCHMARK_SIZES: Final = (1, 8, 32, 128, 256)
 BENCHMARK_REPETITIONS: Final = 3
 PYTHON_DISPLAY: Final = ".venv/bin/python"
 MAX_EVIDENCE_FILE_BYTES: Final = 134_217_728
+MAX_CLI_STDOUT_BYTES: Final = 41_943_040
+MAX_CLI_STDERR_BYTES: Final = 65_536
+CLI_TIMEOUT_SECONDS: Final = 30.0
+_CAPTURE_CHUNK_BYTES: Final = 65_536
 SHA256_PATTERN: Final = re.compile(r"[0-9a-f]{64}")
 TIMESTAMP_PATTERN: Final = re.compile(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\+00:00")
 
@@ -118,7 +123,10 @@ def _read_regular_file(path: Path, *, purpose: str) -> bytes:
     try:
         descriptor = os.open(
             path,
-            os.O_RDONLY | getattr(os, "O_CLOEXEC", 0) | getattr(os, "O_NOFOLLOW", 0),
+            os.O_RDONLY
+            | getattr(os, "O_CLOEXEC", 0)
+            | getattr(os, "O_NOFOLLOW", 0)
+            | getattr(os, "O_NONBLOCK", 0),
         )
         before = os.fstat(descriptor)
         if (
@@ -238,6 +246,88 @@ def _managed_run_directory() -> Iterator[None]:
             ) from cleanup_error
 
 
+def _capture_bounded_process(
+    command: Sequence[str],
+    *,
+    cwd: Path,
+    environment: dict[str, str],
+    timeout_seconds: float,
+    stdout_limit: int,
+    stderr_limit: int,
+) -> tuple[int, bytes, bytes]:
+    if timeout_seconds <= 0 or stdout_limit < 0 or stderr_limit < 0:
+        raise EvidenceError("process capture limits are invalid")
+
+    process: subprocess.Popen[bytes] | None = None
+    selector = selectors.DefaultSelector()
+    buffers: dict[str, list[bytes]] = {"stderr": [], "stdout": []}
+    totals = {"stderr": 0, "stdout": 0}
+    limits = {"stderr": stderr_limit, "stdout": stdout_limit}
+    try:
+        process = subprocess.Popen(
+            command,
+            cwd=cwd,
+            env=environment,
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
+        if process.stdout is None or process.stderr is None:
+            raise EvidenceError("process capture pipes are unavailable")
+        selector.register(process.stdout, selectors.EVENT_READ, "stdout")
+        selector.register(process.stderr, selectors.EVENT_READ, "stderr")
+        deadline = time.monotonic() + timeout_seconds
+        while selector.get_map():
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                raise EvidenceError("process capture exceeded its time limit")
+            events = selector.select(remaining)
+            if not events:
+                raise EvidenceError("process capture exceeded its time limit")
+            for key, _ in events:
+                side = cast(str, key.data)
+                remaining_bytes = limits[side] + 1 - totals[side]
+                try:
+                    chunk = os.read(
+                        key.fd,
+                        min(_CAPTURE_CHUNK_BYTES, remaining_bytes),
+                    )
+                except BlockingIOError:
+                    continue
+                if not chunk:
+                    selector.unregister(key.fileobj)
+                    continue
+                totals[side] += len(chunk)
+                if totals[side] > limits[side]:
+                    raise EvidenceError(f"process {side} exceeded its capture limit")
+                buffers[side].append(chunk)
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            raise EvidenceError("process capture exceeded its time limit")
+        return_code = process.wait(timeout=remaining)
+        return (
+            return_code,
+            b"".join(buffers["stdout"]),
+            b"".join(buffers["stderr"]),
+        )
+    except EvidenceError:
+        raise
+    except (OSError, subprocess.TimeoutExpired):
+        raise EvidenceError("process capture could not complete safely") from None
+    finally:
+        selector.close()
+        if process is not None:
+            if process.poll() is None:
+                with suppress(OSError):
+                    process.kill()
+            with suppress(OSError, subprocess.TimeoutExpired):
+                process.wait(timeout=5)
+            if process.stdout is not None:
+                process.stdout.close()
+            if process.stderr is not None:
+                process.stderr.close()
+
+
 def _run_cli(arguments: Sequence[str], *, expected_exit: int) -> bytes:
     environment = {
         "HOME": str(RUN_DIRECTORY),
@@ -248,24 +338,21 @@ def _run_cli(arguments: Sequence[str], *, expected_exit: int) -> bytes:
         "PYTHONPATH": str(ROOT / "src"),
     }
     try:
-        completed = subprocess.run(
+        return_code, stdout, stderr = _capture_bounded_process(
             [sys.executable, "-m", "unitsentinel", *arguments],
             cwd=ROOT,
-            env=environment,
-            stdin=subprocess.DEVNULL,
-            capture_output=True,
-            check=False,
-            timeout=30,
+            environment=environment,
+            timeout_seconds=CLI_TIMEOUT_SECONDS,
+            stdout_limit=MAX_CLI_STDOUT_BYTES,
+            stderr_limit=MAX_CLI_STDERR_BYTES,
         )
-    except (OSError, subprocess.TimeoutExpired):
+    except EvidenceError:
         raise EvidenceError("CLI evidence capture could not complete safely") from None
-    if completed.returncode != expected_exit:
-        raise EvidenceError(
-            f"CLI returned {completed.returncode}, expected {expected_exit}"
-        )
-    if completed.stderr:
+    if return_code != expected_exit:
+        raise EvidenceError(f"CLI returned {return_code}, expected {expected_exit}")
+    if stderr:
         raise EvidenceError("CLI wrote unexpected diagnostics during evidence capture")
-    return completed.stdout
+    return stdout
 
 
 def _transcript(
@@ -546,8 +633,11 @@ def _build_evidence(
             _atomic_write(path, payload)
         else:
             try:
-                current = path.read_bytes()
-            except OSError:
+                current = _read_regular_file(
+                    path,
+                    purpose=f"evidence input {_relative(path)}",
+                )
+            except EvidenceError:
                 raise EvidenceError(
                     f"stale evidence input: {_relative(path)}"
                 ) from None

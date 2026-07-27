@@ -1,8 +1,10 @@
 # Architecture and verification boundary
 
-This document separates the implemented verifier, certificate/replay and
-bounded-repair boundaries, and CLI from later comparison and adapter design.
-The implementation map at the end is the authoritative status summary.
+This document separates the implemented verifier, certificate/replay,
+bounded-repair, canonical comparison-plan/result, comparison engine, and
+production verification/comparison CLI boundaries from the later adapter
+design. The implementation map at the end is the authoritative status
+summary.
 
 ## Design objective
 
@@ -181,17 +183,99 @@ documented in [certificate-format.md](certificate-format.md).
 
 ## Training and serving comparison
 
-This comparison layer is planned, not implemented.
+The canonical alignment plan, bounded plan and result byte codecs,
+fresh-verification engine, and immutable result are implemented. The plan
+binds the exact training graph, serving graph, registry snapshot, and explicit
+logical interface mapping without itself making a compatibility claim.
 
-Two individually verified graphs may still disagree. Contract comparison will
-align declared public inputs and outputs, then report:
+Mappings operate on public `(role, value_id)` occurrences. Every occurrence
+must be covered exactly once before comparison; one-sided bindings express an
+explicit absence, cross-role bindings preserve a role drift, and different
+identifiers are treated as an intentional rename only under the caller-trusted
+plan that pairs them. Constructing or decoding a plan does not establish
+endpoint membership, total coverage, or permission; the engine validates
+membership and exact occurrence coverage against both bound graphs before
+calling either solver. It binds the exact plan digest, exposes
+`authentication: not-provided`, and lets a caller-trusted expected digest fail
+closed. No fuzzy, positional, or alias-based matching is permitted. Port
+positions are compared only within the same role because input and output
+ordinals are separate namespaces. The complete plan and result contract is
+documented in
+[training-serving-comparison-v1.md](training-serving-comparison-v1.md).
 
-- missing or extra values;
-- dimension changes;
-- compatible dimension but different scale or offset;
-- quantity-kind changes;
-- normalization provenance changes;
-- underconstrained values on either side.
+Two individually verified graphs may still disagree. Contract comparison
+aligns declared public inputs and outputs, then reports exact missing/extra,
+role, position, dtype, shape, explicit-unit, dimension, kind, scale, and offset
+differences. A negative, underconstrained, unknown, malformed, or
+identity-mismatched verifier result produces `indeterminate` with no partial
+interface findings.
+
+Both sides are freshly verified with the same registry and solver limits even
+when the first ordinary result is not positive. Complete positive assignments
+are independently replayed before snapshots are built.
+
+The normalization-lineage extractor and its fresh comparison integration are
+implemented. The extractor derives a bounded, content-addressed expression DAG
+from one plan-scoped positive verification claim, maps public input roots and
+outputs through the explicit comparison plan, collapses only
+metadata-preserving identities, and records every dimensionless linear
+`divide` site as a counted semantic multiset. Semantic hashes exclude internal
+graph, node, and value identifiers; the outer artifact retains those
+diagnostics and source digests. The extractor replays and validates a supplied
+claim but does not prove it was produced freshly.
+
+The comparison engine supplies that freshness boundary. Only after both graph
+results are accepted as complete and replayable does it extract training and
+serving lineages, recheck every pinned source between calls, and revalidate the
+first lineage after the second extraction. It independently rederives the
+complete expected expression DAG, sites, routes, and outputs from each real
+graph instead of trusting a candidate's internally consistent hashes. Every
+lineage output receives a domain-separated digest over its logical contract ID
+and counted routed normalization-site multiset. A two-sided output binding
+stores the training and serving digests; a difference adds
+`normalization-lineage-drift` after the ordinary interface codes. A malformed,
+misbound, incomplete, forged, or mutated lineage makes the whole result
+`indeterminate` with
+`normalization-lineage-failure`; neither lineage nor partial binding findings
+are published.
+
+The strict comparison-result decoder preflights canonical JSON at a 32 MiB
+document boundary, reconstructs the complete closed model, recomputes nested
+wrapper and semantic digests, and requires exact canonical byte equality. A
+graph-count-ceiling stress result with 512 nodes, 385 normalization sites, and
+64 outputs measures 7,538,814 bytes but does not maximize every metadata
+field. The committed
+[shape-only boundary measurement](../tools/measure_comparison_result_boundary.py)
+combines deliberately incompatible independent ceilings and measures
+24,402,018 bytes and 779,409 preflight tokens; the 32 MiB and
+1,048,576-token limits are the next powers of two above it. It is a sizing
+stress envelope, not a valid result or proof of the exact maximum.
+
+This codec establishes structural and content-address integrity only. The
+decoded result remains unsigned: decoding does not authenticate an author,
+prove verifier freshness, rederive lineage from either graph, or show that a
+caller approved the plan. Claimed solver limits and check counts do not prove
+those resources were enforced. The fresh engine and caller-trusted expected
+plan digest remain separate trust boundaries.
+
+The production `compare` command carries those boundaries through files and
+process exits. It validates all five solver limits before I/O, hashes and pins
+the raw plan before decoding, rejects a registry mismatch before opening
+either graph, then hashes and binds training before serving. Both graph reads
+are bounded regular-file descriptor snapshots. The strict result encoder runs
+for every domain outcome, including when no result path was requested. A
+requested result is published as a new mode-`0600` file through the existing
+private no-overwrite transaction before stdout is written. Compatible, drift,
+and indeterminate are reportable exits `0`, `5`, and `3`; malformed input,
+unsafe output, usage, and internal failures remain distinct and emit no
+partial report.
+
+The three committed ratio cases execute that public command in text and JSON
+modes and require both runs to write identical raw claims. Their canonical
+graphs, plans, captures, strict results, exact byte lengths, and cross-bound
+provenance regenerate offline. Source-derived terminal, workflow, lineage, and
+artifact-size visuals consume those records; the GIF copies the same terminal
+SVGs rather than synthesizing a session.
 
 Statistical drift tools remain complementary: UnitSentinel finds semantic
 contract skew even when no representative payload samples are available.
@@ -212,17 +296,19 @@ The adapter is not implemented.
 
 ## Resource and security limits
 
-- No network access is required by verification or replay.
+- No network access is required by verification, replay, repair, or comparison.
 - No shell, `eval`, dynamic import, or arbitrary model execution.
 - Fixed limits for document bytes/tree shape, inputs, values, nodes, outputs,
   tensor rank, exponent size, core-shrink checks, uniqueness checks, solver
   memory, and solver time.
+- Comparison-result transport is separately capped at 33,554,432 canonical
+  JSON bytes before model reconstruction.
 - Deterministic errors omit host paths, environment values, and raw solver
   diagnostics.
 - Unknown unit identifiers and unsupported operations fail closed.
 - Canonical JSON readers reject duplicate fields and non-finite numbers.
 - The same registry snapshot is used for compilation, certificate issuance,
-  and replay.
+  replay, and both sides of a comparison.
 
 The threat model excludes a same-UID process that can rewrite the verifier,
 solver binary, or repository parent directories during execution. The
@@ -233,12 +319,12 @@ boundary explicitly.
 
 | Area | Current | Next |
 | --- | --- | --- |
-| Package boundary | Typed exact values, graph, registry, verification/repair results, certificates, and replay reports | Contract comparison |
-| Dimension semantics | Exact bounded rational algebra and graph inference | Contract comparison |
+| Package boundary | Typed exact values, graph, registry, verification/repair/comparison/lineage results, certificates, replay reports, content-addressed comparison plans, strict bounded result codec, and production comparison CLI | Closed-subset ONNX adapter |
+| Dimension semantics | Exact bounded rational algebra, graph inference, training/serving interface comparison, and fresh cross-graph normalization-lineage comparison | Extend only with reviewed operator semantics |
 | Unit registry | Immutable 33-unit snapshot with pinned SHA-256 | External snapshot decoder |
 | Graph IR | Content-addressed bounded IR and strict decoder | ONNX lowering |
-| Solver | Tracked dimension/kind/scale/offset constraints, uniqueness, replay, bounded cores, and repair re-verification | Training/serving contract comparison |
+| Solver | Tracked dimension/kind/scale/offset constraints, uniqueness, replay, bounded cores, repair re-verification, two-sided fresh comparison, and replay-bound lineage comparison | Grouped synthetic fault benchmark |
 | Repairs | One bounded, non-mutating, exact-registry annotation replacement with independent verification and abstention | Additional operators require separate design and review |
-| Certificates | Positive-only canonical codec, content digest, and detached replay with optional strict-toolchain policy | Contract-comparison evidence |
-| CLI | Bounded regular-file reads, stable exits, atomic no-overwrite certificate publication, and read-only repair reports | Contract-comparison commands |
-| Visual evidence | Real CLI captures, repair lineage, diagrams, plot, GIF, accessible SVG, and closed digest manifest | Grouped synthetic fault corpus |
+| Certificates | Positive-only canonical codec, content digest, and detached replay with optional strict-toolchain policy | Signature policy remains deliberately external |
+| CLI | Bounded regular-file reads, required plan pinning, stable exits, atomic no-overwrite certificate/result publication, and read-only repair reports | ONNX import command only after adapter review |
+| Visual evidence | Real verification/replay/repair/comparison captures, lineage/workflow diagrams, measured and exact-size plots, two GIFs, accessible SVGs, and a closed digest manifest | Refresh with every behavior change |
