@@ -1,8 +1,9 @@
 # Architecture and verification boundary
 
-This document separates the implemented verifier, certificate/replay and
-bounded-repair boundaries, and CLI from later comparison and adapter design.
-The implementation map at the end is the authoritative status summary.
+This document separates the implemented verifier, certificate/replay,
+bounded-repair, canonical comparison-plan, and CLI boundaries from the later
+comparison engine and adapter design. The implementation map at the end is the
+authoritative status summary.
 
 ## Design objective
 
@@ -181,7 +182,23 @@ documented in [certificate-format.md](certificate-format.md).
 
 ## Training and serving comparison
 
-This comparison layer is planned, not implemented.
+The canonical alignment plan and bounded byte codec are implemented. They bind
+the exact training graph, serving graph, registry snapshot, and explicit
+logical interface mapping without making a compatibility claim. The
+fresh-verification comparison engine is planned, not yet implemented.
+
+Mappings operate on public `(role, value_id)` occurrences. Every occurrence
+must be covered exactly once before comparison; one-sided bindings express an
+explicit absence, cross-role bindings preserve a role drift, and different
+identifiers are treated as an intentional rename only under the caller-trusted
+plan that pairs them. Constructing or decoding a plan does not establish
+endpoint membership, total coverage, or permission; the later engine must
+validate membership and coverage against both bound graphs. It must also bind
+the exact plan digest, expose `authentication: not-provided`, and allow a
+caller-trusted expected digest or allow-list policy to fail closed. No fuzzy,
+positional, or alias-based matching is permitted. The complete plan contract
+is documented in
+[training-serving-comparison-v1.md](training-serving-comparison-v1.md).
 
 Two individually verified graphs may still disagree. Contract comparison will
 align declared public inputs and outputs, then report:
@@ -233,12 +250,12 @@ boundary explicitly.
 
 | Area | Current | Next |
 | --- | --- | --- |
-| Package boundary | Typed exact values, graph, registry, verification/repair results, certificates, and replay reports | Contract comparison |
+| Package boundary | Typed exact values, graph, registry, verification/repair results, certificates, replay reports, and content-addressed comparison plans | Verified comparison result |
 | Dimension semantics | Exact bounded rational algebra and graph inference | Contract comparison |
 | Unit registry | Immutable 33-unit snapshot with pinned SHA-256 | External snapshot decoder |
 | Graph IR | Content-addressed bounded IR and strict decoder | ONNX lowering |
 | Solver | Tracked dimension/kind/scale/offset constraints, uniqueness, replay, bounded cores, and repair re-verification | Training/serving contract comparison |
 | Repairs | One bounded, non-mutating, exact-registry annotation replacement with independent verification and abstention | Additional operators require separate design and review |
 | Certificates | Positive-only canonical codec, content digest, and detached replay with optional strict-toolchain policy | Contract-comparison evidence |
-| CLI | Bounded regular-file reads, stable exits, atomic no-overwrite certificate publication, and read-only repair reports | Contract-comparison commands |
+| CLI | Bounded regular-file reads, stable exits, atomic no-overwrite certificate publication, and read-only repair reports | Contract-comparison command |
 | Visual evidence | Real CLI captures, repair lineage, diagrams, plot, GIF, accessible SVG, and closed digest manifest | Grouped synthetic fault corpus |

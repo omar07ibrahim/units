@@ -12,8 +12,9 @@ certificate for a positive result.
 
 > **Status:** the v0.1 verification core, canonical graph codec, 33-unit
 > registry, deterministic CLI, detached certificate codec, independent strict
-> replay, and bounded verification-backed annotation repair are implemented.
-> Training/serving comparison and ONNX lowering remain future work.
+> replay, bounded verification-backed annotation repair, and canonical
+> training/serving alignment plan are implemented. The verified comparison
+> engine and ONNX lowering remain future work.
 
 ![Implemented UnitSentinel verification pipeline and fail-closed outcomes](docs/assets/verification-pipeline.png)
 
@@ -305,6 +306,8 @@ The implementation includes:
   annotations;
 - a byte-level decoder that rejects duplicate keys, floats, noncanonical JSON,
   unknown fields, invalid topology, and oversized inputs;
+- a bounded canonical, unsigned training/serving plan with explicit,
+  duplicate-free interface mappings and graph/registry digest bindings;
 - structural preflight limits on bytes, nesting, tokens, nodes, and items;
 - exact constraints for all 14 supported graph operations;
 - alternate-model uniqueness checks;
@@ -320,7 +323,11 @@ The [canonical graph contract](docs/graph-format.md),
 [registry snapshot](docs/registry.md), and
 [architecture boundary](docs/architecture.md) specify the core. The
 [certificate and replay contract](docs/certificate-format.md) documents the
-detached claim byte boundary and replay ordering.
+detached claim byte boundary and replay ordering. The
+[training-serving comparison contract](docs/training-serving-comparison-v1.md)
+defines the explicit alignment plan without claiming that the comparison
+engine is already implemented or that a plan digest authenticates who approved
+its mapping.
 
 ## Trust boundary
 
@@ -388,8 +395,8 @@ The timing snapshot changes only through the explicit
 
 ## Local quality gates
 
-The current suite contains 239 unit, integration, adversarial, and evidence
-tests with 96% statement coverage, 91% branch coverage, and 95% combined
+The current suite contains 259 unit, integration, adversarial, and evidence
+tests with 96% statement coverage, 92% branch coverage, and 95% combined
 statement/branch coverage.
 
 ```bash
@@ -425,7 +432,8 @@ README coverage, and secret/PII exclusions.
 | Detached positive certificates and independent replay | Complete |
 | Production CLI and reproducible visual evidence | Complete |
 | Bounded formally reverified repair candidates | Complete |
-| Training/serving contract comparison | Planned |
+| Canonical training/serving alignment plan | Complete |
+| Fresh-verified training/serving comparison engine | Planned |
 | Closed-subset ONNX metadata adapter | Planned |
 | Grouped synthetic fault benchmark with abstention metrics | Planned |
 
