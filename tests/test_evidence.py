@@ -76,6 +76,13 @@ EXPECTED_VISUAL_DIMENSIONS = {
 }
 REQUIRED_README_EMBEDS = {
     "docs/assets/certificate-lineage.png",
+    "docs/assets/compare-compatible-terminal.png",
+    "docs/assets/compare-drift-terminal.png",
+    "docs/assets/compare-indeterminate-terminal.png",
+    "docs/assets/comparison-artifact-sizes.png",
+    "docs/assets/comparison-demo.gif",
+    "docs/assets/comparison-lineage-drift.png",
+    "docs/assets/comparison-workflow.png",
     "docs/assets/conflict-core.png",
     "docs/assets/conflict-terminal.png",
     "docs/assets/replay-terminal.png",

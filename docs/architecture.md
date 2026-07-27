@@ -2,8 +2,9 @@
 
 This document separates the implemented verifier, certificate/replay,
 bounded-repair, canonical comparison-plan/result, comparison engine, and
-verification CLI boundaries from the later comparison CLI and adapter design.
-The implementation map at the end is the authoritative status summary.
+production verification/comparison CLI boundaries from the later adapter
+design. The implementation map at the end is the authoritative status
+summary.
 
 ## Design objective
 
@@ -257,6 +258,25 @@ caller approved the plan. Claimed solver limits and check counts do not prove
 those resources were enforced. The fresh engine and caller-trusted expected
 plan digest remain separate trust boundaries.
 
+The production `compare` command carries those boundaries through files and
+process exits. It validates all five solver limits before I/O, hashes and pins
+the raw plan before decoding, rejects a registry mismatch before opening
+either graph, then hashes and binds training before serving. Both graph reads
+are bounded regular-file descriptor snapshots. The strict result encoder runs
+for every domain outcome, including when no result path was requested. A
+requested result is published as a new mode-`0600` file through the existing
+private no-overwrite transaction before stdout is written. Compatible, drift,
+and indeterminate are reportable exits `0`, `5`, and `3`; malformed input,
+unsafe output, usage, and internal failures remain distinct and emit no
+partial report.
+
+The three committed ratio cases execute that public command in text and JSON
+modes and require both runs to write identical raw claims. Their canonical
+graphs, plans, captures, strict results, exact byte lengths, and cross-bound
+provenance regenerate offline. Source-derived terminal, workflow, lineage, and
+artifact-size visuals consume those records; the GIF copies the same terminal
+SVGs rather than synthesizing a session.
+
 Statistical drift tools remain complementary: UnitSentinel finds semantic
 contract skew even when no representative payload samples are available.
 
@@ -299,12 +319,12 @@ boundary explicitly.
 
 | Area | Current | Next |
 | --- | --- | --- |
-| Package boundary | Typed exact values, graph, registry, verification/repair/comparison/lineage results, certificates, replay reports, content-addressed comparison plans, and strict bounded comparison-result codec | Comparison CLI and evidence |
-| Dimension semantics | Exact bounded rational algebra, graph inference, training/serving interface comparison, and fresh cross-graph normalization-lineage comparison | Comparison evidence fixtures |
+| Package boundary | Typed exact values, graph, registry, verification/repair/comparison/lineage results, certificates, replay reports, content-addressed comparison plans, strict bounded result codec, and production comparison CLI | Closed-subset ONNX adapter |
+| Dimension semantics | Exact bounded rational algebra, graph inference, training/serving interface comparison, and fresh cross-graph normalization-lineage comparison | Extend only with reviewed operator semantics |
 | Unit registry | Immutable 33-unit snapshot with pinned SHA-256 | External snapshot decoder |
 | Graph IR | Content-addressed bounded IR and strict decoder | ONNX lowering |
-| Solver | Tracked dimension/kind/scale/offset constraints, uniqueness, replay, bounded cores, repair re-verification, two-sided fresh comparison, and replay-bound lineage comparison | Comparison evidence fixtures |
+| Solver | Tracked dimension/kind/scale/offset constraints, uniqueness, replay, bounded cores, repair re-verification, two-sided fresh comparison, and replay-bound lineage comparison | Grouped synthetic fault benchmark |
 | Repairs | One bounded, non-mutating, exact-registry annotation replacement with independent verification and abstention | Additional operators require separate design and review |
-| Certificates | Positive-only canonical codec, content digest, and detached replay with optional strict-toolchain policy | Contract-comparison evidence |
-| CLI | Bounded regular-file reads, stable exits, atomic no-overwrite certificate publication, and read-only repair reports | Contract-comparison command |
-| Visual evidence | Real verification/replay/repair CLI captures, lineage diagrams, plot, GIF, accessible SVG, and closed digest manifest | Training/serving comparison captures and diagrams |
+| Certificates | Positive-only canonical codec, content digest, and detached replay with optional strict-toolchain policy | Signature policy remains deliberately external |
+| CLI | Bounded regular-file reads, required plan pinning, stable exits, atomic no-overwrite certificate/result publication, and read-only repair reports | ONNX import command only after adapter review |
+| Visual evidence | Real verification/replay/repair/comparison captures, lineage/workflow diagrams, measured and exact-size plots, two GIFs, accessible SVGs, and a closed digest manifest | Refresh with every behavior change |

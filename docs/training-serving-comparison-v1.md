@@ -2,9 +2,9 @@
 
 Status: the canonical comparison plan, bounded plan byte codec,
 fresh-verification engine, immutable comparison result, bounded
-normalization-lineage extractor, and fresh cross-graph normalization-lineage
-comparison, and strict result codec are implemented. The CLI surface and
-reproducible comparison evidence remain future work.
+normalization-lineage extractor, fresh cross-graph normalization-lineage
+comparison, strict result codec, production CLI, and reproducible
+compatible/drift/indeterminate evidence are implemented.
 
 ## Objective
 
@@ -224,6 +224,68 @@ solver nor proves that the claimed resources were enforced. A caller that
 needs those properties must execute `compare_graphs` over the bound graphs and
 registry under its own trusted expected-plan policy.
 
+## Production CLI boundary
+
+The public command accepts one canonical plan and two canonical graph files:
+
+```bash
+mkdir -p .unitsentinel
+
+.venv/bin/python -m unitsentinel compare \
+    docs/evidence/plans/ratio-compatible.plan.json \
+    --training-graph docs/evidence/contracts/ratio-training.json \
+    --serving-graph docs/evidence/contracts/ratio-serving-renamed.json \
+    --expect-plan-sha256 \
+    2038cbb9f82bae8249921ae0e9380cf1a8b96e21f2e7a2d03f5764706aab23dd \
+    --result .unitsentinel/ratio-compatible.result.json \
+    --json
+```
+
+`--expect-plan-sha256` is required. The result path must be fresh because the
+command intentionally refuses to overwrite it. The command:
+
+1. parses and validates all five solver limits before opening a file;
+2. bounded-reads and hashes the raw plan, then rejects a pin mismatch before
+   decoding;
+3. decodes the exact canonical plan and rejects a registry mismatch before
+   opening either graph;
+4. bounded-reads and hashes training, rejects a source mismatch before graph
+   decoding, and does not open serving after a training failure;
+5. repeats the raw binding and canonical decode for serving;
+6. calls the engine with the exact limits and a second
+   `ComparisonPolicy(expected_plan_digest=...)` check;
+7. validates the exact result and its plan, graph, registry, and limit
+   bindings;
+8. strictly encodes and digest-confirms the result even when no result path
+   was requested;
+9. when requested, publishes the raw result bytes through a private
+   mode-`0600`, file-and-directory-synced, no-overwrite transaction; and
+10. writes human or canonical JSON stdout only after result publication
+    succeeds.
+
+Stable reportable exits are `0` for compatible, `5` for drift, and `3` for
+indeterminate. Plan-pin mismatch is `5`; input/output/canonicality failure is
+`4`; usage is `64`; an unexpected internal contract failure is `70`; and
+interruption is `130`. Negative verifier statuses remain a comparison
+`indeterminate` report instead of leaking the single-graph `1` or `2` exits.
+Every failure before a report leaves stdout empty and error text omits paths,
+environment values, solver diagnostics, and exception details.
+
+Text and JSON include `authentication: not-provided`, `scope: under-plan`,
+the caller pin, source and result digests, exact limits, both fresh
+verification outcomes, accepted lineage identities when available, and
+ordered binding differences. They intentionally include graph and contract
+identifiers from the canonical inputs; stdout is not a private channel.
+
+The three files are read as sequential descriptor snapshots, not as one atomic
+filesystem snapshot. The reader rejects non-regular leaves, FIFOs, oversized
+files, growth that crosses the byte limit during reading, the final leaf
+symlink, and a symlink in the final parent component. Growth that remains
+inside the bound may be included in that descriptor snapshot. The reader does
+not walk every earlier path component individually or protect against a
+hostile same-UID process that can rewrite the installed tool or parent
+directories.
+
 ## Implemented lineage extraction and comparison boundary
 
 Version 1 normalization provenance is intentionally narrower than arbitrary
@@ -342,10 +404,44 @@ plan digest or equivalent allow-list policy to the engine and must reject a
 mismatch. Recomputing a digest after replacing a plan establishes only the
 integrity of the replacement; it does not make the replacement trusted.
 
+## Reproducible evidence
+
+The fixed ratio family exercises three real production CLI outcomes:
+
+- `ratio-compatible` maps renamed public values. Both whole lineage content
+  digests differ because they retain graph-local diagnostics, while the
+  rename-invariant whole-lineage semantic digest and mapped output
+  normalization digest agree.
+- `ratio-normalization-drift` reverses the ordered divide operands. Both
+  graphs freshly verify and the only reported interface mismatch is
+  `normalization-lineage-drift`.
+- `ratio-serving-indeterminate` removes serving input unit annotations. The
+  serving graph is underconstrained, so the result retains both verification
+  records but publishes no bindings or lineages.
+
+For every case the repository contains canonical graphs and a plan, an exact
+terminal transcript, canonical JSON stdout, the strict raw result, and
+cross-bound provenance. The recorder executes text and JSON separately and
+requires identical result bytes. It publishes exact file lengths only—no
+latency, throughput, accuracy, or scalability claim.
+
+The source-derived visual set includes the fail-closed execution workflow,
+content-versus-semantic lineage comparison, exact artifact-size plot, three
+complete terminal captures, and a GIF whose frames are byte-identical to those
+terminal SVGs. Regenerate or check the closed slice with:
+
+```bash
+.venv/bin/python -m tools.evidence.comparison_evidence --check
+.venv/bin/python -m tools.evidence.comparison_visuals --check
+npm --prefix tools/evidence run check:comparison
+```
+
+The [evidence ledger](evidence/README.md), strict
+[comparison provenance](evidence/comparison-provenance.json), and closed
+[manifest](evidence/manifest.json) bind every published source and rendering.
+
 ## Next surface
 
-The next delivery slice is a comparison CLI over bounded regular files,
-followed by reproducible fixtures, exact CLI and JSON captures, architecture
-and result diagrams, and a short recorded demo derived from those committed
-outputs. Until that surface exists, the Python comparison engine and result
-codec are the implemented machine interfaces.
+The next semantic boundary is a closed-subset ONNX adapter that lowers reviewed
+metadata and operators into the same canonical graph without executing model
+code or guessing unsupported semantics. It is not implemented.
