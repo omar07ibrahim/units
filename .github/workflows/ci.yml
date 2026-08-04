@@ -45,9 +45,17 @@ jobs:
           cache: pip
           cache-dependency-path: pyproject.toml
 
+      - name: Set up the renderer runtime
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: tools/evidence/package-lock.json
+
       - name: Install pinned project and review tools
         run: |
           python -m pip install --editable '.[dev]'
+          npm --prefix tools/evidence ci --ignore-scripts
           python -m pip check
 
       - name: Check lint, formatting, and strict types
@@ -72,10 +80,15 @@ jobs:
 
       - name: Audit installed dependencies
         if: matrix.python == '3.12'
-        run: python -m pip_audit . --strict --progress-spinner=off
+        run: |
+          python -m pip freeze --exclude-editable \
+            | python -m pip_audit --requirement /dev/stdin \
+                --strict --no-deps --progress-spinner=off
 
-      - name: Prove verification preserved the checkout
-        run: test -z "$(git status --porcelain=v1 --untracked-files=all)"
+      - name: Require a clean tracked and unignored surface
+        run: |
+          git diff --exit-code
+          test -z "$(git status --porcelain=v1 --untracked-files=all)"
 
   evidence:
     name: Reproducible evidence
@@ -121,5 +134,7 @@ jobs:
       - name: Audit the renderer dependency tree
         run: npm --prefix tools/evidence audit --audit-level=high
 
-      - name: Prove evidence checks were read-only
-        run: test -z "$(git status --porcelain=v1 --untracked-files=all)"
+      - name: Require a clean tracked and unignored surface
+        run: |
+          git diff --exit-code
+          test -z "$(git status --porcelain=v1 --untracked-files=all)"

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+import shutil
 import subprocess
 import unittest
 from pathlib import Path
@@ -13,8 +14,11 @@ ASSETS = ROOT / "docs" / "assets"
 
 
 def run_renderer(argument: str) -> subprocess.CompletedProcess[bytes]:
+    node = shutil.which("node")
+    if node is None:
+        raise RuntimeError("the pinned Node.js renderer runtime is unavailable")
     return subprocess.run(
-        ["node", str(RENDERER), argument],
+        [node, str(RENDERER), argument],
         cwd=ROOT,
         env={
             "HOME": str(ROOT / ".unitsentinel" / "renderer-test-home"),
