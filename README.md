@@ -579,7 +579,7 @@ The timing snapshot changes only through the explicit
 
 ## Local quality gates
 
-The current suite contains 446 unit, integration, adversarial, and evidence
+The current suite contains 447 unit, integration, adversarial, and evidence
 tests with 97% statement coverage, 94% branch coverage, and 96% combined
 statement/branch coverage.
 

@@ -332,6 +332,11 @@ class RecordTests(unittest.TestCase):
 
 
 class MetadataAndSurfaceTests(unittest.TestCase):
+    def test_metadata_description_preserves_utf8_bytes(self) -> None:
+        readme = "# Exact Δ dimensional contract\n".encode()
+        payload = _metadata_payload(readme)
+        self.assertEqual(distribution._metadata_description_bytes(payload), readme)
+
     def test_pyproject_declares_the_exact_backend_and_runtime_contract(self) -> None:
         payload = (distribution.ROOT / "pyproject.toml").read_bytes()
         distribution._validate_pyproject(payload)
@@ -385,7 +390,7 @@ class MetadataAndSurfaceTests(unittest.TestCase):
                 distribution._validate_core_metadata(payload, label="test")
 
     def _sdist_fixture(self) -> tuple[dict[str, bytes], dict[str, bytes]]:
-        readme = b"# UnitSentinel test\n"
+        readme = "# UnitSentinel Δ test\n".encode()
         metadata = _metadata_payload(readme)
         tracked = {"README.md": readme}
         relative = {path: b"" for path in distribution.GENERATED_SDIST_FILES}
@@ -402,7 +407,7 @@ class MetadataAndSurfaceTests(unittest.TestCase):
         }
         return payloads, tracked
 
-    def test_sdist_closes_tracked_and_generated_surfaces(self) -> None:
+    def test_sdist_closes_surfaces_and_preserves_utf8_description(self) -> None:
         payloads, tracked = self._sdist_fixture()
         metadata = distribution._validate_sdist(payloads, tracked)
         self.assertEqual(metadata, _metadata_payload(tracked["README.md"]))

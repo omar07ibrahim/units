@@ -339,6 +339,13 @@ def _one_header(message: Message, name: str, *, label: str) -> str:
     return values[0]
 
 
+def _metadata_description_bytes(payload: bytes) -> bytes:
+    header, separator, description = payload.partition(b"\n\n")
+    if not separator or not header or b"\r" in header:
+        _reject("core metadata does not have the exact LF header boundary")
+    return description
+
+
 def _validate_core_metadata(payload: bytes, *, label: str) -> Message:
     metadata = _parse_metadata(payload, label=label)
     expected = {
@@ -517,14 +524,10 @@ def _validate_sdist(
         if relative[path] != payload:
             _reject("sdist tracked payload differs from the checkout")
     metadata_payload = relative["PKG-INFO"]
-    metadata = _validate_core_metadata(metadata_payload, label="sdist")
+    _validate_core_metadata(metadata_payload, label="sdist")
     if relative["src/unitsentinel.egg-info/PKG-INFO"] != metadata_payload:
         _reject("sdist root and egg-info metadata differ")
-    description = metadata.get_payload()
-    if (
-        not isinstance(description, str)
-        or description.encode("utf-8") != tracked["README.md"]
-    ):
+    if _metadata_description_bytes(metadata_payload) != tracked["README.md"]:
         _reject("sdist long description differs from README.md")
     try:
         sources = (
