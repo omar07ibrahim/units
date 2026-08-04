@@ -87,7 +87,9 @@ The verified graph is 2,072 canonical bytes and has SHA-256:
 
 ## Install and verify
 
-UnitSentinel supports Python 3.11 and newer.
+UnitSentinel supports CPython 3.11 through 3.14. The review environment is
+pinned to CPython 3.12.3 in `.python-version`; hosted CI exercises every
+supported minor version.
 
 ```bash
 python3 -m venv .venv
@@ -567,6 +569,14 @@ The evidence tests independently validate canonical graph/certificate
 bindings, the closed manifest, SVG accessibility and self-containment, PNG
 chunk CRCs and decompressed dimensions, GIF frame timing/loop structure,
 README coverage, and secret/PII exclusions.
+
+The minimally privileged GitHub Actions workflow repeats the complete
+branch-coverage suite on CPython 3.11, 3.12, 3.13, and 3.14. A separate clean
+runner replays all seven Python/Node evidence checks. Every action is pinned by
+full commit SHA, checkout credentials are not persisted, and the workflow has
+read-only repository permissions. Distribution builds are currently a smoke
+gate; exact archive reproducibility and clean wheel installation remain a
+separate release-contract milestone.
 
 ## Roadmap
 

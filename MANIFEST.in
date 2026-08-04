@@ -1,3 +1,4 @@
+include .python-version
 include README.md
 recursive-include docs *.gif *.json *.md *.png *.svg *.txt
 recursive-include examples *.py
