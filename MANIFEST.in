@@ -1,7 +1,27 @@
+global-exclude *
+
+include .github/workflows/ci.yml
+include .gitignore
 include .python-version
+include MANIFEST.in
 include README.md
+include pyproject.toml
+include requirements-distribution.txt
+
 recursive-include docs *.gif *.json *.md *.png *.svg *.txt
 recursive-include examples *.py
-include src/unitsentinel/py.typed
-recursive-include tools *.json *.md *.mjs *.py
+recursive-include src/unitsentinel *.py py.typed
+include src/unitsentinel.egg-info/PKG-INFO
+include src/unitsentinel.egg-info/SOURCES.txt
+include src/unitsentinel.egg-info/dependency_links.txt
+include src/unitsentinel.egg-info/entry_points.txt
+include src/unitsentinel.egg-info/requires.txt
+include src/unitsentinel.egg-info/top_level.txt
+recursive-include tests *.py
+
+include tools/__init__.py
+include tools/measure_comparison_result_boundary.py
+include tools/verify_distribution.py
+recursive-include tools/evidence *.json *.md *.mjs *.py
+
 prune tools/evidence/node_modules

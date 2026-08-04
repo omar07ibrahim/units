@@ -63,7 +63,7 @@ jobs:
         run: |
           python -m ruff check .
           python -m ruff format --check .
-          python -m mypy src tools/evidence tools/measure_comparison_result_boundary.py
+          python -m mypy
 
       - name: Compile every Python source
         run: python -m compileall -q src tests tools examples

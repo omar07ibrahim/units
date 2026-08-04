@@ -41,7 +41,11 @@ dev = [
     "mypy==2.3.0",
     "pip-audit==2.10.1",
     "ruff==0.16.0",
+    "setuptools==83.0.0",
 ]
+
+[tool.setuptools]
+license-files = []
 
 [tool.setuptools.packages.find]
 where = ["src"]
@@ -59,7 +63,12 @@ select = ["B", "E", "F", "I", "RUF", "SIM", "UP"]
 [tool.mypy]
 python_version = "3.11"
 strict = true
-files = ["src", "tools/evidence", "tools/measure_comparison_result_boundary.py"]
+files = [
+    "src",
+    "tools/evidence",
+    "tools/measure_comparison_result_boundary.py",
+    "tools/verify_distribution.py",
+]
 
 [tool.coverage.run]
 branch = true
