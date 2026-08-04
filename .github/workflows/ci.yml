@@ -1,0 +1,125 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  PIP_DISABLE_PIP_VERSION_CHECK: "1"
+  PIP_NO_INPUT: "1"
+  PYTHONDONTWRITEBYTECODE: "1"
+  PYTHONHASHSEED: "0"
+  PYTHONUTF8: "1"
+
+jobs:
+  verify:
+    name: Python ${{ matrix.python }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+
+    strategy:
+      fail-fast: false
+      max-parallel: 2
+      matrix:
+        python: ["3.11", "3.12", "3.13", "3.14"]
+
+    steps:
+      - name: Check out the exact revision
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: ${{ matrix.python }}
+          cache: pip
+          cache-dependency-path: pyproject.toml
+
+      - name: Install pinned project and review tools
+        run: |
+          python -m pip install --editable '.[dev]'
+          python -m pip check
+
+      - name: Check lint, formatting, and strict types
+        if: matrix.python == '3.12'
+        run: |
+          python -m ruff check .
+          python -m ruff format --check .
+          python -m mypy src tools/evidence tools/measure_comparison_result_boundary.py
+
+      - name: Compile every Python source
+        run: python -m compileall -q src tests tools examples
+
+      - name: Run the complete branch-coverage suite
+        run: python -m coverage run --branch -m unittest discover -s tests -v
+
+      - name: Enforce the reviewed coverage floor
+        run: python -m coverage report --show-missing --fail-under=95
+
+      - name: Build source and wheel distributions
+        if: matrix.python == '3.12'
+        run: python -m build --outdir .unitsentinel/ci-dist
+
+      - name: Audit installed dependencies
+        if: matrix.python == '3.12'
+        run: python -m pip_audit . --strict --progress-spinner=off
+
+      - name: Prove verification preserved the checkout
+        run: test -z "$(git status --porcelain=v1 --untracked-files=all)"
+
+  evidence:
+    name: Reproducible evidence
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+
+    steps:
+      - name: Check out the exact revision
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: pyproject.toml
+
+      - name: Set up the pinned evidence renderer
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: tools/evidence/package-lock.json
+
+      - name: Install project and renderer dependencies
+        run: |
+          python -m pip install --editable '.[dev]'
+          npm --prefix tools/evidence ci --ignore-scripts
+          python -m pip check
+
+      - name: Replay every committed evidence pipeline
+        run: |
+          PYTHONPATH=src python -B -m tools.evidence.generate --check
+          npm --prefix tools/evidence run check
+          PYTHONPATH=src python -B -m tools.evidence.repair_evidence --check
+          npm --prefix tools/evidence run check:repair
+          PYTHONPATH=src python -B -m tools.evidence.comparison_evidence --check
+          PYTHONPATH=src python -B -m tools.evidence.comparison_visuals --check
+          npm --prefix tools/evidence run check:comparison
+
+      - name: Audit the renderer dependency tree
+        run: npm --prefix tools/evidence audit --audit-level=high
+
+      - name: Prove evidence checks were read-only
+        run: test -z "$(git status --porcelain=v1 --untracked-files=all)"
