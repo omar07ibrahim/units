@@ -23,6 +23,7 @@ import tarfile
 import tempfile
 import threading
 import time
+import tomllib
 import unicodedata
 import zipfile
 from collections.abc import Mapping, Sequence
@@ -385,6 +386,38 @@ def _validate_core_metadata(payload: bytes, *, label: str) -> Message:
     if metadata.get_all("License") or metadata.get_all("License-Expression"):
         _reject(f"{label} invents licensing metadata")
     return metadata
+
+
+def _validate_pyproject(payload: bytes) -> None:
+    try:
+        configuration = tomllib.loads(payload.decode("utf-8", errors="strict"))
+    except (UnicodeError, tomllib.TOMLDecodeError) as error:
+        raise DistributionVerificationError("pyproject.toml is malformed") from error
+    if configuration.get("build-system") != {
+        "requires": ["setuptools==83.0.0"],
+        "build-backend": "setuptools.build_meta",
+    }:
+        _reject("pyproject.toml build backend is not the exact reviewed contract")
+    project = configuration.get("project")
+    if not isinstance(project, dict):
+        _reject("pyproject.toml project table is missing")
+    expected = {
+        "name": NAME,
+        "version": VERSION,
+        "requires-python": ">=3.11,<3.15",
+        "dependencies": ["z3-solver==4.16.0.0"],
+        "scripts": {"unitsentinel": "unitsentinel.cli:main"},
+    }
+    if any(project.get(key) != value for key, value in expected.items()):
+        _reject("pyproject.toml project contract differs from reviewed values")
+    tool = configuration.get("tool")
+    if not isinstance(tool, dict):
+        _reject("pyproject.toml tool table is missing")
+    setuptools_configuration = tool.get("setuptools")
+    if not isinstance(setuptools_configuration, dict):
+        _reject("pyproject.toml setuptools table is missing")
+    if setuptools_configuration.get("license-files") != []:
+        _reject("pyproject.toml must preserve the explicit no-license decision")
 
 
 def _validate_record(payloads: Mapping[str, bytes], record_path: str) -> None:
@@ -892,6 +925,7 @@ def verify_distribution(wheelhouse: Path) -> str:
     z3_wheel = entries[0]
     _validate_z3_wheel(z3_wheel)
     tracked = _tracked_payloads()
+    _validate_pyproject(tracked["pyproject.toml"])
     with tempfile.TemporaryDirectory(
         prefix="unitsentinel-distribution-"
     ) as temporary_name:

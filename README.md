@@ -129,6 +129,44 @@ Verification, replay, repair, and comparison reports use structured stdout.
 Usage, input/output, expected-digest preflight, interruption, and redacted
 internal failures use stderr.
 
+### Verify the delivered distributions
+
+The release lane is deliberately narrower than the supported runtime matrix:
+it runs on exact CPython 3.12.3 and Linux x86-64 so the native solver artifact
+can be identified by filename, outer SHA-256, platform tag, `RECORD`, and ELF
+headers rather than by a floating resolver choice.
+
+```bash
+test "$(.venv/bin/python -c 'import platform; print(platform.python_version())')" = "3.12.3"
+test "$(uname -s)" = "Linux"
+test "$(uname -m)" = "x86_64"
+
+mkdir -p .unitsentinel/wheelhouse
+.venv/bin/python -m pip download \
+    --dest .unitsentinel/wheelhouse \
+    --require-hashes \
+    --only-binary=:all: \
+    --no-deps \
+    --requirement requirements-distribution.txt
+
+.venv/bin/python -I tools/verify_distribution.py \
+    --wheelhouse .unitsentinel/wheelhouse
+```
+
+Only the download step uses the network. The verifier first checks the exact
+31,741,807-byte Z3 wheel, then builds the tracked source surface twice,
+normalizes nondeterministic setuptools tar/gzip metadata into a canonical
+sdist, requires two byte-identical wheels built from that sdist, validates
+archive paths, metadata, package bytes, and both wheel `RECORD` files, and
+performs one hash-required offline resolver install in a clean venv. Allow at
+least 200 MiB of temporary space.
+
+UnitSentinel's own artifact is a `py3-none-any` wheel. The installed environment
+is not pure Python: the locked Z3 payloads are explicitly checked as x86-64
+ELF. This boundary verifies delivery and basic execution; it does not claim an
+upstream Z3 code audit, artifact signatures, SLSA provenance, or support for
+this exact release lane on ARM, macOS, or Windows.
+
 | Exit | Meaning |
 | ---: | --- |
 | `0` | Graph verified, certificate reproduced, or comparison compatible |
@@ -541,7 +579,7 @@ The timing snapshot changes only through the explicit
 
 ## Local quality gates
 
-The current suite contains 418 unit, integration, adversarial, and evidence
+The current suite contains 446 unit, integration, adversarial, and evidence
 tests with 97% statement coverage, 94% branch coverage, and 96% combined
 statement/branch coverage.
 
@@ -552,7 +590,7 @@ PYTHONPATH=src .venv/bin/coverage run -m unittest discover -s tests
 
 .venv/bin/ruff check .
 .venv/bin/ruff format --check .
-.venv/bin/mypy src tools/evidence tools/measure_comparison_result_boundary.py
+.venv/bin/python -m mypy
 .venv/bin/python -m build
 .venv/bin/pip-audit
 
@@ -574,9 +612,10 @@ The minimally privileged GitHub Actions workflow repeats the complete
 branch-coverage suite on CPython 3.11, 3.12, 3.13, and 3.14. A separate clean
 runner replays all seven Python/Node evidence checks. Every action is pinned by
 full commit SHA, checkout credentials are not persisted, and the workflow has
-read-only repository permissions. Distribution builds are currently a smoke
-gate; exact archive reproducibility and clean wheel installation remain a
-separate release-contract milestone.
+read-only repository permissions. A third exact CPython 3.12.3/Linux x86-64
+runner downloads the hash-pinned native solver wheel, validates the canonical
+sdist and reproducible pure-Python wheel, and performs the offline clean-venv
+resolver install described above.
 
 ## Roadmap
 

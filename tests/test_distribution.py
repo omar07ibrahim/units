@@ -332,6 +332,17 @@ class RecordTests(unittest.TestCase):
 
 
 class MetadataAndSurfaceTests(unittest.TestCase):
+    def test_pyproject_declares_the_exact_backend_and_runtime_contract(self) -> None:
+        payload = (distribution.ROOT / "pyproject.toml").read_bytes()
+        distribution._validate_pyproject(payload)
+        for drifted in (
+            payload.replace(b"setuptools==83.0.0", b"setuptools>=83", 1),
+            payload.replace(b"z3-solver==4.16.0.0", b"z3-solver>=4", 1),
+            payload.replace(b"license-files = []", b'license-files = ["LICENSE"]', 1),
+        ):
+            with self.assertRaises(distribution.DistributionVerificationError):
+                distribution._validate_pyproject(drifted)
+
     def test_accepts_exact_reviewed_metadata_without_a_license_claim(self) -> None:
         metadata = distribution._validate_core_metadata(
             _metadata_payload(),
@@ -354,8 +365,7 @@ class MetadataAndSurfaceTests(unittest.TestCase):
         )
         duplicate_url = _metadata_payload().replace(
             b"Project-URL: Repository, https://github.com/omar07ibrahim/units\n",
-            b"Project-URL: Repository, https://github.com/omar07ibrahim/units\n"
-            * 2,
+            b"Project-URL: Repository, https://github.com/omar07ibrahim/units\n" * 2,
         )
         wrong_extra = _metadata_payload().replace(
             b"Provides-Extra: dev\n",
