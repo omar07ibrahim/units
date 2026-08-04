@@ -124,6 +124,7 @@ jobs:
       - name: Replay every committed evidence pipeline
         run: |
           PYTHONPATH=src python -B -m tools.evidence.generate --check
+          PYTHONPATH=src python -B -m tools.evidence.distribution_visuals --check
           npm --prefix tools/evidence run check
           PYTHONPATH=src python -B -m tools.evidence.repair_evidence --check
           npm --prefix tools/evidence run check:repair
@@ -183,8 +184,34 @@ jobs:
           PIP_CONFIG_FILE: /dev/null
           PIP_NO_INDEX: "1"
         run: |
+          capture="$RUNNER_TEMP/unitsentinel-distribution.txt"
+          stdout="$RUNNER_TEMP/unitsentinel-distribution.stdout"
+          stderr="$RUNNER_TEMP/unitsentinel-distribution.stderr"
+          set +e
           python -I tools/verify_distribution.py \
-            --wheelhouse "$RUNNER_TEMP/unitsentinel-wheelhouse"
+            --wheelhouse "$RUNNER_TEMP/unitsentinel-wheelhouse" \
+            >"$stdout" 2>"$stderr"
+          status=$?
+          set -e
+          {
+            printf '%s\n' "\$ python -c 'import platform; print(platform.python_version())'"
+            python -c 'import platform; print(platform.python_version())'
+            printf '%s\n' "\$ uname -s"
+            uname -s
+            printf '%s\n' "\$ uname -m"
+            uname -m
+            printf '%s\n' "\$ python -I tools/verify_distribution.py --wheelhouse \"\$RUNNER_TEMP/unitsentinel-wheelhouse\""
+            cat "$stdout"
+            cat "$stderr"
+            printf '[exit %s]\n' "$status"
+          } >"$capture"
+          if test -s "$stderr"; then
+            cat "$stderr" >&2
+          fi
+          test "$status" -eq 0
+          test ! -s "$stderr"
+          cmp docs/evidence/captures/distribution.txt "$capture"
+          cat "$capture"
 
       - name: Require a clean tracked and unignored surface
         run: |

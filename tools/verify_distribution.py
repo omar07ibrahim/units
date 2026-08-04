@@ -39,17 +39,40 @@ ROOT: Final = Path(__file__).resolve().parents[1]
 NAME: Final = "unitsentinel"
 VERSION: Final = "0.1.0"
 SDIST_ROOT: Final = f"{NAME}-{VERSION}"
-WHEEL_NAME: Final = f"{NAME}-{VERSION}-py3-none-any.whl"
+BUILD_BACKEND: Final = "setuptools.build_meta"
+WHEEL_TAG: Final = "py3-none-any"
+WHEEL_NAME: Final = f"{NAME}-{VERSION}-{WHEEL_TAG}.whl"
 DIST_INFO: Final = f"{NAME}-{VERSION}.dist-info"
 EXPECTED_PYTHON: Final = (3, 12, 3)
 EXPECTED_BACKEND: Final = "setuptools==83.0.0"
 SOURCE_DATE_EPOCH: Final = 1_722_470_400
 
-Z3_WHEEL_NAME: Final = "z3_solver-4.16.0.0-py3-none-manylinux_2_27_x86_64.whl"
+Z3_WHEEL_TAG: Final = "py3-none-manylinux_2_27_x86_64"
+Z3_WHEEL_NAME: Final = f"z3_solver-4.16.0.0-{Z3_WHEEL_TAG}.whl"
 Z3_SHA256: Final = "afae2551f795670f0522cfce82132d129c408a2694adff71eb01ba0f2ece44f9"
 Z3_SIZE: Final = 31_741_807
 Z3_DIST_INFO: Final = "z3_solver-4.16.0.0.dist-info"
+Z3_ELF_PATHS: Final = (
+    "z3_solver-4.16.0.0.data/data/bin/z3",
+    "z3/lib/libz3.so",
+    "z3/lib/libz3.so.4.16",
+)
 LOCK_TEXT: Final = f"z3-solver==4.16.0.0 \\\n    --hash=sha256:{Z3_SHA256}\n"
+
+DISTRIBUTION_SUCCESS_TEXT: Final = (
+    "verified unitsentinel 0.1.0: canonical sdist -> "
+    "py3-none-any wheel -> offline Z3 install"
+)
+OFFLINE_PIP_FLAGS: Final = (
+    "--no-index",
+    "--find-links",
+    "--require-hashes",
+    "--only-binary=:all:",
+    "--no-cache-dir",
+    "--no-compile",
+)
+IMPORT_SMOKE_STDOUT: Final = "installed unitsentinel 0.1.0 with z3 4.16.0\n"
+CONSOLE_SMOKE_STDOUT: Final = "unitsentinel 0.1.0\n"
 
 MAX_ARCHIVE_BYTES: Final = 64 << 20
 MAX_MEMBER_BYTES: Final = 64 << 20
@@ -402,7 +425,7 @@ def _validate_pyproject(payload: bytes) -> None:
         raise DistributionVerificationError("pyproject.toml is malformed") from error
     if configuration.get("build-system") != {
         "requires": ["setuptools==83.0.0"],
-        "build-backend": "setuptools.build_meta",
+        "build-backend": BUILD_BACKEND,
     }:
         _reject("pyproject.toml build backend is not the exact reviewed contract")
     project = configuration.get("project")
@@ -575,7 +598,7 @@ def _validate_own_wheel(
     wheel_headers = _parse_metadata(payloads[f"{DIST_INFO}/WHEEL"], label="WHEEL")
     if _one_header(wheel_headers, "Root-Is-Purelib", label="WHEEL") != "true":
         _reject("UnitSentinel wheel is not marked purelib")
-    if wheel_headers.get_all("Tag", []) != ["py3-none-any"]:
+    if wheel_headers.get_all("Tag", []) != [WHEEL_TAG]:
         _reject("UnitSentinel wheel does not have the exact universal tag")
     if payloads[f"{DIST_INFO}/entry_points.txt"] != (
         b"[console_scripts]\nunitsentinel = unitsentinel.cli:main\n"
@@ -609,14 +632,9 @@ def _validate_z3_wheel(path: Path) -> None:
     if _one_header(metadata, "Version", label="Z3") != "4.16.0.0":
         _reject("Z3 wheel has unexpected version metadata")
     wheel = _parse_metadata(payloads[wheel_path], label="Z3 WHEEL")
-    if wheel.get_all("Tag", []) != ["py3-none-manylinux_2_27_x86_64"]:
+    if wheel.get_all("Tag", []) != [Z3_WHEEL_TAG]:
         _reject("Z3 wheel has an unexpected platform tag")
-    native_paths = (
-        "z3_solver-4.16.0.0.data/data/bin/z3",
-        "z3/lib/libz3.so",
-        "z3/lib/libz3.so.4.16",
-    )
-    for native_path in native_paths:
+    for native_path in Z3_ELF_PATHS:
         payload = payloads.get(native_path)
         if payload is None or not _is_x86_64_elf(payload):
             _reject("Z3 wheel omits an expected x86-64 ELF payload")
@@ -737,8 +755,7 @@ def _copy_tracked_source(payloads: Mapping[str, bytes], destination: Path) -> No
 def _backend_build(function: str, *, source: Path, output: Path, work: Path) -> Path:
     output.mkdir(mode=0o700, parents=True)
     program = (
-        "import setuptools.build_meta,sys\n"
-        f"print(setuptools.build_meta.{function}(sys.argv[1]))\n"
+        f"import {BUILD_BACKEND},sys\nprint({BUILD_BACKEND}.{function}(sys.argv[1]))\n"
     )
     completed = _bounded_process(
         (sys.executable, "-I", "-B", "-c", program, str(output)),
@@ -843,13 +860,10 @@ def _isolated_install(
             "-m",
             "pip",
             "install",
-            "--no-index",
-            "--find-links",
+            OFFLINE_PIP_FLAGS[0],
+            OFFLINE_PIP_FLAGS[1],
             str(z3_wheel.parent),
-            "--require-hashes",
-            "--only-binary=:all:",
-            "--no-cache-dir",
-            "--no-compile",
+            *OFFLINE_PIP_FLAGS[2:],
             "--requirement",
             str(requirements),
         ),
@@ -869,7 +883,7 @@ def _isolated_install(
             "assert z3.get_version_string() == '4.16.0'",
             "library = Path(z3.__file__).parent / 'lib' / 'libz3.so'",
             "assert library.read_bytes()[:4] == b'\\x7fELF'",
-            "print('installed unitsentinel 0.1.0 with z3 4.16.0')",
+            f"print({IMPORT_SMOKE_STDOUT[:-1]!r})",
         )
     )
     smoke = _bounded_process(
@@ -879,7 +893,7 @@ def _isolated_install(
         timeout=30.0,
         label="installed import smoke",
     )
-    if smoke.stdout != b"installed unitsentinel 0.1.0 with z3 4.16.0\n" or smoke.stderr:
+    if smoke.stdout != IMPORT_SMOKE_STDOUT.encode() or smoke.stderr:
         _reject("installed import smoke emitted unexpected output")
     version = _bounded_process(
         (str(console), "--version"),
@@ -888,10 +902,27 @@ def _isolated_install(
         timeout=30.0,
         label="installed console smoke",
     )
-    if version.stdout != b"unitsentinel 0.1.0\n" or version.stderr:
+    if version.stdout != CONSOLE_SMOKE_STDOUT.encode() or version.stderr:
         _reject("installed console smoke emitted unexpected output")
     if tuple(empty_cwd.iterdir()):
         _reject("installed smoke wrote into its empty working directory")
+
+
+def _locked_z3_wheel(wheelhouse: Path) -> Path:
+    try:
+        wheelhouse_status = wheelhouse.stat(follow_symlinks=False)
+    except OSError as error:
+        raise DistributionVerificationError("wheelhouse is unavailable") from error
+    if not stat.S_ISDIR(wheelhouse_status.st_mode):
+        _reject("wheelhouse is not one real directory")
+    try:
+        absolute_wheelhouse = wheelhouse.resolve(strict=True)
+    except OSError as error:
+        raise DistributionVerificationError("wheelhouse is unavailable") from error
+    entries = tuple(absolute_wheelhouse.iterdir())
+    if len(entries) != 1 or entries[0].name != Z3_WHEEL_NAME:
+        _reject("wheelhouse must contain exactly the locked Z3 wheel")
+    return entries[0]
 
 
 def verify_distribution(wheelhouse: Path) -> str:
@@ -916,16 +947,7 @@ def verify_distribution(wheelhouse: Path) -> str:
         encoding="utf-8"
     ) != LOCK_TEXT:
         _reject("distribution dependency lock differs from the reviewed bytes")
-    try:
-        wheelhouse_status = wheelhouse.stat(follow_symlinks=False)
-    except OSError as error:
-        raise DistributionVerificationError("wheelhouse is unavailable") from error
-    if not stat.S_ISDIR(wheelhouse_status.st_mode):
-        _reject("wheelhouse is not one real directory")
-    entries = tuple(wheelhouse.iterdir())
-    if len(entries) != 1 or entries[0].name != Z3_WHEEL_NAME:
-        _reject("wheelhouse must contain exactly the locked Z3 wheel")
-    z3_wheel = entries[0]
+    z3_wheel = _locked_z3_wheel(wheelhouse)
     _validate_z3_wheel(z3_wheel)
     tracked = _tracked_payloads()
     _validate_pyproject(tracked["pyproject.toml"])
@@ -944,10 +966,7 @@ def verify_distribution(wheelhouse: Path) -> str:
             sdist_metadata=metadata,
         )
         _isolated_install(artifacts.wheel, z3_wheel, work=work)
-    return (
-        "verified unitsentinel 0.1.0: canonical sdist -> "
-        "py3-none-any wheel -> offline Z3 install"
-    )
+    return DISTRIBUTION_SUCCESS_TEXT
 
 
 def _parser() -> argparse.ArgumentParser:

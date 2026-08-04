@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import csv
 import io
+import os
 import stat
 import struct
 import sys
@@ -589,6 +590,18 @@ class LockedDependencyTests(unittest.TestCase):
             impostor.write_bytes(b"not the reviewed wheel")
             with self.assertRaises(distribution.DistributionVerificationError):
                 distribution._validate_z3_wheel(impostor)
+
+    def test_relative_wheelhouse_resolves_before_isolated_install(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            wheelhouse = Path(temporary)
+            expected = wheelhouse / distribution.Z3_WHEEL_NAME
+            expected.write_bytes(b"fixture")
+            relative = Path(os.path.relpath(wheelhouse, start=Path.cwd()))
+
+            actual = distribution._locked_z3_wheel(relative)
+
+            self.assertTrue(actual.is_absolute())
+            self.assertEqual(actual, expected.resolve(strict=True))
 
 
 if __name__ == "__main__":

@@ -14,6 +14,7 @@ From a checkout with the Python development environment installed:
 npm --prefix tools/evidence ci --ignore-scripts
 
 .venv/bin/python -m tools.evidence.generate --check
+.venv/bin/python -m tools.evidence.distribution_visuals --check
 npm --prefix tools/evidence run check
 .venv/bin/python -m tools.evidence.repair_evidence --check
 npm --prefix tools/evidence run check:repair
@@ -29,6 +30,11 @@ compatible, drift, and indeterminate training/serving comparisons. None
 remeasures the timing benchmark. The Node commands render expected bytes in
 memory and compare them with the committed files. No check publishes
 replacements.
+
+The distribution-only check validates the canonical release contract and the
+real hosted transcript, then derives both public SVG sources without running a
+network download. The exact release job separately recreates the transcript
+while executing the full hash-pinned source-to-installed-wheel verifier.
 
 To intentionally refresh only the repair slice:
 
@@ -64,6 +70,22 @@ manifest. The renderer can publish only the corresponding six PNGs and one
 GIF. The evidence recorder runs the production CLI twice per case and requires
 the text and JSON runs to emit the same strict result bytes.
 
+To intentionally refresh only the closed distribution contract and its two
+SVG sources after a reviewed verifier change:
+
+```bash
+.venv/bin/python -m tools.evidence.distribution_visuals --record
+npm --prefix tools/evidence run render
+.venv/bin/python -m tools.evidence.distribution_visuals --check
+npm --prefix tools/evidence run check
+.venv/bin/python -m tools.evidence.generate --write-manifest
+```
+
+The Python recorder has a four-file output allowlist: one canonical contract,
+one hosted transcript, and two source-derived SVGs. The general renderer
+rebuilds the public PNG set deterministically; unchanged legacy renderings must
+remain byte-identical.
+
 To intentionally refresh the legacy verify/conflict/replay evidence while
 retaining the recorded benchmark:
 
@@ -96,6 +118,8 @@ goldens.
 | What did a compatible comparison return? | [Compatible terminal SVG](../assets/compare-compatible-terminal.svg) | [Compatible terminal PNG](../assets/compare-compatible-terminal.png) |
 | What did normalization drift return? | [Drift terminal SVG](../assets/compare-drift-terminal.svg) | [Drift terminal PNG](../assets/compare-drift-terminal.png) |
 | What did an indeterminate comparison return? | [Indeterminate terminal SVG](../assets/compare-indeterminate-terminal.svg) | [Indeterminate terminal PNG](../assets/compare-indeterminate-terminal.png) |
+| How does source become an offline-installed release? | [Distribution contract SVG](../assets/distribution-contract.svg) | [Distribution contract PNG](../assets/distribution-contract.png) |
+| What did the exact hosted release verifier return? | [Distribution terminal SVG](../assets/distribution-terminal.svg) | [Distribution terminal PNG](../assets/distribution-terminal.png) |
 
 The [7.6-second CLI demo GIF](../assets/unitsentinel-demo.gif) is presentation,
 not the primary record. Its three frames loop in the order declared below.
@@ -151,6 +175,18 @@ Plans and results are content-addressed but unsigned:
 `authentication: not-provided`. The required plan pin proves that these CLI
 runs consumed the expected bytes; it does not identify who approved the
 mapping or prove that a deployment used either graph.
+
+### Hosted distribution contract
+
+- [Canonical source-to-installed-wheel contract](data/distribution-contract.json)
+- [Exact hosted verifier transcript](captures/distribution.txt)
+
+The transcript is deliberately free of timestamps, runner paths, run IDs, and
+commit SHAs. GitHub Actions reconstructs its host facts, displayed command,
+actual verifier stdout, and exit status on exact CPython 3.12.3/Linux x86-64,
+then requires byte-for-byte equality. The contract records both the verified
+boundaries and the upstream provenance, signature, SLSA, and cross-platform
+claims that are explicitly outside this check.
 
 ### Actual CLI captures
 

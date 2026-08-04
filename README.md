@@ -136,6 +136,15 @@ it runs on exact CPython 3.12.3 and Linux x86-64 so the native solver artifact
 can be identified by filename, outer SHA-256, platform tag, `RECORD`, and ELF
 headers rather than by a floating resolver choice.
 
+![Source-derived UnitSentinel source-to-offline-install release contract](docs/assets/distribution-contract.png)
+
+*The [accessible SVG](docs/assets/distribution-contract.svg) is derived from
+the reviewed [distribution contract](docs/evidence/data/distribution-contract.json).
+It separates the networked, hash-pinned Z3 acquisition from the canonical
+sdist and reproducible pure-wheel path, then joins them only at the clean
+offline install boundary. The diagram also records what this check does not
+claim.*
+
 ```bash
 test "$(.venv/bin/python -c 'import platform; print(platform.python_version())')" = "3.12.3"
 test "$(uname -s)" = "Linux"
@@ -152,6 +161,13 @@ mkdir -p .unitsentinel/wheelhouse
 .venv/bin/python -I tools/verify_distribution.py \
     --wheelhouse .unitsentinel/wheelhouse
 ```
+
+![Real hosted UnitSentinel distribution verification output](docs/assets/distribution-terminal.png)
+
+*This rendering comes only from the exact [hosted transcript](docs/evidence/captures/distribution.txt);
+the [accessible terminal SVG](docs/assets/distribution-terminal.svg) is checked
+against it. The release runner reconstructs the same host facts, command,
+stdout, and exit status and requires byte-for-byte equality.*
 
 Only the download step uses the network. The verifier first checks the exact
 31,741,807-byte Z3 wheel, then builds the tracked source surface twice,
@@ -535,6 +551,7 @@ npm --prefix tools/evidence ci --ignore-scripts
 npm --prefix tools/evidence run audit
 
 .venv/bin/python -m tools.evidence.generate --check
+.venv/bin/python -m tools.evidence.distribution_visuals --check
 npm --prefix tools/evidence run check
 .venv/bin/python -m tools.evidence.repair_evidence --check
 npm --prefix tools/evidence run check:repair
@@ -563,6 +580,17 @@ npm --prefix tools/evidence run check:comparison
 .venv/bin/python -m tools.evidence.generate --write-manifest
 ```
 
+To refresh the closed distribution contract, transcript rendering, and public
+PNG derivatives after an intentional verifier change:
+
+```bash
+.venv/bin/python -m tools.evidence.distribution_visuals --record
+npm --prefix tools/evidence run render
+.venv/bin/python -m tools.evidence.distribution_visuals --check
+npm --prefix tools/evidence run check
+.venv/bin/python -m tools.evidence.generate --write-manifest
+```
+
 The general recorder and renderer remain available when intentionally
 refreshing the complete legacy evidence set:
 
@@ -579,7 +607,7 @@ The timing snapshot changes only through the explicit
 
 ## Local quality gates
 
-The current suite contains 447 unit, integration, adversarial, and evidence
+The current suite contains 461 unit, integration, adversarial, and evidence
 tests with 97% statement coverage, 94% branch coverage, and 96% combined
 statement/branch coverage.
 
@@ -595,6 +623,7 @@ PYTHONPATH=src .venv/bin/coverage run -m unittest discover -s tests
 .venv/bin/pip-audit
 
 .venv/bin/python -m tools.evidence.generate --check
+.venv/bin/python -m tools.evidence.distribution_visuals --check
 npm --prefix tools/evidence run check
 .venv/bin/python -m tools.evidence.repair_evidence --check
 npm --prefix tools/evidence run check:repair
@@ -610,7 +639,7 @@ README coverage, and secret/PII exclusions.
 
 The minimally privileged GitHub Actions workflow repeats the complete
 branch-coverage suite on CPython 3.11, 3.12, 3.13, and 3.14. A separate clean
-runner replays all seven Python/Node evidence checks. Every action is pinned by
+runner replays all eight Python/Node evidence checks. Every action is pinned by
 full commit SHA, checkout credentials are not persisted, and the workflow has
 read-only repository permissions. A third exact CPython 3.12.3/Linux x86-64
 runner downloads the hash-pinned native solver wheel, validates the canonical
@@ -627,6 +656,7 @@ resolver install described above.
 | Tracked exact verification and fail-closed outcomes | Complete |
 | Detached positive certificates and independent replay | Complete |
 | Production CLI and reproducible visual evidence | Complete |
+| Canonical source-to-offline-install release contract | Complete |
 | Bounded formally reverified repair candidates | Complete |
 | Canonical training/serving alignment plan | Complete |
 | Fresh-verified training/serving comparison engine | Complete |

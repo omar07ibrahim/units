@@ -1,8 +1,9 @@
 # Reproducible evidence pipeline
 
 This directory turns implemented UnitSentinel behavior into reviewable
-portfolio evidence. It does not synthesize terminal output or edit result
-records by hand:
+portfolio evidence. Production CLI result records come from executed commands;
+the stable distribution transcript is independently reconstructed by hosted
+CI rather than accepted on the recorder's assertion:
 
 - the general Python recorder executes the production CLI for verified,
   conflict, and strict-replay paths;
@@ -13,6 +14,8 @@ records by hand:
   raw results, byte-size data, and provenance;
 - the closed comparison-visual recorder derives six SVG sources and three GIF
   frames only from those checked records;
+- the closed distribution-visual recorder validates one canonical release
+  contract and one hosted transcript, then derives two public SVG sources;
 - SVG builders consume those CLI records, inferred contracts, tracked conflict
   witnesses, certificate bindings, and a measured benchmark snapshot;
 - the pinned Node renderer converts committed SVG sources to PNG and builds
@@ -103,12 +106,31 @@ copies, and one exact frame manifest. The comparison renderer has a separate
 compiled-in six-source/three-frame mode and publishes only the six PNGs and
 one GIF.
 
+### Refresh only distribution visuals
+
+```bash
+.venv/bin/python -m tools.evidence.distribution_visuals --record
+npm --prefix tools/evidence run render
+.venv/bin/python -m tools.evidence.distribution_visuals --check
+npm --prefix tools/evidence run check
+.venv/bin/python -m tools.evidence.generate --write-manifest
+```
+
+The distribution recorder can write only
+`docs/evidence/data/distribution-contract.json`,
+`docs/evidence/captures/distribution.txt`, and the two matching SVG sources.
+It performs no download or release build. The exact CPython 3.12.3 GitHub
+Actions job reconstructs the transcript from the real verifier invocation and
+compares it byte for byte; the local check validates that committed record and
+its deterministic renderings.
+
 ## Verify freshness
 
 All checks are required:
 
 ```bash
 .venv/bin/python -m tools.evidence.generate --check
+.venv/bin/python -m tools.evidence.distribution_visuals --check
 npm --prefix tools/evidence run check
 .venv/bin/python -m tools.evidence.repair_evidence --check
 npm --prefix tools/evidence run check:repair
@@ -141,6 +163,8 @@ plan, registry, and solver limits; extra or missing stdout is rejected.
 | `docs/evidence/comparison-provenance.json` | Cross-bound graph, plan, verification, result, and normalization identities |
 | `docs/evidence/data/comparison-artifacts.json` | Exact committed comparison artifact byte lengths; no latency claim |
 | `docs/evidence/data/scaling.json` | Recorded bounded timing runs and environment |
+| `docs/evidence/data/distribution-contract.json` | Exact reviewed release, solver, install, and nonclaim boundaries |
+| `docs/evidence/captures/distribution.txt` | Real hosted release-verifier host facts, stdout, and exit status |
 | `docs/assets/*.svg` | Live records consumed by dependency-free SVG builders |
 | `docs/assets/*.png` | Pinned Resvg rendering of the SVG sources |
 | `docs/assets/unitsentinel-demo.gif` | Declared transcript frames and delays |

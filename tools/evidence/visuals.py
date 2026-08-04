@@ -1700,3 +1700,301 @@ def scaling_svg(benchmark: dict[str, Any]) -> str:
         ),
         body="\n".join(body),
     )
+
+
+def distribution_terminal_svg(*, transcript: str) -> str:
+    """Render every line of the stable hosted distribution transcript."""
+
+    lines = transcript.rstrip("\n").splitlines()
+    if not transcript.endswith("\n") or len(lines) != 9:
+        raise ValueError("distribution transcript must contain exactly nine lines")
+    if any(not line.isprintable() for line in lines):
+        raise ValueError("distribution transcript contains a control character")
+
+    body = [
+        '<rect x="32" y="28" width="1376" height="464" rx="20" '
+        f'fill="{PANEL}" stroke="{BORDER}" stroke-width="2" '
+        'filter="url(#shadow)"/>',
+        '<rect x="32" y="28" width="1376" height="66" rx="20" fill="#12233a"/>',
+        '<rect x="32" y="74" width="1376" height="20" fill="#12233a"/>',
+        '<circle cx="70" cy="61" r="8" fill="#ff6b7a"/>',
+        '<circle cx="98" cy="61" r="8" fill="#ffc857"/>',
+        '<circle cx="126" cy="61" r="8" fill="#5ee6a8"/>',
+        _text(
+            720,
+            68,
+            "hosted distribution contract · exact stable capture",
+            size=19,
+            fill=TEXT,
+            weight=700,
+            anchor="middle",
+        ),
+        f'<rect x="32" y="92" width="1376" height="4" fill="{GREEN}"/>',
+    ]
+    for index, line in enumerate(lines, start=1):
+        fill = TEXT
+        weight = 400
+        if line.startswith("$"):
+            fill = CYAN
+        elif line.startswith("verified unitsentinel") or line == "[exit 0]":
+            fill = GREEN
+            weight = 700
+        body.append(
+            f'<text x="62" y="{126 + (index - 1) * 38}" '
+            f'data-source-line="{index}" xml:space="preserve" '
+            f'fill="{fill}" font-family="DejaVu Sans Mono, monospace" '
+            f'font-size="16" font-weight="{weight}">{escape(line)}</text>'
+        )
+    return _document(
+        width=SVG_WIDTH,
+        height=520,
+        title="UnitSentinel hosted distribution verification",
+        description=(
+            "The complete stable nine-line capture reconstructed by the hosted "
+            "CPython 3.12.3 Linux x86-64 distribution job: environment probes, "
+            "the isolated verifier command, exact success output, and exit zero."
+        ),
+        body="\n".join(body),
+    )
+
+
+def distribution_contract_svg(
+    *,
+    backend: str,
+    sdist_filename: str,
+    wheel_filename: str,
+    wheel_tag: str,
+    z3_filename: str,
+    z3_sha256: str,
+    z3_size_bytes: int,
+    z3_tag: str,
+    z3_elf_paths: tuple[str, ...],
+    pip_flags: tuple[str, ...],
+    import_smoke: str,
+    console_smoke: str,
+) -> str:
+    """Render the checked source-to-offline-install release boundary."""
+
+    strings = (
+        backend,
+        sdist_filename,
+        wheel_filename,
+        wheel_tag,
+        z3_filename,
+        z3_tag,
+        import_smoke,
+        console_smoke,
+        *z3_elf_paths,
+        *pip_flags,
+    )
+    if any(not value or "\n" in value or not value.isprintable() for value in strings):
+        raise ValueError("distribution visual values must be printable single lines")
+    if (
+        len(z3_sha256) != 64
+        or any(character not in "0123456789abcdef" for character in z3_sha256)
+        or z3_size_bytes <= 0
+    ):
+        raise ValueError("distribution visual requires an exact Z3 wheel identity")
+    if len(z3_elf_paths) != 3 or len(set(z3_elf_paths)) != 3:
+        raise ValueError("distribution visual requires exactly three Z3 ELF paths")
+    if len(pip_flags) != 6 or len(set(pip_flags)) != 6:
+        raise ValueError("distribution visual requires the closed offline flag set")
+
+    wheel_prefix = wheel_filename.removesuffix(f"{wheel_tag}.whl")
+    body = [
+        _text(42, 54, "Reproducible distribution contract", size=31, weight=700),
+        _text(
+            42,
+            88,
+            "Tracked source → canonical archives → hash-locked native solver → "
+            "no-index installed behavior",
+            size=17,
+            fill=MUTED,
+        ),
+        f'<line x1="315" y1="120" x2="315" y2="765" stroke="{AMBER}" '
+        'stroke-width="3" stroke-dasharray="10 8"/>',
+        _text(
+            294,
+            142,
+            "NETWORK BOUNDARY",
+            size=14,
+            fill=AMBER,
+            weight=700,
+            anchor="end",
+        ),
+        _text(
+            342,
+            142,
+            "resolver index disabled · validation/build/smoke need no network",
+            size=14,
+            fill=GREEN,
+            weight=700,
+        ),
+        _box(
+            34,
+            195,
+            242,
+            165,
+            title="Dependency acquisition",
+            lines=(
+                "index download",
+                "--require-hashes",
+                "--only-binary=:all:",
+                "--no-deps",
+            ),
+            accent=AMBER,
+        ),
+        _arrow(276, 277, 365, 277, color=AMBER),
+        _box(
+            365,
+            170,
+            1_020,
+            235,
+            title="Pinned Z3 native wheel · outer bytes + inner payloads",
+            lines=(
+                z3_filename,
+                f"size  {z3_size_bytes:,} bytes · tag  {z3_tag}",
+                f"sha256  {z3_sha256[:32]}",
+                f"        {z3_sha256[32:]}",
+                f"ELF 1/3  {z3_elf_paths[0]}",
+                f"ELF 2/3  {z3_elf_paths[1]}",
+                f"ELF 3/3  {z3_elf_paths[2]} · RECORD checked",
+            ),
+            accent=VIOLET,
+        ),
+        _box(
+            345,
+            445,
+            205,
+            145,
+            title="Tracked checkout",
+            lines=(
+                "bounded regular files",
+                "portable paths",
+                "exact payload bytes",
+            ),
+            accent=CYAN,
+        ),
+        _box(
+            590,
+            445,
+            235,
+            145,
+            title="Dual sdist builds",
+            lines=(
+                "isolated source A + B",
+                backend,
+                "canonical bytes A = B",
+            ),
+            accent=CYAN,
+        ),
+        _box(
+            865,
+            445,
+            220,
+            145,
+            title="Canonical sdist",
+            lines=(
+                sdist_filename,
+                "normalized tar + gzip",
+                "tracked surface closed",
+            ),
+            accent=VIOLET,
+        ),
+        _box(
+            1_125,
+            445,
+            260,
+            145,
+            title="Dual pure wheels",
+            lines=(
+                f"{wheel_prefix}",
+                f"{wheel_tag}.whl",
+                "wheel bytes A = B",
+            ),
+            accent=GREEN,
+        ),
+        _arrow(550, 517, 590, 517),
+        _arrow(825, 517, 865, 517),
+        _arrow(1_085, 517, 1_125, 517),
+        _box(
+            430,
+            625,
+            500,
+            170,
+            title="Clean virtual environment · offline resolver",
+            lines=(
+                " · ".join(pip_flags[:2]),
+                " · ".join(pip_flags[2:4]),
+                " · ".join(pip_flags[4:]),
+                "empty working directory remains empty",
+            ),
+            accent=GREEN,
+        ),
+        _box(
+            985,
+            625,
+            400,
+            170,
+            title="Installed behavior",
+            lines=(
+                f"import  {import_smoke}",
+                f"console {console_smoke}",
+                "both stdout values exact · exit 0",
+            ),
+            accent=GREEN,
+        ),
+        _arrow(1_255, 590, 850, 625, label="UnitSentinel wheel", color=GREEN),
+        _arrow(705, 405, 650, 625, color=VIOLET),
+        _arrow(930, 710, 985, 710),
+        _box(
+            34,
+            815,
+            665,
+            155,
+            title="VERIFIED",
+            lines=(
+                "tracked + generated sdist surface is closed",
+                "two canonical sdists equal · two wheels equal",
+                "Z3 filename/hash/size/tag/RECORD/ELF checked",
+                "offline install · import smoke · console smoke",
+            ),
+            accent=GREEN,
+        ),
+        _box(
+            741,
+            815,
+            665,
+            155,
+            title="NOT CLAIMED",
+            lines=(
+                "signing, publisher identity, or attestation",
+                "cross-host or cross-toolchain reproducibility",
+                "index publication or runtime deployment",
+                "correctness beyond the two isolated smokes",
+            ),
+            accent=AMBER,
+        ),
+        _text(
+            720,
+            982,
+            "Exact release host: CPython 3.12.3 · Linux · x86_64",
+            size=14,
+            fill=MUTED,
+            weight=700,
+            anchor="middle",
+        ),
+    ]
+    return _document(
+        width=SVG_WIDTH,
+        height=1_000,
+        title="UnitSentinel reproducible distribution contract",
+        description=(
+            "The implemented release path from a tracked checkout through two "
+            "byte-equal canonical sdists and wheels, joined with one exact "
+            "hash-locked Z3 wheel at an offline clean-environment install and "
+            "two installed smoke checks. Verified and explicitly unclaimed "
+            "properties are separated."
+        ),
+        body="\n".join(body),
+    )

@@ -1,0 +1,9 @@
+$ python -c 'import platform; print(platform.python_version())'
+3.12.3
+$ uname -s
+Linux
+$ uname -m
+x86_64
+$ python -I tools/verify_distribution.py --wheelhouse "$RUNNER_TEMP/unitsentinel-wheelhouse"
+verified unitsentinel 0.1.0: canonical sdist -> py3-none-any wheel -> offline Z3 install
+[exit 0]

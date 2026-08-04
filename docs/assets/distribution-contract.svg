@@ -1,0 +1,120 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="1000" viewBox="0 0 1440 1000" role="img" aria-labelledby="title description">
+  <title id="title">UnitSentinel reproducible distribution contract</title>
+  <desc id="description">The implemented release path from a tracked checkout through two byte-equal canonical sdists and wheels, joined with one exact hash-locked Z3 wheel at an offline clean-environment install and two installed smoke checks. Verified and explicitly unclaimed properties are separated.</desc>
+  <defs>
+    <linearGradient id="background" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#07111f"/>
+      <stop offset="1" stop-color="#0a1730"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="10" stdDeviation="12" flood-color="#000814" flood-opacity=".45"/>
+    </filter>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L0,6 L9,3 z" fill="#8fa5bd"/>
+    </marker>
+  </defs>
+  <rect width="1440" height="1000" fill="url(#background)"/>
+<text x="42" y="54" fill="#d8e4f2" font-family="DejaVu Sans, sans-serif" font-size="31" font-weight="700" text-anchor="start">Reproducible distribution contract</text>
+<text x="42" y="88" fill="#8fa5bd" font-family="DejaVu Sans, sans-serif" font-size="17" font-weight="400" text-anchor="start">Tracked source → canonical archives → hash-locked native solver → no-index installed behavior</text>
+<line x1="315" y1="120" x2="315" y2="765" stroke="#ffc857" stroke-width="3" stroke-dasharray="10 8"/>
+<text x="294" y="142" fill="#ffc857" font-family="DejaVu Sans, sans-serif" font-size="14" font-weight="700" text-anchor="end">NETWORK BOUNDARY</text>
+<text x="342" y="142" fill="#5ee6a8" font-family="DejaVu Sans, sans-serif" font-size="14" font-weight="700" text-anchor="start">resolver index disabled · validation/build/smoke need no network</text>
+<rect x="34" y="195" width="242" height="165" rx="18" fill="#0d1b2d" stroke="#253a55" stroke-width="2" filter="url(#shadow)"/>
+<rect x="34" y="195" width="7" height="165" rx="3.5" fill="#ffc857"/>
+<text x="62" y="233" fill="#ffc857" font-family="DejaVu Sans, sans-serif" font-size="20" font-weight="700" text-anchor="start">Dependency acquisition</text>
+<text x="62" y="265" fill="#d8e4f2" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="400" text-anchor="start">
+      <tspan x="62" dy="0">index download</tspan>
+      <tspan x="62" dy="25">--require-hashes</tspan>
+      <tspan x="62" dy="25">--only-binary=:all:</tspan>
+      <tspan x="62" dy="25">--no-deps</tspan>
+    </text>
+<path d="M276,277 L365,277" stroke="#ffc857" stroke-width="3" fill="none" marker-end="url(#arrow)"/>
+<rect x="365" y="170" width="1020" height="235" rx="18" fill="#0d1b2d" stroke="#253a55" stroke-width="2" filter="url(#shadow)"/>
+<rect x="365" y="170" width="7" height="235" rx="3.5" fill="#b69cff"/>
+<text x="393" y="208" fill="#b69cff" font-family="DejaVu Sans, sans-serif" font-size="20" font-weight="700" text-anchor="start">Pinned Z3 native wheel · outer bytes + inner payloads</text>
+<text x="393" y="240" fill="#d8e4f2" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="400" text-anchor="start">
+      <tspan x="393" dy="0">z3_solver-4.16.0.0-py3-none-manylinux_2_27_x86_64.whl</tspan>
+      <tspan x="393" dy="25">size  31,741,807 bytes · tag  py3-none-manylinux_2_27_x86_64</tspan>
+      <tspan x="393" dy="25">sha256  afae2551f795670f0522cfce82132d12</tspan>
+      <tspan x="393" dy="25">        9c408a2694adff71eb01ba0f2ece44f9</tspan>
+      <tspan x="393" dy="25">ELF 1/3  z3_solver-4.16.0.0.data/data/bin/z3</tspan>
+      <tspan x="393" dy="25">ELF 2/3  z3/lib/libz3.so</tspan>
+      <tspan x="393" dy="25">ELF 3/3  z3/lib/libz3.so.4.16 · RECORD checked</tspan>
+    </text>
+<rect x="345" y="445" width="205" height="145" rx="18" fill="#0d1b2d" stroke="#253a55" stroke-width="2" filter="url(#shadow)"/>
+<rect x="345" y="445" width="7" height="145" rx="3.5" fill="#38d9f5"/>
+<text x="373" y="483" fill="#38d9f5" font-family="DejaVu Sans, sans-serif" font-size="20" font-weight="700" text-anchor="start">Tracked checkout</text>
+<text x="373" y="515" fill="#d8e4f2" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="400" text-anchor="start">
+      <tspan x="373" dy="0">bounded regular files</tspan>
+      <tspan x="373" dy="25">portable paths</tspan>
+      <tspan x="373" dy="25">exact payload bytes</tspan>
+    </text>
+<rect x="590" y="445" width="235" height="145" rx="18" fill="#0d1b2d" stroke="#253a55" stroke-width="2" filter="url(#shadow)"/>
+<rect x="590" y="445" width="7" height="145" rx="3.5" fill="#38d9f5"/>
+<text x="618" y="483" fill="#38d9f5" font-family="DejaVu Sans, sans-serif" font-size="20" font-weight="700" text-anchor="start">Dual sdist builds</text>
+<text x="618" y="515" fill="#d8e4f2" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="400" text-anchor="start">
+      <tspan x="618" dy="0">isolated source A + B</tspan>
+      <tspan x="618" dy="25">setuptools==83.0.0</tspan>
+      <tspan x="618" dy="25">canonical bytes A = B</tspan>
+    </text>
+<rect x="865" y="445" width="220" height="145" rx="18" fill="#0d1b2d" stroke="#253a55" stroke-width="2" filter="url(#shadow)"/>
+<rect x="865" y="445" width="7" height="145" rx="3.5" fill="#b69cff"/>
+<text x="893" y="483" fill="#b69cff" font-family="DejaVu Sans, sans-serif" font-size="20" font-weight="700" text-anchor="start">Canonical sdist</text>
+<text x="893" y="515" fill="#d8e4f2" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="400" text-anchor="start">
+      <tspan x="893" dy="0">unitsentinel-0.1.0.tar.gz</tspan>
+      <tspan x="893" dy="25">normalized tar + gzip</tspan>
+      <tspan x="893" dy="25">tracked surface closed</tspan>
+    </text>
+<rect x="1125" y="445" width="260" height="145" rx="18" fill="#0d1b2d" stroke="#253a55" stroke-width="2" filter="url(#shadow)"/>
+<rect x="1125" y="445" width="7" height="145" rx="3.5" fill="#5ee6a8"/>
+<text x="1153" y="483" fill="#5ee6a8" font-family="DejaVu Sans, sans-serif" font-size="20" font-weight="700" text-anchor="start">Dual pure wheels</text>
+<text x="1153" y="515" fill="#d8e4f2" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="400" text-anchor="start">
+      <tspan x="1153" dy="0">unitsentinel-0.1.0-</tspan>
+      <tspan x="1153" dy="25">py3-none-any.whl</tspan>
+      <tspan x="1153" dy="25">wheel bytes A = B</tspan>
+    </text>
+<path d="M550,517 L590,517" stroke="#8fa5bd" stroke-width="3" fill="none" marker-end="url(#arrow)"/>
+<path d="M825,517 L865,517" stroke="#8fa5bd" stroke-width="3" fill="none" marker-end="url(#arrow)"/>
+<path d="M1085,517 L1125,517" stroke="#8fa5bd" stroke-width="3" fill="none" marker-end="url(#arrow)"/>
+<rect x="430" y="625" width="500" height="170" rx="18" fill="#0d1b2d" stroke="#253a55" stroke-width="2" filter="url(#shadow)"/>
+<rect x="430" y="625" width="7" height="170" rx="3.5" fill="#5ee6a8"/>
+<text x="458" y="663" fill="#5ee6a8" font-family="DejaVu Sans, sans-serif" font-size="20" font-weight="700" text-anchor="start">Clean virtual environment · offline resolver</text>
+<text x="458" y="695" fill="#d8e4f2" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="400" text-anchor="start">
+      <tspan x="458" dy="0">--no-index · --find-links=&lt;hash-pinned-wheelhouse&gt;</tspan>
+      <tspan x="458" dy="25">--require-hashes · --only-binary=:all:</tspan>
+      <tspan x="458" dy="25">--no-cache-dir · --no-compile</tspan>
+      <tspan x="458" dy="25">empty working directory remains empty</tspan>
+    </text>
+<rect x="985" y="625" width="400" height="170" rx="18" fill="#0d1b2d" stroke="#253a55" stroke-width="2" filter="url(#shadow)"/>
+<rect x="985" y="625" width="7" height="170" rx="3.5" fill="#5ee6a8"/>
+<text x="1013" y="663" fill="#5ee6a8" font-family="DejaVu Sans, sans-serif" font-size="20" font-weight="700" text-anchor="start">Installed behavior</text>
+<text x="1013" y="695" fill="#d8e4f2" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="400" text-anchor="start">
+      <tspan x="1013" dy="0">import  installed unitsentinel 0.1.0 with z3 4.16.0</tspan>
+      <tspan x="1013" dy="25">console unitsentinel 0.1.0</tspan>
+      <tspan x="1013" dy="25">both stdout values exact · exit 0</tspan>
+    </text>
+<path d="M1255,590 L850,625" stroke="#5ee6a8" stroke-width="3" fill="none" marker-end="url(#arrow)"/>
+<text x="1052.5" y="597.5" fill="#5ee6a8" font-family="DejaVu Sans, sans-serif" font-size="14" font-weight="400" text-anchor="middle">UnitSentinel wheel</text>
+<path d="M705,405 L650,625" stroke="#b69cff" stroke-width="3" fill="none" marker-end="url(#arrow)"/>
+<path d="M930,710 L985,710" stroke="#8fa5bd" stroke-width="3" fill="none" marker-end="url(#arrow)"/>
+<rect x="34" y="815" width="665" height="155" rx="18" fill="#0d1b2d" stroke="#253a55" stroke-width="2" filter="url(#shadow)"/>
+<rect x="34" y="815" width="7" height="155" rx="3.5" fill="#5ee6a8"/>
+<text x="62" y="853" fill="#5ee6a8" font-family="DejaVu Sans, sans-serif" font-size="20" font-weight="700" text-anchor="start">VERIFIED</text>
+<text x="62" y="885" fill="#d8e4f2" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="400" text-anchor="start">
+      <tspan x="62" dy="0">tracked + generated sdist surface is closed</tspan>
+      <tspan x="62" dy="25">two canonical sdists equal · two wheels equal</tspan>
+      <tspan x="62" dy="25">Z3 filename/hash/size/tag/RECORD/ELF checked</tspan>
+      <tspan x="62" dy="25">offline install · import smoke · console smoke</tspan>
+    </text>
+<rect x="741" y="815" width="665" height="155" rx="18" fill="#0d1b2d" stroke="#253a55" stroke-width="2" filter="url(#shadow)"/>
+<rect x="741" y="815" width="7" height="155" rx="3.5" fill="#ffc857"/>
+<text x="769" y="853" fill="#ffc857" font-family="DejaVu Sans, sans-serif" font-size="20" font-weight="700" text-anchor="start">NOT CLAIMED</text>
+<text x="769" y="885" fill="#d8e4f2" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="400" text-anchor="start">
+      <tspan x="769" dy="0">signing, publisher identity, or attestation</tspan>
+      <tspan x="769" dy="25">cross-host or cross-toolchain reproducibility</tspan>
+      <tspan x="769" dy="25">index publication or runtime deployment</tspan>
+      <tspan x="769" dy="25">correctness beyond the two isolated smokes</tspan>
+    </text>
+<text x="720" y="982" fill="#8fa5bd" font-family="DejaVu Sans, sans-serif" font-size="14" font-weight="700" text-anchor="middle">Exact release host: CPython 3.12.3 · Linux · x86_64</text>
+</svg>
