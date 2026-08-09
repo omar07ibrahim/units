@@ -23,7 +23,6 @@ from .graph import (
     MAX_GRAPH_INPUTS,
     MAX_GRAPH_NODES,
     MAX_GRAPH_OUTPUTS,
-    MAX_GRAPH_VALUES,
     MAX_TENSOR_RANK,
     ComputationGraph,
     Node,
@@ -120,7 +119,9 @@ class OnnxOperatorBinding:
             raise OnnxAdapterError("operator binding operation is invalid")
         expected, _ = _OPERATOR_MAP[self.onnx_op_type]
         if self.operation is not expected:
-            raise OnnxAdapterError("operator binding operation does not match its ONNX op")
+            raise OnnxAdapterError(
+                "operator binding operation does not match its ONNX op"
+            )
 
     def canonical_record(self) -> dict[str, str]:
         self.validate()
@@ -374,7 +375,9 @@ def _preflight_model(model: object) -> tuple[object, bytes]:
 
     graph = _get(model, "graph")
     if _items(graph, "initializer") or _items(graph, "sparse_initializer"):
-        raise OnnxModelError("ONNX initializers and external tensor data are not supported")
+        raise OnnxModelError(
+            "ONNX initializers and external tensor data are not supported"
+        )
     if _items(graph, "quantization_annotation"):
         raise OnnxModelError("ONNX quantization annotations are not supported")
 
@@ -387,9 +390,6 @@ def _preflight_model(model: object) -> tuple[object, bytes]:
         raise OnnxModelError("ONNX graph node count is out of bounds")
     if not outputs or len(outputs) > MAX_GRAPH_OUTPUTS:
         raise OnnxModelError("ONNX graph output count is out of bounds")
-    if len(inputs) + len(nodes) > MAX_GRAPH_VALUES:
-        raise OnnxModelError("ONNX graph value count is out of bounds")
-
     for node in nodes:
         if _items(node, "attribute"):
             raise OnnxModelError("ONNX node attributes are not supported")
