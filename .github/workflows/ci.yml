@@ -123,6 +123,7 @@ jobs:
 
       - name: Replay every committed evidence pipeline
         run: |
+          PYTHONPATH=src python -B -m tools.evidence.onnx_evidence --check
           PYTHONPATH=src python -B -m tools.evidence.generate --check
           PYTHONPATH=src python -B -m tools.evidence.distribution_visuals --check
           npm --prefix tools/evidence run check

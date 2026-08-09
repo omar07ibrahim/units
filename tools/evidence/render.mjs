@@ -19,6 +19,11 @@
  *   docs/evidence/comparison-demo/frame-*.svg
  *     -> docs/assets/comparison-demo.gif
  *
+ * ONNX sources:
+ *   docs/evidence/onnx-demo/frames.json
+ *   docs/evidence/onnx-demo/frame-*.svg
+ *     -> docs/assets/onnx-demo.gif
+ *
  * Usage:
  *   node render.mjs                       Render every expected output.
  *   node render.mjs --check               Verify every committed output.
@@ -68,11 +73,20 @@ const COMPARISON_DEMO_OUTPUT = join(
   ASSET_DIRECTORY,
   "comparison-demo.gif",
 );
+const ONNX_DEMO_DIRECTORY = join(
+  REPOSITORY_ROOT,
+  "docs",
+  "evidence",
+  "onnx-demo",
+);
+const ONNX_DEMO_MANIFEST = join(ONNX_DEMO_DIRECTORY, "frames.json");
+const ONNX_DEMO_OUTPUT = join(ASSET_DIRECTORY, "onnx-demo.gif");
 const REPAIR_SOURCE = join(ASSET_DIRECTORY, "unit-repair-lineage.svg");
 const REPAIR_OUTPUT = join(ASSET_DIRECTORY, "unit-repair-lineage.png");
 
 const DEMO_SCHEMA = "unitsentinel.demo-frames/v1";
 const COMPARISON_DEMO_SCHEMA = "unitsentinel.comparison-demo-frames/v1";
+const ONNX_DEMO_SCHEMA = "unitsentinel.onnx-demo-frames/v1";
 const FONT_ENVIRONMENT_VARIABLE = "UNITSENTINEL_FONT_PATH";
 const PUBLIC_SVG_NAME = /^[a-z0-9]+(?:-[a-z0-9]+)*\.svg$/u;
 const DEMO_FRAME_NAME = /^frame-[a-z0-9]+(?:-[a-z0-9]+)*\.svg$/u;
@@ -91,6 +105,13 @@ const COMPARISON_FRAME_RECORDS = Object.freeze([
 ]);
 const COMPARISON_FRAME_WIDTH = 1_440;
 const COMPARISON_FRAME_HEIGHT = 1_100;
+const ONNX_FRAME_RECORDS = Object.freeze([
+  Object.freeze({ delayMs: 2_600, path: "frame-import.svg" }),
+  Object.freeze({ delayMs: 2_600, path: "frame-lowering.svg" }),
+  Object.freeze({ delayMs: 2_800, path: "frame-rejections.svg" }),
+]);
+const ONNX_FRAME_WIDTH = 1_440;
+const ONNX_FRAME_HEIGHT = 900;
 
 const MAX_PUBLIC_SVGS = 64;
 const MAX_DEMO_FRAMES = 32;
@@ -122,6 +143,7 @@ const ERROR_MESSAGES = Object.freeze({
   "manifest-invalid": "demo frame manifest is invalid",
   "manifest-read-failed": "demo frame manifest could not be read safely",
   "no-public-svg": "no public SVG evidence sources were found",
+  "onnx-directory-invalid": "ONNX demo directory is unavailable or unsafe",
   "output-durability-failed": "output durability could not be confirmed",
   "output-publish-failed": "rendered output could not be published atomically",
   "output-stale": "committed rendered evidence is missing or stale",
@@ -475,6 +497,15 @@ async function readComparisonDemoManifest() {
     expectedFrames: COMPARISON_FRAME_RECORDS,
     manifest: COMPARISON_DEMO_MANIFEST,
     schema: COMPARISON_DEMO_SCHEMA,
+  });
+}
+
+async function readOnnxDemoManifest() {
+  return readFrameManifest({
+    directory: ONNX_DEMO_DIRECTORY,
+    expectedFrames: ONNX_FRAME_RECORDS,
+    manifest: ONNX_DEMO_MANIFEST,
+    schema: ONNX_DEMO_SCHEMA,
   });
 }
 
@@ -923,6 +954,7 @@ async function buildOutputs(context, dependencies, fontPath) {
   requireComparisonSources(publicSources);
   const manifestFrames = await readDemoManifest();
   const comparisonManifestFrames = await readComparisonDemoManifest();
+  const onnxManifestFrames = await readOnnxDemoManifest();
   const outputs = await renderPngOutputs(
     publicSources,
     dependencies,
@@ -951,10 +983,24 @@ async function buildOutputs(context, dependencies, fontPath) {
     ),
   );
 
+  appendBoundedOutput(
+    outputs,
+    await renderGifOutput(
+      onnxManifestFrames,
+      ONNX_DEMO_OUTPUT,
+      dependencies,
+      fontPath,
+      {
+        height: ONNX_FRAME_HEIGHT,
+        width: ONNX_FRAME_WIDTH,
+      },
+    ),
+  );
+
   for (const output of outputs) {
     await validateOutputTarget(output.path, context.repositoryRoot);
   }
-  return { gifCount: 2, outputs, publicCount: publicSources.length };
+  return { gifCount: 3, outputs, publicCount: publicSources.length };
 }
 
 async function buildComparisonOutputs(context, dependencies, fontPath) {
@@ -1054,6 +1100,11 @@ async function prepareContext(mode) {
       DEMO_DIRECTORY,
       repositoryRoot,
       "demo-directory-invalid",
+    );
+    await requireSafeDirectory(
+      ONNX_DEMO_DIRECTORY,
+      repositoryRoot,
+      "onnx-directory-invalid",
     );
   }
   if (mode.endsWith("-all") || mode.endsWith("-comparison")) {

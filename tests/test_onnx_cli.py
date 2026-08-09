@@ -10,6 +10,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from test_onnx_adapter import serialize, speed_model
+
 from unitsentinel import cli
 from unitsentinel.canonical import canonical_json_bytes
 from unitsentinel.graph_codec import decode_graph
