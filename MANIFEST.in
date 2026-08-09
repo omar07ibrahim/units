@@ -8,7 +8,7 @@ include README.md
 include pyproject.toml
 include requirements-distribution.txt
 
-recursive-include docs *.gif *.json *.md *.png *.svg *.txt
+recursive-include docs *.gif *.json *.md *.onnx *.png *.svg *.txt
 recursive-include examples *.py
 recursive-include src/unitsentinel *.py py.typed
 include src/unitsentinel.egg-info/PKG-INFO

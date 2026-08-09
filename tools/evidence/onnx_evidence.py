@@ -283,10 +283,7 @@ def _architecture_svg(
             lines=(
                 f"onnx {checker['runtime_version']}",
                 f"full_check = {str(checker['full_check']).lower()}",
-                (
-                    "custom domains = "
-                    f"{str(checker['custom_domain_check']).lower()}"
-                ),
+                (f"custom domains = {str(checker['custom_domain_check']).lower()}"),
                 f"model_executed = {str(model['model_executed']).lower()}",
             ),
             accent=GREEN,
@@ -313,10 +310,7 @@ def _architecture_svg(
             title="4 · LOWER",
             lines=(
                 f"IR {model['ir_version']} · opset {opset['version']}",
-                (
-                    f"{operator['onnx_op_type']} → "
-                    f"{operator['unitsentinel_operation']}"
-                ),
+                (f"{operator['onnx_op_type']} → {operator['unitsentinel_operation']}"),
                 "static tensor contract",
                 "closed subset",
             ),
@@ -549,9 +543,7 @@ def _rejection_svg(rejections: list[dict[str, object]]) -> str:
             1080,
             105,
             title="RECORDED BOUNDARY RESULT",
-            lines=(
-                f"{len(rejections)} CLI cases · {published} graphs published",
-            ),
+            lines=(f"{len(rejections)} CLI cases · {published} graphs published",),
             accent=GREEN,
         )
     )

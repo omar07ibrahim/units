@@ -572,9 +572,7 @@ class EvidenceIntegrityTests(unittest.TestCase):
             EVIDENCE / "captures" / "onnx-import.json"
         )
         provenance = _canonical_document(EVIDENCE / "onnx-provenance.json")
-        rejections = _canonical_document(
-            EVIDENCE / "captures" / "onnx-rejections.json"
-        )
+        rejections = _canonical_document(EVIDENCE / "captures" / "onnx-rejections.json")
         assert isinstance(import_document, dict)
         assert isinstance(provenance, dict)
         assert isinstance(rejections, dict)
@@ -602,10 +600,7 @@ class EvidenceIntegrityTests(unittest.TestCase):
         self.assertIn(f"{graph['values']} explicit values", architecture)
         self.assertIn(f"{graph['nodes']} explicit nodes", architecture)
         self.assertIn(
-            (
-                f"{operator['onnx_op_type']} → "
-                f"{operator['unitsentinel_operation']}"
-            ),
+            (f"{operator['onnx_op_type']} → {operator['unitsentinel_operation']}"),
             architecture,
         )
         self.assertIn(str(operator["node_id"]), lowered)
