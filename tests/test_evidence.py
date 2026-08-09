@@ -4,6 +4,7 @@ import hashlib
 import json
 import os
 import re
+import shutil
 import stat
 import statistics
 import struct
@@ -492,7 +493,49 @@ class EvidenceIntegrityTests(unittest.TestCase):
             self.assertEqual(completed.stdout, b"")
             self.assertEqual(completed.stderr, b"")
 
+    def test_renderer_binary_override_is_explicit_and_bounded(self) -> None:
+        with tempfile.TemporaryDirectory(dir=ROOT) as directory:
+            executable = Path(directory) / "node"
+            executable.write_bytes(b"")
+            executable.chmod(0o700)
+            with patch.dict(
+                os.environ,
+                {"UNITSENTINEL_NODE": str(executable)},
+            ):
+                self.assertEqual(
+                    evidence_generate._node_binary(),
+                    str(executable.resolve()),
+                )
+
+            executable.chmod(0o600)
+            with (
+                patch.dict(
+                    os.environ,
+                    {"UNITSENTINEL_NODE": str(executable)},
+                ),
+                self.assertRaisesRegex(
+                    evidence_generate.EvidenceError,
+                    "regular executable",
+                ),
+            ):
+                evidence_generate._node_binary()
+
+            with (
+                patch.dict(
+                    os.environ,
+                    {"UNITSENTINEL_NODE": "relative/node"},
+                ),
+                self.assertRaisesRegex(
+                    evidence_generate.EvidenceError,
+                    "absolute executable path",
+                ),
+            ):
+                evidence_generate._node_binary()
+
     def test_generator_reproduces_committed_evidence(self) -> None:
+        node = shutil.which("node")
+        if node is None:
+            self.fail("the pinned renderer runtime is missing")
         completed = subprocess.run(
             [
                 sys.executable,
@@ -508,6 +551,7 @@ class EvidenceIntegrityTests(unittest.TestCase):
                 "PATH": os.defpath,
                 "PYTHONHASHSEED": "0",
                 "PYTHONPATH": str(ROOT / "src"),
+                "UNITSENTINEL_NODE": node,
             },
             stdin=subprocess.DEVNULL,
             capture_output=True,

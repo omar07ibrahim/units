@@ -57,10 +57,12 @@ jobs:
         run: |
           PYTHONPATH=src python -B -m tools.evidence.onnx_evidence --record
           npm --prefix tools/evidence run render
-          PYTHONPATH=src python -B -m tools.evidence.generate --write-manifest
+          UNITSENTINEL_NODE="$(command -v node)" \
+            PYTHONPATH=src python -B -m tools.evidence.generate --write-manifest
           PYTHONPATH=src python -B -m tools.evidence.onnx_evidence --check
           npm --prefix tools/evidence run check
-          PYTHONPATH=src python -B -m tools.evidence.generate --check
+          UNITSENTINEL_NODE="$(command -v node)" \
+            PYTHONPATH=src python -B -m tools.evidence.generate --check
 
       - name: Commit only the generated evidence
         env:

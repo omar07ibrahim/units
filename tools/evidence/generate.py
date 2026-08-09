@@ -585,10 +585,32 @@ def _require_recording_environment() -> None:
         raise EvidenceError("record evidence from the repository .venv/bin/python")
 
 
+def _node_binary() -> str:
+    configured = os.environ.get("UNITSENTINEL_NODE")
+    if configured is None:
+        discovered = shutil.which("node", path=os.defpath)
+        if discovered is None:
+            raise EvidenceError("Node.js is required to verify rendered evidence")
+        return discovered
+    candidate = Path(configured)
+    if not candidate.is_absolute():
+        raise EvidenceError("UNITSENTINEL_NODE must be an absolute executable path")
+    try:
+        resolved = candidate.resolve(strict=True)
+        status = resolved.stat()
+    except (OSError, RuntimeError):
+        raise EvidenceError(
+            "UNITSENTINEL_NODE must resolve to a regular executable"
+        ) from None
+    if not stat.S_ISREG(status.st_mode) or not os.access(resolved, os.X_OK):
+        raise EvidenceError(
+            "UNITSENTINEL_NODE must resolve to a regular executable"
+        )
+    return str(resolved)
+
+
 def _check_rendered_assets() -> None:
-    node = shutil.which("node", path=os.defpath)
-    if node is None:
-        raise EvidenceError("Node.js is required to verify rendered evidence")
+    node = _node_binary()
     try:
         completed = subprocess.run(
             [node, str(ROOT / "tools" / "evidence" / "render.mjs"), "--check"],

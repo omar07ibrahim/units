@@ -38,9 +38,7 @@ from .json_boundary import (
 from .registry import BUILTIN_REGISTRY, SHA256_HEX
 from .version import VERSION
 
-ONNX_CONTRACT_METADATA_KEY: Final = (
-    "io.github.omar07ibrahim.unitsentinel.contract"
-)
+ONNX_CONTRACT_METADATA_KEY: Final = "io.github.omar07ibrahim.unitsentinel.contract"
 ONNX_CONTRACT_SCHEMA: Final = "unitsentinel.onnx-contract/v1"
 ONNX_IMPORT_SCHEMA: Final = "unitsentinel.onnx-import/v1"
 ONNX_RUNTIME_VERSION: Final = "1.22.0"
@@ -150,9 +148,7 @@ class OnnxImportResult:
 
     def validate(self) -> None:
         if type(self) is not OnnxImportResult:
-            raise OnnxAdapterError(
-                "import result must be an exact OnnxImportResult"
-            )
+            raise OnnxAdapterError("import result must be an exact OnnxImportResult")
         if type(self.graph) is not ComputationGraph:
             raise OnnxAdapterError("import result graph is invalid")
         self.graph.validate()
@@ -189,9 +185,7 @@ class OnnxImportResult:
                 )
             binding.validate()
             if binding.onnx_name in names:
-                raise OnnxAdapterError(
-                    "import result ONNX node names must be unique"
-                )
+                raise OnnxAdapterError("import result ONNX node names must be unique")
             names.add(binding.onnx_name)
             if (
                 binding.node_id != node.node_id
@@ -408,9 +402,7 @@ def _preflight_model(model: object) -> tuple[object, bytes]:
 def _contract_payload(model: object) -> bytes:
     properties = _items(model, "metadata_props")
     if len(properties) != 1:
-        raise OnnxContractError(
-            "ONNX model must contain exactly one metadata contract"
-        )
+        raise OnnxContractError("ONNX model must contain exactly one metadata contract")
     property_value = properties[0]
     if _text(property_value, "key") != ONNX_CONTRACT_METADATA_KEY:
         raise OnnxContractError("ONNX metadata contract key is not supported")
@@ -418,9 +410,7 @@ def _contract_payload(model: object) -> bytes:
     try:
         payload = value.encode("utf-8", errors="strict")
     except UnicodeEncodeError:
-        raise OnnxContractError(
-            "ONNX metadata contract is not valid UTF-8"
-        ) from None
+        raise OnnxContractError("ONNX metadata contract is not valid UTF-8") from None
     if len(payload) > MAX_ONNX_CONTRACT_BYTES:
         raise OnnxContractError("ONNX metadata contract exceeds the byte limit")
     return payload
@@ -519,9 +509,7 @@ def _decode_contract(payload: bytes) -> _Contract:
             "ONNX contract value bindings must be sorted and unique"
         )
     if node_names != sorted(node_names) or len(node_names) != len(set(node_names)):
-        raise OnnxContractError(
-            "ONNX contract node bindings must be sorted and unique"
-        )
+        raise OnnxContractError("ONNX contract node bindings must be sorted and unique")
     value_ids = [binding.value_id for binding in values]
     node_ids = [binding.node_id for binding in nodes]
     if len(value_ids) != len(set(value_ids)):
@@ -546,9 +534,7 @@ def _decode_contract(payload: bytes) -> _Contract:
                 "ONNX contract unit identifier is not in the registry"
             ) from None
         if unit.unit_id != binding.unit_id:
-            raise OnnxContractError(
-                "ONNX contract unit identifiers must be canonical"
-            )
+            raise OnnxContractError("ONNX contract unit identifiers must be canonical")
 
     return _Contract(graph_id=graph_id, values=tuple(values), nodes=tuple(nodes))
 
@@ -693,9 +679,7 @@ def _lower_graph(
             "ONNX contract must bind every graph value exactly once"
         )
     if set(node_bindings) != {node.onnx_name for node in source_nodes}:
-        raise OnnxContractError(
-            "ONNX contract must bind every graph node exactly once"
-        )
+        raise OnnxContractError("ONNX contract must bind every graph node exactly once")
 
     values = tuple(
         sorted(
@@ -716,8 +700,7 @@ def _lower_graph(
             node_id=node_bindings[source.onnx_name].node_id,
             operation=source.operation,
             inputs=tuple(
-                value_bindings[input_name].value_id
-                for input_name in source.inputs
+                value_bindings[input_name].value_id for input_name in source.inputs
             ),
             output=value_bindings[source.output].value_id,
         )

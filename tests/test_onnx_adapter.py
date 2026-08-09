@@ -22,9 +22,9 @@ from unitsentinel import (
     ScalarType,
     VerificationStatus,
     import_onnx_model,
-    onnx_adapter,
     verify_graph,
 )
+from unitsentinel import onnx_adapter
 from unitsentinel.canonical import canonical_json_bytes, sha256_hex
 from unitsentinel.graph_codec import encode_graph
 
@@ -235,12 +235,9 @@ def operator_model(op_type: str, arity: int) -> onnx.ModelProto:
         ],
     )
     values = [
-        {"onnx_name": name, "unit_id": None, "value_id": name}
-        for name in input_names
+        {"onnx_name": name, "unit_id": None, "value_id": name} for name in input_names
     ]
-    values.append(
-        {"onnx_name": "result", "unit_id": None, "value_id": "result"}
-    )
+    values.append({"onnx_name": "result", "unit_id": None, "value_id": "result"})
     contract = {
         "graph_id": "operator-contract",
         "nodes": [
@@ -343,9 +340,7 @@ class PositiveAdapterTests(unittest.TestCase):
         }
         for op_type, (operation, arity) in expected.items():
             with self.subTest(op_type=op_type):
-                result = import_onnx_model(
-                    serialize(operator_model(op_type, arity))
-                )
+                result = import_onnx_model(serialize(operator_model(op_type, arity)))
                 self.assertEqual(result.graph.nodes[0].operation, operation)
                 self.assertEqual(
                     result.operator_bindings[0].onnx_op_type,
@@ -475,9 +470,7 @@ class PayloadAndRuntimeBoundaryTests(unittest.TestCase):
             self.assertRaisesRegex(OnnxDependencyError, "checker is incomplete"),
         ):
             get.side_effect = lambda value, name: (
-                incomplete
-                if name == "checker"
-                else getattr(value, name)
+                incomplete if name == "checker" else getattr(value, name)
             )
             onnx_adapter._run_official_checker(onnx, speed_model())
 
@@ -623,9 +616,7 @@ class ModelPreflightTests(unittest.TestCase):
         self.assert_rejected(model, "key is not supported")
 
         model = speed_model()
-        model.metadata_props[0].value = "x" * (
-            onnx_adapter.MAX_ONNX_CONTRACT_BYTES + 1
-        )
+        model.metadata_props[0].value = "x" * (onnx_adapter.MAX_ONNX_CONTRACT_BYTES + 1)
         self.assert_rejected(model, "byte limit")
 
 
@@ -842,6 +833,7 @@ class StaticGraphBoundaryTests(unittest.TestCase):
     def test_dead_subgraphs_fail_when_lowered_to_the_core(self) -> None:
         model = two_node_model()
         model.graph.output[0].name = "speed_raw"
+        model.graph.value_info[0].name = "speed"
         contract = two_node_contract()
         values = copy.deepcopy(contract["values"])
         assert isinstance(values, list)

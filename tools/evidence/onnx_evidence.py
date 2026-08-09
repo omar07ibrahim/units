@@ -683,8 +683,7 @@ def _build_evidence() -> dict[Path, bytes]:
     files[demo_directory / "frames.json"] = _canonical_bytes(
         {
             "frames": [
-                {"delay_ms": delay, "path": name}
-                for name, delay, _ in demo_frames
+                {"delay_ms": delay, "path": name} for name, delay, _ in demo_frames
             ],
             "schema": FRAME_SCHEMA,
         }
