@@ -477,7 +477,7 @@ def _decode_contract(payload: bytes) -> _Contract:
                     _string(value["value_id"], label="canonical value identifier"),
                     label="canonical value identifier",
                 ),
-                unit_id=cast(str | None, unit_value),
+                unit_id=unit_value,
             )
         )
 
@@ -767,7 +767,7 @@ def _which_oneof(value: object, group: str) -> str | None:
     result = cast(Callable[[str], object], method)(group)
     if result is not None and type(result) is not str:
         raise OnnxModelError("ONNX model structure is malformed")
-    return cast(str | None, result)
+    return result
 
 
 def _has_field(value: object, field_name: str) -> bool:
