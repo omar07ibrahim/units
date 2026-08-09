@@ -1,0 +1,24 @@
+$ .venv/bin/python -m unitsentinel import-onnx \
+    docs/evidence/models/speed-contract.onnx \
+    --graph docs/evidence/contracts/onnx-speed.graph.json
+UnitSentinel ONNX import: IMPORTED
+exit code: 0
+tool: unitsentinel 0.1.0
+checker: onnx.checker.check_model 1.22.0 (full=yes, custom-domains=yes)
+model sha256: 46be48f85a9ce2c45449fc887f38310d005f13af9878642cb209dc9a5c1401fb
+model bytes: 593
+model contract: IR 8, default opset 13
+model executed: no
+external tensor data: rejected
+metadata key: io.github.omar07ibrahim.unitsentinel.contract
+metadata schema: unitsentinel.onnx-contract/v1
+metadata sha256: 4d4a5f8684355f6561604c55cf4daeceaf9166b26188cc097c3a787d1979ce93
+operators (1):
+  derive-speed | Div -> divide | node=derive-speed
+graph id: onnx-speed-contract
+graph sha256: 09472bff769c5bef10ff0b525f0c117295e57e16aaa2e1446f6927dd3e54584d
+graph shape: 2 inputs, 1 nodes, 1 outputs
+import receipt sha256: d485c6063052c7982fdadb270467030e05359dcad0a218eff446ca6d97ff0dbf
+graph output: written
+next step: unitsentinel verify <graph.json>
+[exit 0]

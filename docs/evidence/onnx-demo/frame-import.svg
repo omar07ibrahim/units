@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="900" viewBox="0 0 1440 900" role="img" aria-labelledby="title description">
+  <title id="title">real ONNX import · canonical graph receipt</title>
+  <desc id="description">Actual UnitSentinel CLI import output for the committed synthetic ONNX speed contract.</desc>
+  <defs>
+    <linearGradient id="background" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#07111f"/>
+      <stop offset="1" stop-color="#0a1730"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="10" stdDeviation="12" flood-color="#000814" flood-opacity=".45"/>
+    </filter>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L0,6 L9,3 z" fill="#8fa5bd"/>
+    </marker>
+  </defs>
+  <rect width="1440" height="900" fill="url(#background)"/>
+<rect x="32" y="30" width="1376" height="840" rx="20" fill="#0d1b2d" stroke="#253a55" stroke-width="2" filter="url(#shadow)"/>
+<rect x="32" y="30" width="1376" height="66" rx="20" fill="#12233a"/>
+<rect x="32" y="76" width="1376" height="20" fill="#12233a"/>
+<circle cx="70" cy="63" r="8" fill="#ff6b7a"/>
+<circle cx="98" cy="63" r="8" fill="#ffc857"/>
+<circle cx="126" cy="63" r="8" fill="#5ee6a8"/>
+<text x="720" y="70" fill="#d8e4f2" font-family="DejaVu Sans, sans-serif" font-size="19" font-weight="700" text-anchor="middle">real ONNX import · canonical graph receipt</text>
+<rect x="32" y="94" width="1376" height="4" fill="#5ee6a8"/>
+<text x="62" y="132" fill="#38d9f5" font-family="DejaVu Sans Mono, monospace" font-size="17" font-weight="400" text-anchor="start">$ .venv/bin/python -m unitsentinel import-onnx \</text>
+<text x="62" y="156" fill="#38d9f5" font-family="DejaVu Sans Mono, monospace" font-size="17" font-weight="400" text-anchor="start">    docs/evidence/models/speed-contract.onnx \</text>
+<text x="62" y="180" fill="#38d9f5" font-family="DejaVu Sans Mono, monospace" font-size="17" font-weight="400" text-anchor="start">    --graph docs/evidence/contracts/onnx-speed.graph.json</text>
+<text x="62" y="204" fill="#d8e4f2" font-family="DejaVu Sans Mono, monospace" font-size="17" font-weight="400" text-anchor="start">UnitSentinel ONNX import: IMPORTED</text>
+<text x="62" y="228" fill="#d8e4f2" font-family="DejaVu Sans Mono, monospace" font-size="17" font-weight="400" text-anchor="start">exit code: 0</text>
+<text x="62" y="252" fill="#d8e4f2" font-family="DejaVu Sans Mono, monospace" font-size="17" font-weight="400" text-anchor="start">tool: unitsentinel 0.1.0</text>
+<text x="62" y="276" fill="#d8e4f2" font-family="DejaVu Sans Mono, monospace" font-size="17" font-weight="400" text-anchor="start">checker: onnx.checker.check_model 1.22.0 (full=yes, custom-domains=yes)</text>
+<text x="62" y="300" fill="#b69cff" font-family="DejaVu Sans Mono, monospace" font-size="17" font-weight="400" text-anchor="start">model sha256: 46be48f85a9ce2c45449fc887f38310d005f13af9878642cb209dc9a5c1401fb</text>
+<text x="62" y="324" fill="#d8e4f2" font-family="DejaVu Sans Mono, monospace" font-size="17" font-weight="400" text-anchor="start">model bytes: 593</text>
+<text x="62" y="348" fill="#d8e4f2" font-family="DejaVu Sans Mono, monospace" font-size="17" font-weight="400" text-anchor="start">model contract: IR 8, default opset 13</text>
+<text x="62" y="372" fill="#d8e4f2" font-family="DejaVu Sans Mono, monospace" font-size="17" font-weight="400" text-anchor="start">model executed: no</text>
+<text x="62" y="396" fill="#d8e4f2" font-family="DejaVu Sans Mono, monospace" font-size="17" font-weight="400" text-anchor="start">external tensor data: rejected</text>
+<text x="62" y="420" fill="#d8e4f2" font-family="DejaVu Sans Mono, monospace" font-size="17" font-weight="400" text-anchor="start">metadata key: io.github.omar07ibrahim.unitsentinel.contract</text>
+<text x="62" y="444" fill="#d8e4f2" font-family="DejaVu Sans Mono, monospace" font-size="17" font-weight="400" text-anchor="start">metadata schema: unitsentinel.onnx-contract/v1</text>
+<text x="62" y="468" fill="#b69cff" font-family="DejaVu Sans Mono, monospace" font-size="17" font-weight="400" text-anchor="start">metadata sha256: 4d4a5f8684355f6561604c55cf4daeceaf9166b26188cc097c3a787d1979ce93</text>
+<text x="62" y="492" fill="#d8e4f2" font-family="DejaVu Sans Mono, monospace" font-size="17" font-weight="400" text-anchor="start">operators (1):</text>
+<text x="62" y="516" fill="#d8e4f2" font-family="DejaVu Sans Mono, monospace" font-size="17" font-weight="400" text-anchor="start">  derive-speed | Div -&gt; divide | node=derive-speed</text>
+<text x="62" y="540" fill="#d8e4f2" font-family="DejaVu Sans Mono, monospace" font-size="17" font-weight="400" text-anchor="start">graph id: onnx-speed-contract</text>
+<text x="62" y="564" fill="#b69cff" font-family="DejaVu Sans Mono, monospace" font-size="17" font-weight="400" text-anchor="start">graph sha256: 09472bff769c5bef10ff0b525f0c117295e57e16aaa2e1446f6927dd3e54584d</text>
+<text x="62" y="588" fill="#d8e4f2" font-family="DejaVu Sans Mono, monospace" font-size="17" font-weight="400" text-anchor="start">graph shape: 2 inputs, 1 nodes, 1 outputs</text>
+<text x="62" y="612" fill="#b69cff" font-family="DejaVu Sans Mono, monospace" font-size="17" font-weight="400" text-anchor="start">import receipt sha256: d485c6063052c7982fdadb270467030e05359dcad0a218eff446ca6d97ff0dbf</text>
+<text x="62" y="636" fill="#d8e4f2" font-family="DejaVu Sans Mono, monospace" font-size="17" font-weight="400" text-anchor="start">graph output: written</text>
+<text x="62" y="660" fill="#d8e4f2" font-family="DejaVu Sans Mono, monospace" font-size="17" font-weight="400" text-anchor="start">next step: unitsentinel verify &lt;graph.json&gt;</text>
+<text x="62" y="684" fill="#5ee6a8" font-family="DejaVu Sans Mono, monospace" font-size="17" font-weight="700" text-anchor="start">[exit 0]</text>
+</svg>

@@ -1,0 +1,17 @@
+$ .venv/bin/python -m unitsentinel import-onnx \
+    <generated:dynamic-shape.onnx> \
+    --graph <new:dynamic-shape.graph.json>
+unitsentinel: error: ONNX model input is invalid: ONNX tensor dimensions must be static
+[exit 4]
+
+$ .venv/bin/python -m unitsentinel import-onnx \
+    <generated:runtime-pow-tensor.onnx> \
+    --graph <new:runtime-pow-tensor.graph.json>
+unitsentinel: error: ONNX model input is invalid: ONNX operator is not in the reviewed subset
+[exit 4]
+
+$ .venv/bin/python -m unitsentinel import-onnx \
+    <generated:embedded-initializer.onnx> \
+    --graph <new:embedded-initializer.graph.json>
+unitsentinel: error: ONNX model input is invalid: ONNX initializers and external tensor data are not supported
+[exit 4]

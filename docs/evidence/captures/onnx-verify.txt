@@ -1,0 +1,19 @@
+$ .venv/bin/python -m unitsentinel verify \
+    docs/evidence/contracts/onnx-speed.graph.json
+UnitSentinel verification: VERIFIED
+exit code: 0
+tool: unitsentinel 0.1.0
+graph id: onnx-speed-contract
+graph sha256: 09472bff769c5bef10ff0b525f0c117295e57e16aaa2e1446f6927dd3e54584d
+result sha256: c81b085d6211c9c0eba5cb051b78cc80650bd608d6bfd1547ed971f919641c93
+registry version: 1.0.0
+registry sha256: fc80cbb596f3341b1d2ff13795e50d2d1e05c792b34f24804afc97c3470913e5
+solver: z3 4.16.0 (2 checks)
+contracts (3):
+  distance | length^1 | linear | scale=1 offset=0
+  duration | time^1 | linear | scale=1 offset=0
+  speed | length^1 time^-1 | linear | scale=1 offset=0
+certificate sha256: 9a0b6ca387ccb0262571aa93e5ade5c34b82fb3ad434bd6e7020a926c883aaa0
+certificate authentication: not-provided
+certificate output: not-requested
+[exit 0]
