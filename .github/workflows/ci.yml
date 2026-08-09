@@ -142,6 +142,72 @@ jobs:
           git diff --exit-code
           test -z "$(git status --porcelain=v1 --untracked-files=all)"
 
+  onnx_wheel:
+    name: Installed-wheel ONNX extra
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+
+    steps:
+      - name: Check out the exact revision
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: pyproject.toml
+
+      - name: Build the wheel with the pinned backend
+        run: |
+          python -m pip install --no-cache-dir \
+            "build==1.5.0" \
+            "setuptools==83.0.0"
+          python -m build --wheel \
+            --outdir "$RUNNER_TEMP/unitsentinel-onnx-dist"
+          test -f \
+            "$RUNNER_TEMP/unitsentinel-onnx-dist/unitsentinel-0.1.0-py3-none-any.whl"
+
+      - name: Resolve the public ONNX extra from that wheel
+        run: |
+          python -m venv "$RUNNER_TEMP/unitsentinel-onnx-venv"
+          "$RUNNER_TEMP/unitsentinel-onnx-venv/bin/python" -m pip install \
+            --no-cache-dir \
+            "unitsentinel[onnx] @ file://${RUNNER_TEMP}/unitsentinel-onnx-dist/unitsentinel-0.1.0-py3-none-any.whl"
+          "$RUNNER_TEMP/unitsentinel-onnx-venv/bin/python" -m pip check
+          "$RUNNER_TEMP/unitsentinel-onnx-venv/bin/python" -I -c \
+            "import onnx; from unitsentinel.version import VERSION; assert onnx.__version__ == '1.22.0'; assert VERSION == '0.1.0'"
+
+      - name: Import and verify with only the installed wheel
+        run: |
+          graph="$RUNNER_TEMP/installed-onnx.graph.json"
+          receipt="$RUNNER_TEMP/installed-onnx.receipt.json"
+          verification="$RUNNER_TEMP/installed-onnx.verify.json"
+          "$RUNNER_TEMP/unitsentinel-onnx-venv/bin/python" -I \
+            -m unitsentinel import-onnx \
+            docs/evidence/models/speed-contract.onnx \
+            --graph "$graph" \
+            --json >"$receipt"
+          cmp docs/evidence/contracts/onnx-speed.graph.json "$graph"
+          jq -e \
+            '.exit_code == 0 and
+             .graph_output == "written" and
+             .import.record.model.model_executed == false and
+             .import.record.model.external_data == false' \
+            "$receipt"
+          "$RUNNER_TEMP/unitsentinel-onnx-venv/bin/python" -I \
+            -m unitsentinel verify "$graph" --json >"$verification"
+          jq -e \
+            '.exit_code == 0 and .result.record.status == "verified"' \
+            "$verification"
+
+      - name: Require a clean tracked and unignored surface
+        run: |
+          git diff --exit-code
+          test -z "$(git status --porcelain=v1 --untracked-files=all)"
+
   distribution:
     name: Source-to-installed-wheel contract
     runs-on: ubuntu-24.04

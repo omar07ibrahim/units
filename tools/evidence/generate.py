@@ -603,9 +603,7 @@ def _node_binary() -> str:
             "UNITSENTINEL_NODE must resolve to a regular executable"
         ) from None
     if not stat.S_ISREG(status.st_mode) or not os.access(resolved, os.X_OK):
-        raise EvidenceError(
-            "UNITSENTINEL_NODE must resolve to a regular executable"
-        )
+        raise EvidenceError("UNITSENTINEL_NODE must resolve to a regular executable")
     return str(resolved)
 
 

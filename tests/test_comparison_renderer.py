@@ -61,7 +61,7 @@ class ComparisonRendererTests(unittest.TestCase):
             completed.stdout,
             (
                 "unitsentinel-evidence: verified "
-                f"{public_count} PNG files and 2 GIF files\n"
+                f"{public_count} PNG files and 3 GIF files\n"
             ).encode(),
         )
         self.assertEqual(completed.stderr, b"")
