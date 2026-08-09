@@ -32,10 +32,13 @@ def _metadata_payload(readme: bytes = b"# UnitSentinel test\n") -> bytes:
         b'Requires-Dist: build==1.5.0; extra == "dev"\n'
         b'Requires-Dist: coverage[toml]==7.15.2; extra == "dev"\n'
         b'Requires-Dist: mypy==2.3.0; extra == "dev"\n'
+        b'Requires-Dist: onnx==1.22.0; extra == "dev"\n'
+        b'Requires-Dist: onnx==1.22.0; extra == "onnx"\n'
         b'Requires-Dist: pip-audit==2.10.1; extra == "dev"\n'
         b'Requires-Dist: ruff==0.16.0; extra == "dev"\n'
         b'Requires-Dist: setuptools==83.0.0; extra == "dev"\n'
         b"Provides-Extra: dev\n"
+        b"Provides-Extra: onnx\n"
         b"Project-URL: Repository, https://github.com/omar07ibrahim/units\n"
         b"Project-URL: Issues, https://github.com/omar07ibrahim/units/issues\n"
         b"Project-URL: Documentation, https://github.com/omar07ibrahim/units#readme\n"

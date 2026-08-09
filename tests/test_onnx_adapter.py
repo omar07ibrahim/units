@@ -22,9 +22,9 @@ from unitsentinel import (
     ScalarType,
     VerificationStatus,
     import_onnx_model,
+    onnx_adapter,
     verify_graph,
 )
-from unitsentinel import onnx_adapter
 from unitsentinel.canonical import canonical_json_bytes, sha256_hex
 from unitsentinel.graph_codec import encode_graph
 

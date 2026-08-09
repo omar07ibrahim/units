@@ -394,6 +394,8 @@ def _validate_core_metadata(payload: bytes, *, label: str) -> Message:
         'build==1.5.0; extra == "dev"',
         'coverage[toml]==7.15.2; extra == "dev"',
         'mypy==2.3.0; extra == "dev"',
+        'onnx==1.22.0; extra == "dev"',
+        'onnx==1.22.0; extra == "onnx"',
         'pip-audit==2.10.1; extra == "dev"',
         'ruff==0.16.0; extra == "dev"',
         'setuptools==83.0.0; extra == "dev"',
@@ -403,7 +405,7 @@ def _validate_core_metadata(payload: bytes, *, label: str) -> Message:
         or requirements != expected_requirements
     ):
         _reject(f"{label} dependency metadata is not the exact reviewed set")
-    if metadata.get_all("Provides-Extra", []) != ["dev"]:
+    if metadata.get_all("Provides-Extra", []) != ["dev", "onnx"]:
         _reject(f"{label} optional dependency metadata is not the reviewed set")
     url_values = metadata.get_all("Project-URL", [])
     urls = set(url_values)
@@ -436,6 +438,18 @@ def _validate_pyproject(payload: bytes) -> None:
         "version": VERSION,
         "requires-python": ">=3.11,<3.15",
         "dependencies": ["z3-solver==4.16.0.0"],
+        "optional-dependencies": {
+            "dev": [
+                "build==1.5.0",
+                "coverage[toml]==7.15.2",
+                "mypy==2.3.0",
+                "onnx==1.22.0",
+                "pip-audit==2.10.1",
+                "ruff==0.16.0",
+                "setuptools==83.0.0",
+            ],
+            "onnx": ["onnx==1.22.0"],
+        },
         "scripts": {"unitsentinel": "unitsentinel.cli:main"},
     }
     if any(project.get(key) != value for key, value in expected.items()):
