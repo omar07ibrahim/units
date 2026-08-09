@@ -408,7 +408,7 @@ def _lowered_graph_svg(
     def value_lines(value: ValueSpec, *, role: str) -> tuple[str, ...]:
         return (
             role,
-            f"{value.scalar_type.value} {_shape_text(value.shape)}",
+            f"{value.dtype.value} {_shape_text(value.shape)}",
             f"value_id = {value.value_id}",
             f"unit_id = {value.unit_id if value.unit_id is not None else 'null'}",
         )
