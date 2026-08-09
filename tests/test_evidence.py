@@ -567,6 +567,52 @@ class EvidenceIntegrityTests(unittest.TestCase):
         self.assertEqual(completed.stdout, b"")
         self.assertEqual(completed.stderr, b"")
 
+    def test_onnx_evidence_is_receipt_derived(self) -> None:
+        import_document = _canonical_document(
+            EVIDENCE / "captures" / "onnx-import.json"
+        )
+        provenance = _canonical_document(EVIDENCE / "onnx-provenance.json")
+        rejections = _canonical_document(
+            EVIDENCE / "captures" / "onnx-rejections.json"
+        )
+        assert isinstance(import_document, dict)
+        assert isinstance(provenance, dict)
+        assert isinstance(rejections, dict)
+
+        receipt = import_document["import"]["record"]
+        model = receipt["model"]
+        execution = provenance["execution_boundary"]
+        self.assertEqual(provenance["schema"], "unitsentinel.onnx-evidence/v2")
+        self.assertEqual(provenance["checker"], receipt["checker"])
+        self.assertEqual(provenance["contract"], receipt["contract"])
+        self.assertIs(execution["external_data"], model["external_data"])
+        self.assertIs(execution["model_executed"], model["model_executed"])
+        self.assertIs(execution["network_access_required"], False)
+        self.assertNotIn("network_used", execution)
+
+        architecture = (ASSETS / "onnx-adapter-architecture.svg").read_text(
+            encoding="utf-8"
+        )
+        lowered = (ASSETS / "onnx-lowered-graph.svg").read_text(encoding="utf-8")
+        rejection_visual = (ASSETS / "onnx-rejection-matrix.svg").read_text(
+            encoding="utf-8"
+        )
+        graph = receipt["graph"]
+        operator = receipt["operators"][0]
+        self.assertIn(f"{graph['values']} explicit values", architecture)
+        self.assertIn(f"{graph['nodes']} explicit nodes", architecture)
+        self.assertIn(
+            (
+                f"{operator['onnx_op_type']} → "
+                f"{operator['unitsentinel_operation']}"
+            ),
+            architecture,
+        )
+        self.assertIn(str(operator["node_id"]), lowered)
+        for record in rejections["cases"]:
+            self.assertIn(str(record["case"]), architecture)
+            self.assertIn(str(record["case"]), rejection_visual)
+
     def test_manifest_is_canonical_closed_and_content_addressed(self) -> None:
         document = _canonical_document(MANIFEST)
 

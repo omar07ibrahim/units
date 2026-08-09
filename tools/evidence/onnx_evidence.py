@@ -47,7 +47,8 @@ from tools.evidence.visuals import (
 from unitsentinel import (
     ONNX_CONTRACT_METADATA_KEY,
     ONNX_CONTRACT_SCHEMA,
-    OnnxImportResult,
+    ComputationGraph,
+    ValueSpec,
     VerificationStatus,
     decode_graph,
     import_onnx_model,
@@ -56,7 +57,7 @@ from unitsentinel import (
 from unitsentinel.canonical import sha256_hex
 from unitsentinel.version import VERSION
 
-PROVENANCE_SCHEMA: Final = "unitsentinel.onnx-evidence/v1"
+PROVENANCE_SCHEMA: Final = "unitsentinel.onnx-evidence/v2"
 REJECTIONS_SCHEMA: Final = "unitsentinel.onnx-rejections/v1"
 FRAME_SCHEMA: Final = "unitsentinel.onnx-demo-frames/v1"
 MODEL_NAME: Final = "speed-contract.onnx"
@@ -227,7 +228,23 @@ def _short_digest(value: str) -> str:
     return f"{value[:16]}…"
 
 
-def _architecture_svg(result: OnnxImportResult) -> str:
+def _architecture_svg(
+    receipt: dict[str, Any],
+    *,
+    receipt_digest: str,
+    rejections: list[dict[str, object]],
+) -> str:
+    checker = cast(dict[str, Any], receipt["checker"])
+    contract = cast(dict[str, Any], receipt["contract"])
+    graph = cast(dict[str, Any], receipt["graph"])
+    model = cast(dict[str, Any], receipt["model"])
+    opset = cast(dict[str, Any], model["opset"])
+    operators = cast(list[dict[str, Any]], receipt["operators"])
+    if len(operators) != 1:
+        raise EvidenceError("ONNX architecture evidence requires one operator")
+    operator = operators[0]
+    rejection_names = " · ".join(str(item["case"]) for item in rejections)
+    published = sum(item["graph_published"] is True for item in rejections)
     body = [
         _text(
             55,
@@ -239,7 +256,7 @@ def _architecture_svg(result: OnnxImportResult) -> str:
         _text(
             55,
             104,
-            "Every number below is derived from the committed synthetic ModelProto.",
+            "Every displayed count and identity comes from the actual CLI receipt.",
             size=17,
             fill=MUTED,
         ),
@@ -250,8 +267,8 @@ def _architecture_svg(result: OnnxImportResult) -> str:
             210,
             title="1 · BYTES",
             lines=(
-                f"{result.source_size} bytes",
-                _short_digest(result.source_digest),
+                f"{model['bytes']} bytes",
+                _short_digest(str(model["sha256"])),
                 "bounded regular file",
                 "protobuf parse only",
             ),
@@ -264,10 +281,13 @@ def _architecture_svg(result: OnnxImportResult) -> str:
             210,
             title="2 · CHECKER",
             lines=(
-                "onnx 1.22.0",
-                "full_check = true",
-                "custom domains checked",
-                "no runtime session",
+                f"onnx {checker['runtime_version']}",
+                f"full_check = {str(checker['full_check']).lower()}",
+                (
+                    "custom domains = "
+                    f"{str(checker['custom_domain_check']).lower()}"
+                ),
+                f"model_executed = {str(model['model_executed']).lower()}",
             ),
             accent=GREEN,
         ),
@@ -278,10 +298,10 @@ def _architecture_svg(result: OnnxImportResult) -> str:
             210,
             title="3 · CONTRACT",
             lines=(
-                "metadata v1",
-                _short_digest(result.contract_digest),
-                "3 explicit values",
-                "1 explicit node",
+                str(contract["schema"]).rsplit("/", maxsplit=1)[-1],
+                _short_digest(str(contract["sha256"])),
+                f"{graph['values']} explicit values",
+                f"{graph['nodes']} explicit nodes",
             ),
             accent=VIOLET,
         ),
@@ -292,9 +312,12 @@ def _architecture_svg(result: OnnxImportResult) -> str:
             210,
             title="4 · LOWER",
             lines=(
-                "IR 8 · opset 13",
-                "Div → divide",
-                "static float32 [4,8]",
+                f"IR {model['ir_version']} · opset {opset['version']}",
+                (
+                    f"{operator['onnx_op_type']} → "
+                    f"{operator['unitsentinel_operation']}"
+                ),
+                "static tensor contract",
                 "closed subset",
             ),
             accent=AMBER,
@@ -306,9 +329,9 @@ def _architecture_svg(result: OnnxImportResult) -> str:
             210,
             title="5 · GRAPH",
             lines=(
-                result.graph.graph_id,
-                _short_digest(result.graph.digest),
-                "canonical JSON",
+                str(graph["graph_id"]),
+                _short_digest(str(graph["sha256"])),
+                str(graph["schema"]),
                 "ready to verify",
             ),
             accent=GREEN,
@@ -322,15 +345,15 @@ def _architecture_svg(result: OnnxImportResult) -> str:
             535,
             1300,
             230,
-            title="FAIL-CLOSED SAFETY RAIL",
+            title="RECORDED FAIL-CLOSED BOUNDARY",
             lines=(
-                "Rejected before lowering: initializers · external data · dynamic "
-                "shapes · attributes",
-                "Rejected semantics: custom domains · functions · training graphs · "
-                "control flow · Pow",
-                "Never performed: model execution · network access · unit inference "
-                "from names",
-                f"receipt {_short_digest(result.digest)}",
+                f"Recorded CLI rejection cases ({len(rejections)}):",
+                rejection_names,
+                f"Published graph outputs: {published}",
+                (
+                    f"receipt {_short_digest(receipt_digest)} · "
+                    f"external_data={str(model['external_data']).lower()}"
+                ),
             ),
             accent=RED,
         ),
@@ -340,26 +363,68 @@ def _architecture_svg(result: OnnxImportResult) -> str:
         height=900,
         title="UnitSentinel ONNX adapter architecture",
         description=(
-            "The exact bounded parsing, official checking, versioned metadata, "
-            "closed-subset lowering, and canonical graph verification boundary."
+            "The receipt-derived bounded parsing, official checking, versioned "
+            "metadata, closed-subset lowering, and canonical graph boundary."
         ),
         body="\n".join(body),
     )
 
 
-def _lowered_graph_svg(result: OnnxImportResult) -> str:
+def _shape_text(shape: tuple[int | str, ...]) -> str:
+    return "[" + ",".join(str(dimension) for dimension in shape) + "]"
+
+
+def _lowered_graph_svg(
+    graph: ComputationGraph,
+    receipt: dict[str, Any],
+    *,
+    receipt_digest: str,
+) -> str:
+    operators = cast(list[dict[str, Any]], receipt["operators"])
+    receipt_graph = cast(dict[str, Any], receipt["graph"])
+    receipt_model = cast(dict[str, Any], receipt["model"])
+    if (
+        len(graph.inputs) != 2
+        or len(graph.nodes) != 1
+        or len(graph.outputs) != 1
+        or len(operators) != 1
+    ):
+        raise EvidenceError("ONNX lowered-graph visual requires a 2:1:1 fixture")
+    by_id = {value.value_id: value for value in graph.values}
+    try:
+        left = by_id[graph.inputs[0]]
+        right = by_id[graph.inputs[1]]
+        output = by_id[graph.outputs[0]]
+    except KeyError:
+        raise EvidenceError("ONNX visual graph references a missing value") from None
+    node = graph.nodes[0]
+    operator = operators[0]
+    if (
+        operator["node_id"] != node.node_id
+        or operator["unitsentinel_operation"] != node.operation.value
+    ):
+        raise EvidenceError("ONNX receipt operator does not match the lowered graph")
+
+    def value_lines(value: ValueSpec, *, role: str) -> tuple[str, ...]:
+        return (
+            role,
+            f"{value.scalar_type.value} {_shape_text(value.shape)}",
+            f"value_id = {value.value_id}",
+            f"unit_id = {value.unit_id if value.unit_id is not None else 'null'}",
+        )
+
     body = [
         _text(
             55,
             65,
-            "One real ModelProto, one explicit dimensional graph",
+            "One synthetic ModelProto, one explicit dimensional graph",
             size=31,
             weight=700,
         ),
         _text(
             55,
             102,
-            "Source names are mapped by metadata; units are never guessed.",
+            "Canonical IDs, tensor contracts, units, and mapping are receipt-derived.",
             size=17,
             fill=MUTED,
         ),
@@ -368,13 +433,8 @@ def _lowered_graph_svg(result: OnnxImportResult) -> str:
             210,
             310,
             205,
-            title="distance",
-            lines=(
-                "ONNX input · float32 [4,8]",
-                "value_id = distance",
-                "unit_id = meter",
-                "length¹",
-            ),
+            title=left.value_id,
+            lines=value_lines(left, role="canonical input"),
             accent=CYAN,
         ),
         _box(
@@ -382,13 +442,8 @@ def _lowered_graph_svg(result: OnnxImportResult) -> str:
             520,
             310,
             205,
-            title="duration",
-            lines=(
-                "ONNX input · float32 [4,8]",
-                "value_id = duration",
-                "unit_id = second",
-                "time¹",
-            ),
+            title=right.value_id,
+            lines=value_lines(right, role="canonical input"),
             accent=CYAN,
         ),
         _box(
@@ -396,12 +451,12 @@ def _lowered_graph_svg(result: OnnxImportResult) -> str:
             365,
             310,
             210,
-            title="derive-speed",
+            title=node.node_id,
             lines=(
-                "ONNX Div",
-                "↓ explicit reviewed mapping",
-                "UnitSentinel divide",
-                "node_id = derive-speed",
+                f"ONNX {operator['onnx_op_type']}",
+                "↓ explicit receipt mapping",
+                f"UnitSentinel {operator['unitsentinel_operation']}",
+                f"node_id = {node.node_id}",
             ),
             accent=VIOLET,
         ),
@@ -410,25 +465,20 @@ def _lowered_graph_svg(result: OnnxImportResult) -> str:
             365,
             310,
             210,
-            title="speed",
-            lines=(
-                "ONNX output · float32 [4,8]",
-                "value_id = speed",
-                "unit_id = meter-per-second",
-                "length¹ time⁻¹",
-            ),
+            title=output.value_id,
+            lines=value_lines(output, role="canonical output"),
             accent=GREEN,
         ),
-        _arrow(380, 312, 565, 420, label="meter"),
-        _arrow(380, 622, 565, 520, label="second"),
-        _arrow(875, 470, 1060, 470, label="divide"),
+        _arrow(380, 312, 565, 420, label=str(left.unit_id)),
+        _arrow(380, 622, 565, 520, label=str(right.unit_id)),
+        _arrow(875, 470, 1060, 470, label=node.operation.value),
         _text(
             55,
             825,
             (
-                f"model {_short_digest(result.source_digest)} · "
-                f"graph {_short_digest(result.graph.digest)} · "
-                f"receipt {_short_digest(result.digest)}"
+                f"model {_short_digest(str(receipt_model['sha256']))} · "
+                f"graph {_short_digest(str(receipt_graph['sha256']))} · "
+                f"receipt {_short_digest(receipt_digest)}"
             ),
             size=15,
             fill=MUTED,
@@ -439,8 +489,8 @@ def _lowered_graph_svg(result: OnnxImportResult) -> str:
         height=900,
         title="Lowered ONNX speed graph",
         description=(
-            "Distance in meters divided by duration in seconds lowers to a "
-            "canonical speed value in meters per second."
+            "Two explicitly annotated canonical inputs pass through the single "
+            "receipt-bound operator to one canonical output."
         ),
         body="\n".join(body),
     )
@@ -491,29 +541,26 @@ def _rejection_svg(rejections: list[dict[str, object]]) -> str:
                 accent=accent,
             )
         )
-    body.extend(
-        (
-            _box(
-                180,
-                740,
-                1080,
-                105,
-                title="BOUNDARY RESULT",
-                lines=(
-                    "0 graphs published · 0 models executed · 0 external tensors read",
-                ),
-                accent=GREEN,
+    published = sum(record["graph_published"] is True for record in rejections)
+    body.append(
+        _box(
+            180,
+            740,
+            1080,
+            105,
+            title="RECORDED BOUNDARY RESULT",
+            lines=(
+                f"{len(rejections)} CLI cases · {published} graphs published",
             ),
+            accent=GREEN,
         )
     )
+    cases = ", ".join(str(record["case"]) for record in rejections)
     return _document(
         width=1_440,
         height=900,
         title="ONNX fail-closed rejection matrix",
-        description=(
-            "Actual stable CLI failures for a dynamic dimension, runtime Pow "
-            "tensor semantics, and an embedded initializer."
-        ),
+        description=f"Actual stable CLI failures for: {cases}.",
         body="\n".join(body),
     )
 
@@ -562,6 +609,18 @@ def _build_evidence() -> dict[Path, bytes]:
     verify_record = cast(dict[str, Any], json.loads(verify_json_output))
     if import_record["import"]["sha256"] != result.digest:
         raise EvidenceError("CLI and library ONNX import digests disagree")
+    receipt = cast(dict[str, Any], import_record["import"]["record"])
+    if receipt != result.canonical_record():
+        raise EvidenceError("CLI and library ONNX import receipts disagree")
+    receipt_checker = cast(dict[str, Any], receipt["checker"])
+    receipt_contract = cast(dict[str, Any], receipt["contract"])
+    receipt_graph = cast(dict[str, Any], receipt["graph"])
+    receipt_model = cast(dict[str, Any], receipt["model"])
+    if (
+        receipt_model["external_data"] is not False
+        or receipt_model["model_executed"] is not False
+    ):
+        raise EvidenceError("ONNX evidence crossed its execution boundary")
     if verify_record["result"]["record"]["status"] != "verified":
         raise EvidenceError("recorded ONNX graph verification is not positive")
 
@@ -643,8 +702,17 @@ def _build_evidence() -> dict[Path, bytes]:
         "\n".join(rejection_transcript_parts).rstrip() + "\n"
     ).encode()
 
-    architecture = _architecture_svg(result).encode()
-    lowered = _lowered_graph_svg(result).encode()
+    receipt_digest = str(import_record["import"]["sha256"])
+    architecture = _architecture_svg(
+        receipt,
+        receipt_digest=receipt_digest,
+        rejections=rejections,
+    ).encode()
+    lowered = _lowered_graph_svg(
+        graph,
+        receipt,
+        receipt_digest=receipt_digest,
+    ).encode()
     rejection_visual = _rejection_svg(rejections).encode()
     terminal = terminal_svg(
         title="real ONNX import · canonical graph receipt",
@@ -689,35 +757,36 @@ def _build_evidence() -> dict[Path, bytes]:
         }
     )
 
+    receipt_opset = cast(dict[str, Any], receipt_model["opset"])
     provenance = {
-        "checker": result.canonical_record()["checker"],
-        "contract": {
-            "metadata_key": ONNX_CONTRACT_METADATA_KEY,
-            "schema": ONNX_CONTRACT_SCHEMA,
-            "sha256": result.contract_digest,
-        },
+        "checker": receipt_checker,
+        "contract": receipt_contract,
         "execution_boundary": {
-            "external_data": False,
-            "model_executed": False,
-            "network_used": False,
+            "external_data": receipt_model["external_data"],
+            "model_executed": receipt_model["model_executed"],
+            "network_access_required": False,
         },
         "graph": {
             "bytes": len(graph_payload),
-            "schema": "unitsentinel.graph/v1",
-            "sha256": result.graph.digest,
+            "inputs": receipt_graph["inputs"],
+            "nodes": receipt_graph["nodes"],
+            "outputs": receipt_graph["outputs"],
+            "schema": receipt_graph["schema"],
+            "sha256": receipt_graph["sha256"],
+            "values": receipt_graph["values"],
             "verification_result_sha256": verify_record["result"]["sha256"],
             "verification_status": "verified",
         },
         "import_receipt": {
-            "schema": result.canonical_record()["schema"],
-            "sha256": result.digest,
+            "schema": receipt["schema"],
+            "sha256": receipt_digest,
         },
         "model": {
-            "bytes": len(model_payload),
+            "bytes": receipt_model["bytes"],
             "format": "ONNX ModelProto",
-            "ir_version": 8,
-            "opset": 13,
-            "sha256": result.source_digest,
+            "ir_version": receipt_model["ir_version"],
+            "opset": receipt_opset["version"],
+            "sha256": receipt_model["sha256"],
         },
         "rejections_sha256": sha256_hex(
             files[EVIDENCE / "captures" / "onnx-rejections.json"]
