@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" width="1440" height="900" viewBox="0 0 1440 900" role="img" aria-labelledby="title description">
   <title id="title">Lowered ONNX speed graph</title>
-  <desc id="description">Distance in meters divided by duration in seconds lowers to a canonical speed value in meters per second.</desc>
+  <desc id="description">Two explicitly annotated canonical inputs pass through the single receipt-bound operator to one canonical output.</desc>
   <defs>
     <linearGradient id="background" x1="0" y1="0" x2="1" y2="1">
       <stop offset="0" stop-color="#07111f"/>
@@ -15,32 +15,32 @@
     </marker>
   </defs>
   <rect width="1440" height="900" fill="url(#background)"/>
-<text x="55" y="65" fill="#d8e4f2" font-family="DejaVu Sans, sans-serif" font-size="31" font-weight="700" text-anchor="start">One real ModelProto, one explicit dimensional graph</text>
-<text x="55" y="102" fill="#8fa5bd" font-family="DejaVu Sans, sans-serif" font-size="17" font-weight="400" text-anchor="start">Source names are mapped by metadata; units are never guessed.</text>
+<text x="55" y="65" fill="#d8e4f2" font-family="DejaVu Sans, sans-serif" font-size="31" font-weight="700" text-anchor="start">One synthetic ModelProto, one explicit dimensional graph</text>
+<text x="55" y="102" fill="#8fa5bd" font-family="DejaVu Sans, sans-serif" font-size="17" font-weight="400" text-anchor="start">Canonical IDs, tensor contracts, units, and mapping are receipt-derived.</text>
 <rect x="70" y="210" width="310" height="205" rx="18" fill="#0d1b2d" stroke="#253a55" stroke-width="2" filter="url(#shadow)"/>
 <rect x="70" y="210" width="7" height="205" rx="3.5" fill="#38d9f5"/>
 <text x="98" y="248" fill="#38d9f5" font-family="DejaVu Sans, sans-serif" font-size="20" font-weight="700" text-anchor="start">distance</text>
 <text x="98" y="280" fill="#d8e4f2" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="400" text-anchor="start">
-      <tspan x="98" dy="0">ONNX input · float32 [4,8]</tspan>
+      <tspan x="98" dy="0">canonical input</tspan>
+      <tspan x="98" dy="25">float32 [4,8]</tspan>
       <tspan x="98" dy="25">value_id = distance</tspan>
       <tspan x="98" dy="25">unit_id = meter</tspan>
-      <tspan x="98" dy="25">length¹</tspan>
     </text>
 <rect x="70" y="520" width="310" height="205" rx="18" fill="#0d1b2d" stroke="#253a55" stroke-width="2" filter="url(#shadow)"/>
 <rect x="70" y="520" width="7" height="205" rx="3.5" fill="#38d9f5"/>
 <text x="98" y="558" fill="#38d9f5" font-family="DejaVu Sans, sans-serif" font-size="20" font-weight="700" text-anchor="start">duration</text>
 <text x="98" y="590" fill="#d8e4f2" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="400" text-anchor="start">
-      <tspan x="98" dy="0">ONNX input · float32 [4,8]</tspan>
+      <tspan x="98" dy="0">canonical input</tspan>
+      <tspan x="98" dy="25">float32 [4,8]</tspan>
       <tspan x="98" dy="25">value_id = duration</tspan>
       <tspan x="98" dy="25">unit_id = second</tspan>
-      <tspan x="98" dy="25">time¹</tspan>
     </text>
 <rect x="565" y="365" width="310" height="210" rx="18" fill="#0d1b2d" stroke="#253a55" stroke-width="2" filter="url(#shadow)"/>
 <rect x="565" y="365" width="7" height="210" rx="3.5" fill="#b69cff"/>
 <text x="593" y="403" fill="#b69cff" font-family="DejaVu Sans, sans-serif" font-size="20" font-weight="700" text-anchor="start">derive-speed</text>
 <text x="593" y="435" fill="#d8e4f2" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="400" text-anchor="start">
       <tspan x="593" dy="0">ONNX Div</tspan>
-      <tspan x="593" dy="25">↓ explicit reviewed mapping</tspan>
+      <tspan x="593" dy="25">↓ explicit receipt mapping</tspan>
       <tspan x="593" dy="25">UnitSentinel divide</tspan>
       <tspan x="593" dy="25">node_id = derive-speed</tspan>
     </text>
@@ -48,10 +48,10 @@
 <rect x="1060" y="365" width="7" height="210" rx="3.5" fill="#5ee6a8"/>
 <text x="1088" y="403" fill="#5ee6a8" font-family="DejaVu Sans, sans-serif" font-size="20" font-weight="700" text-anchor="start">speed</text>
 <text x="1088" y="435" fill="#d8e4f2" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="400" text-anchor="start">
-      <tspan x="1088" dy="0">ONNX output · float32 [4,8]</tspan>
+      <tspan x="1088" dy="0">canonical output</tspan>
+      <tspan x="1088" dy="25">float32 [4,8]</tspan>
       <tspan x="1088" dy="25">value_id = speed</tspan>
       <tspan x="1088" dy="25">unit_id = meter-per-second</tspan>
-      <tspan x="1088" dy="25">length¹ time⁻¹</tspan>
     </text>
 <path d="M380,312 L565,420" stroke="#8fa5bd" stroke-width="3" fill="none" marker-end="url(#arrow)"/>
 <text x="472.5" y="356.0" fill="#8fa5bd" font-family="DejaVu Sans, sans-serif" font-size="14" font-weight="400" text-anchor="middle">meter</text>

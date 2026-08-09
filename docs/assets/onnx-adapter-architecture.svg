@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" width="1440" height="900" viewBox="0 0 1440 900" role="img" aria-labelledby="title description">
   <title id="title">UnitSentinel ONNX adapter architecture</title>
-  <desc id="description">The exact bounded parsing, official checking, versioned metadata, closed-subset lowering, and canonical graph verification boundary.</desc>
+  <desc id="description">The receipt-derived bounded parsing, official checking, versioned metadata, closed-subset lowering, and canonical graph boundary.</desc>
   <defs>
     <linearGradient id="background" x1="0" y1="0" x2="1" y2="1">
       <stop offset="0" stop-color="#07111f"/>
@@ -16,7 +16,7 @@
   </defs>
   <rect width="1440" height="900" fill="url(#background)"/>
 <text x="55" y="66" fill="#d8e4f2" font-family="DejaVu Sans, sans-serif" font-size="31" font-weight="700" text-anchor="start">Checked ONNX metadata → canonical dimensional proof</text>
-<text x="55" y="104" fill="#8fa5bd" font-family="DejaVu Sans, sans-serif" font-size="17" font-weight="400" text-anchor="start">Every number below is derived from the committed synthetic ModelProto.</text>
+<text x="55" y="104" fill="#8fa5bd" font-family="DejaVu Sans, sans-serif" font-size="17" font-weight="400" text-anchor="start">Every displayed count and identity comes from the actual CLI receipt.</text>
 <rect x="45" y="185" width="235" height="210" rx="18" fill="#0d1b2d" stroke="#253a55" stroke-width="2" filter="url(#shadow)"/>
 <rect x="45" y="185" width="7" height="210" rx="3.5" fill="#38d9f5"/>
 <text x="73" y="223" fill="#38d9f5" font-family="DejaVu Sans, sans-serif" font-size="20" font-weight="700" text-anchor="start">1 · BYTES</text>
@@ -32,17 +32,17 @@
 <text x="358" y="255" fill="#d8e4f2" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="400" text-anchor="start">
       <tspan x="358" dy="0">onnx 1.22.0</tspan>
       <tspan x="358" dy="25">full_check = true</tspan>
-      <tspan x="358" dy="25">custom domains checked</tspan>
-      <tspan x="358" dy="25">no runtime session</tspan>
+      <tspan x="358" dy="25">custom domains = true</tspan>
+      <tspan x="358" dy="25">model_executed = false</tspan>
     </text>
 <rect x="615" y="185" width="235" height="210" rx="18" fill="#0d1b2d" stroke="#253a55" stroke-width="2" filter="url(#shadow)"/>
 <rect x="615" y="185" width="7" height="210" rx="3.5" fill="#b69cff"/>
 <text x="643" y="223" fill="#b69cff" font-family="DejaVu Sans, sans-serif" font-size="20" font-weight="700" text-anchor="start">3 · CONTRACT</text>
 <text x="643" y="255" fill="#d8e4f2" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="400" text-anchor="start">
-      <tspan x="643" dy="0">metadata v1</tspan>
+      <tspan x="643" dy="0">v1</tspan>
       <tspan x="643" dy="25">4d4a5f8684355f65…</tspan>
       <tspan x="643" dy="25">3 explicit values</tspan>
-      <tspan x="643" dy="25">1 explicit node</tspan>
+      <tspan x="643" dy="25">1 explicit nodes</tspan>
     </text>
 <rect x="900" y="185" width="235" height="210" rx="18" fill="#0d1b2d" stroke="#253a55" stroke-width="2" filter="url(#shadow)"/>
 <rect x="900" y="185" width="7" height="210" rx="3.5" fill="#ffc857"/>
@@ -50,7 +50,7 @@
 <text x="928" y="255" fill="#d8e4f2" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="400" text-anchor="start">
       <tspan x="928" dy="0">IR 8 · opset 13</tspan>
       <tspan x="928" dy="25">Div → divide</tspan>
-      <tspan x="928" dy="25">static float32 [4,8]</tspan>
+      <tspan x="928" dy="25">static tensor contract</tspan>
       <tspan x="928" dy="25">closed subset</tspan>
     </text>
 <rect x="1185" y="185" width="210" height="210" rx="18" fill="#0d1b2d" stroke="#253a55" stroke-width="2" filter="url(#shadow)"/>
@@ -59,7 +59,7 @@
 <text x="1213" y="255" fill="#d8e4f2" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="400" text-anchor="start">
       <tspan x="1213" dy="0">onnx-speed-contract</tspan>
       <tspan x="1213" dy="25">09472bff769c5bef…</tspan>
-      <tspan x="1213" dy="25">canonical JSON</tspan>
+      <tspan x="1213" dy="25">unitsentinel.graph/v1</tspan>
       <tspan x="1213" dy="25">ready to verify</tspan>
     </text>
 <path d="M280,290 L330,290" stroke="#8fa5bd" stroke-width="3" fill="none" marker-end="url(#arrow)"/>
@@ -68,11 +68,11 @@
 <path d="M1135,290 L1185,290" stroke="#8fa5bd" stroke-width="3" fill="none" marker-end="url(#arrow)"/>
 <rect x="70" y="535" width="1300" height="230" rx="18" fill="#0d1b2d" stroke="#253a55" stroke-width="2" filter="url(#shadow)"/>
 <rect x="70" y="535" width="7" height="230" rx="3.5" fill="#ff6b7a"/>
-<text x="98" y="573" fill="#ff6b7a" font-family="DejaVu Sans, sans-serif" font-size="20" font-weight="700" text-anchor="start">FAIL-CLOSED SAFETY RAIL</text>
+<text x="98" y="573" fill="#ff6b7a" font-family="DejaVu Sans, sans-serif" font-size="20" font-weight="700" text-anchor="start">RECORDED FAIL-CLOSED BOUNDARY</text>
 <text x="98" y="605" fill="#d8e4f2" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="400" text-anchor="start">
-      <tspan x="98" dy="0">Rejected before lowering: initializers · external data · dynamic shapes · attributes</tspan>
-      <tspan x="98" dy="25">Rejected semantics: custom domains · functions · training graphs · control flow · Pow</tspan>
-      <tspan x="98" dy="25">Never performed: model execution · network access · unit inference from names</tspan>
-      <tspan x="98" dy="25">receipt d485c6063052c798…</tspan>
+      <tspan x="98" dy="0">Recorded CLI rejection cases (3):</tspan>
+      <tspan x="98" dy="25">dynamic-shape · runtime-pow-tensor · embedded-initializer</tspan>
+      <tspan x="98" dy="25">Published graph outputs: 0</tspan>
+      <tspan x="98" dy="25">receipt d485c6063052c798… · external_data=false</tspan>
     </text>
 </svg>

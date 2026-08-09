@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" width="1440" height="900" viewBox="0 0 1440 900" role="img" aria-labelledby="title description">
   <title id="title">ONNX fail-closed rejection matrix</title>
-  <desc id="description">Actual stable CLI failures for a dynamic dimension, runtime Pow tensor semantics, and an embedded initializer.</desc>
+  <desc id="description">Actual stable CLI failures for: dynamic-shape, runtime-pow-tensor, embedded-initializer.</desc>
   <defs>
     <linearGradient id="background" x1="0" y1="0" x2="1" y2="1">
       <stop offset="0" stop-color="#07111f"/>
@@ -55,8 +55,8 @@
     </text>
 <rect x="180" y="740" width="1080" height="105" rx="18" fill="#0d1b2d" stroke="#253a55" stroke-width="2" filter="url(#shadow)"/>
 <rect x="180" y="740" width="7" height="105" rx="3.5" fill="#5ee6a8"/>
-<text x="208" y="778" fill="#5ee6a8" font-family="DejaVu Sans, sans-serif" font-size="20" font-weight="700" text-anchor="start">BOUNDARY RESULT</text>
+<text x="208" y="778" fill="#5ee6a8" font-family="DejaVu Sans, sans-serif" font-size="20" font-weight="700" text-anchor="start">RECORDED BOUNDARY RESULT</text>
 <text x="208" y="810" fill="#d8e4f2" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="400" text-anchor="start">
-      <tspan x="208" dy="0">0 graphs published · 0 models executed · 0 external tensors read</tspan>
+      <tspan x="208" dy="0">3 CLI cases · 0 graphs published</tspan>
     </text>
 </svg>
