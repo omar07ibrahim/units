@@ -47,7 +47,19 @@ from .comparison_result_codec import (
 )
 from .domain import UnitSentinelError
 from .graph import GRAPH_SCHEMA, ComputationGraph
-from .graph_codec import MAX_GRAPH_BYTES, GraphDecodeError, decode_graph
+from .graph_codec import MAX_GRAPH_BYTES, GraphDecodeError, decode_graph, encode_graph
+from .onnx_adapter import (
+    MAX_ONNX_MODEL_BYTES,
+    ONNX_CONTRACT_METADATA_KEY,
+    ONNX_CONTRACT_SCHEMA,
+    ONNX_IR_VERSION,
+    ONNX_OPSET_VERSION,
+    ONNX_RUNTIME_VERSION,
+    OnnxAdapterError,
+    OnnxDependencyError,
+    OnnxImportResult,
+    import_onnx_model,
+)
 from .registry import BUILTIN_REGISTRY, REGISTRY_SCHEMA, SHA256_HEX
 from .repair import (
     MAX_REPAIR_CANDIDATES,
@@ -83,6 +95,7 @@ VERIFY_OUTPUT_SCHEMA: Final = "unitsentinel.cli.verify/v1"
 REPLAY_OUTPUT_SCHEMA: Final = "unitsentinel.cli.replay/v1"
 COMPARE_OUTPUT_SCHEMA: Final = "unitsentinel.cli.compare/v1"
 REPAIR_OUTPUT_SCHEMA: Final = "unitsentinel.cli.repair/v1"
+IMPORT_ONNX_OUTPUT_SCHEMA: Final = "unitsentinel.cli.import-onnx/v1"
 
 EXIT_SUCCESS: Final = 0
 EXIT_CONFLICT: Final = 1
@@ -148,9 +161,9 @@ def _parser() -> argparse.ArgumentParser:
     parser = _ArgumentParser(
         prog="unitsentinel",
         description=(
-            "Verify exact dimensional contracts, replay detached proof claims, "
-            "compare training and serving graphs, and report bounded repair "
-            "proposals."
+            "Verify exact dimensional contracts, import checked ONNX metadata, "
+            "replay detached proof claims, compare training and serving graphs, "
+            "and report bounded repair proposals."
         ),
     )
     parser.add_argument(
@@ -274,6 +287,24 @@ def _parser() -> argparse.ArgumentParser:
         "--json",
         action="store_true",
         help="emit one canonical machine-readable record",
+    )
+
+    import_onnx = commands.add_parser(
+        "import-onnx",
+        help="lower one checked static ONNX metadata contract",
+    )
+    import_onnx.add_argument("model", help="bounded ONNX ModelProto file")
+    import_onnx.add_argument(
+        "--graph",
+        dest="graph_output",
+        required=True,
+        metavar="FILE",
+        help="atomically write a new canonical graph",
+    )
+    import_onnx.add_argument(
+        "--json",
+        action="store_true",
+        help="emit one canonical machine-readable import receipt",
     )
 
     repair = commands.add_parser(
@@ -1276,6 +1307,121 @@ def _run_compare(arguments: argparse.Namespace) -> int:
     return exit_code
 
 
+def _onnx_import_text(
+    result: OnnxImportResult,
+    *,
+    exit_code: int,
+) -> str:
+    result.validate()
+    lines = [
+        "UnitSentinel ONNX import: IMPORTED",
+        f"exit code: {exit_code}",
+        f"tool: unitsentinel {VERSION}",
+        (
+            "checker: onnx.checker.check_model "
+            f"{ONNX_RUNTIME_VERSION} (full=yes, custom-domains=yes)"
+        ),
+        f"model sha256: {result.source_digest}",
+        f"model bytes: {result.source_size}",
+        f"model contract: IR {ONNX_IR_VERSION}, default opset {ONNX_OPSET_VERSION}",
+        "model executed: no",
+        "external tensor data: rejected",
+        f"metadata key: {ONNX_CONTRACT_METADATA_KEY}",
+        f"metadata schema: {ONNX_CONTRACT_SCHEMA}",
+        f"metadata sha256: {result.contract_digest}",
+        f"operators ({len(result.operator_bindings)}):",
+    ]
+    for binding in result.operator_bindings:
+        lines.append(
+            "  "
+            f"{binding.onnx_name} | "
+            f"{binding.onnx_op_type} -> {binding.operation.value} | "
+            f"node={binding.node_id}"
+        )
+    lines.extend(
+        (
+            f"graph id: {result.graph.graph_id}",
+            f"graph sha256: {result.graph.digest}",
+            (
+                "graph shape: "
+                f"{len(result.graph.inputs)} inputs, "
+                f"{len(result.graph.nodes)} nodes, "
+                f"{len(result.graph.outputs)} outputs"
+            ),
+            f"import receipt sha256: {result.digest}",
+            "graph output: written",
+            "next step: unitsentinel verify <graph.json>",
+        )
+    )
+    return "\n".join(lines) + "\n"
+
+
+def _onnx_import_json(
+    result: OnnxImportResult,
+    *,
+    exit_code: int,
+) -> str:
+    result.validate()
+    record = {
+        "exit_code": exit_code,
+        "graph_output": "written",
+        "import": {
+            "record": result.canonical_record(),
+            "sha256": result.digest,
+        },
+        "schema": IMPORT_ONNX_OUTPUT_SCHEMA,
+        "tool": {"name": "unitsentinel", "version": VERSION},
+    }
+    return canonical_json_bytes(record).decode("utf-8") + "\n"
+
+
+def _run_import_onnx(arguments: argparse.Namespace) -> int:
+    model_payload = _read_bounded_file(
+        cast(str, arguments.model),
+        label="ONNX model input",
+        max_bytes=MAX_ONNX_MODEL_BYTES,
+    )
+    try:
+        result = import_onnx_model(model_payload)
+    except OnnxDependencyError as error:
+        raise _CLIError(EXIT_INPUT, str(error)) from None
+    except OnnxAdapterError as error:
+        raise _CLIError(
+            EXIT_INPUT,
+            f"ONNX model input is invalid: {error}",
+        ) from None
+    if type(result) is not OnnxImportResult:
+        raise _CLIError(
+            EXIT_INTERNAL,
+            "ONNX import returned an unexpected result",
+        )
+    try:
+        result.validate()
+        graph_payload = encode_graph(result.graph)
+    except UnitSentinelError:
+        raise _CLIError(
+            EXIT_INTERNAL,
+            "ONNX import result could not be encoded safely",
+        ) from None
+    if not hmac.compare_digest(sha256_hex(graph_payload), result.graph.digest):
+        raise _CLIError(
+            EXIT_INTERNAL,
+            "ONNX import graph digest could not be confirmed",
+        )
+
+    if cast(bool, arguments.json):
+        report = _onnx_import_json(result, exit_code=EXIT_SUCCESS)
+    else:
+        report = _onnx_import_text(result, exit_code=EXIT_SUCCESS)
+    _atomic_write_new(
+        cast(str, arguments.graph_output),
+        graph_payload,
+        label="graph output",
+    )
+    sys.stdout.write(report)
+    return EXIT_SUCCESS
+
+
 def _run_repair(arguments: argparse.Namespace) -> int:
     graph_path = cast(str, arguments.graph)
     graph = _decode_graph_file(graph_path)
@@ -1328,6 +1474,8 @@ def _dispatch(arguments: argparse.Namespace) -> int:
         return _run_replay(arguments)
     if command == "compare":
         return _run_compare(arguments)
+    if command == "import-onnx":
+        return _run_import_onnx(arguments)
     if command == "repair":
         return _run_repair(arguments)
     raise _CLIError(EXIT_USAGE, "command is required; use --help")
