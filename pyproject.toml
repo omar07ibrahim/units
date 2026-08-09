@@ -74,6 +74,12 @@ files = [
     "tools/verify_distribution.py",
 ]
 
+# ONNX imports NumPy as a typed dependency. NumPy 2.5 stubs use Python 3.12
+# syntax, while this project deliberately checks its own code as Python 3.11.
+[[tool.mypy.overrides]]
+module = ["numpy", "numpy.*"]
+follow_imports = "skip"
+
 [tool.coverage.run]
 branch = true
 source = ["unitsentinel"]
