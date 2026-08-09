@@ -32,6 +32,8 @@ def _metadata_payload(readme: bytes = b"# UnitSentinel test\n") -> bytes:
         b'Requires-Dist: build==1.5.0; extra == "dev"\n'
         b'Requires-Dist: coverage[toml]==7.15.2; extra == "dev"\n'
         b'Requires-Dist: mypy==2.3.0; extra == "dev"\n'
+        b'Requires-Dist: numpy==2.4.2; extra == "dev"\n'
+        b'Requires-Dist: numpy==2.4.2; extra == "onnx"\n'
         b'Requires-Dist: onnx==1.22.0; extra == "dev"\n'
         b'Requires-Dist: onnx==1.22.0; extra == "onnx"\n'
         b'Requires-Dist: pip-audit==2.10.1; extra == "dev"\n'
