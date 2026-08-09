@@ -440,8 +440,16 @@ The [evidence ledger](evidence/README.md), strict
 [comparison provenance](evidence/comparison-provenance.json), and closed
 [manifest](evidence/manifest.json) bind every published source and rendering.
 
-## Next surface
+## Adjacent implemented surface
 
-The next semantic boundary is a closed-subset ONNX adapter that lowers reviewed
-metadata and operators into the same canonical graph without executing model
-code or guessing unsupported semantics. It is not implemented.
+The closed-subset ONNX metadata adapter is a separate preprocessing boundary.
+It lowers one reviewed static `ModelProto` envelope into the same canonical graph
+without executing model code or guessing unsupported semantics. The production
+`compare` command still accepts canonical graph JSON, not ONNX bytes: callers
+import each model separately, pin the resulting graph digests in their
+comparison plan, and then compare.
+
+Neither ONNX import nor comparison binds a runtime deployment, proves that two
+file snapshots coexisted, authenticates the exporter or plan author, or executes
+either model. See [ONNX contract v1](onnx-contract-v1.md) for the exact adjacent
+byte boundary.

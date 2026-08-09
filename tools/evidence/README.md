@@ -5,6 +5,9 @@ portfolio evidence. Production CLI result records come from executed commands;
 the stable distribution transcript is independently reconstructed by hosted
 CI rather than accepted on the recorder's assertion:
 
+- the closed ONNX recorder builds one synthetic ModelProto with official
+  helper APIs, executes production import/verify and three rejection paths, and
+  derives receipt-bound provenance and SVGs;
 - the general Python recorder executes the production CLI for verified,
   conflict, and strict-replay paths;
 - the closed repair-only recorder executes one pinned production CLI search
@@ -19,7 +22,7 @@ CI rather than accepted on the recorder's assertion:
 - SVG builders consume those CLI records, inferred contracts, tracked conflict
   witnesses, certificate bindings, and a measured benchmark snapshot;
 - the pinned Node renderer converts committed SVG sources to PNG and builds
-  both GIFs from their declared transcript frames.
+  all three GIFs from their declared transcript frames.
 
 ## Install the renderer
 
@@ -28,6 +31,7 @@ From the repository root:
 ```bash
 npm --prefix tools/evidence ci --ignore-scripts
 npm --prefix tools/evidence run audit
+export UNITSENTINEL_NODE="$(command -v node)"
 ```
 
 The lockfile pins `@resvg/resvg-js`, `gifenc`, and `pngjs`, including package
@@ -57,6 +61,30 @@ npm --prefix tools/evidence run render
 The recorder refuses to delete an existing
 `.unitsentinel/evidence-run` directory. Its own scratch directory is removed
 after a successful or failed run.
+
+### Refresh only ONNX records and visuals
+
+```bash
+.venv/bin/python -m tools.evidence.onnx_evidence --record
+npm --prefix tools/evidence run render
+.venv/bin/python -m tools.evidence.onnx_evidence --check
+npm --prefix tools/evidence run check
+.venv/bin/python -m tools.evidence.generate --write-manifest
+```
+
+The ONNX recorder's allowlist contains 17 source/record files: one synthetic
+ModelProto, one canonical graph, six CLI capture files, one provenance
+document, four public SVGs, three GIF-frame SVGs, and one frame manifest. The
+general renderer adds four PNGs and `onnx-demo.gif`. It executes production CLI
+commands under the same bounded capture process as the other recorders and
+requires text/JSON import to publish identical graph bytes.
+
+Architecture and lowering labels are taken from the canonical production import
+receipt; rejection cards are taken from actual exit-4 records. Provenance v2
+copies `external_data` and `model_executed` from that receipt and states only
+that network access is not required—it does not claim to observe runner
+traffic. The global manifest contains 101 evidence files after the slice is
+rendered.
 
 ### Refresh only repair evidence
 
@@ -129,6 +157,7 @@ its deterministic renderings.
 All checks are required:
 
 ```bash
+.venv/bin/python -m tools.evidence.onnx_evidence --check
 .venv/bin/python -m tools.evidence.generate --check
 .venv/bin/python -m tools.evidence.distribution_visuals --check
 npm --prefix tools/evidence run check
@@ -154,13 +183,15 @@ plan, registry, and solver limits; extra or missing stdout is rejected.
 
 | Output | Source of truth |
 | --- | --- |
-| `docs/evidence/contracts/*.json` | Production graph builder and canonical codec |
+| `docs/evidence/models/speed-contract.onnx` | Deterministic official-helper synthetic ModelProto |
+| `docs/evidence/contracts/*.json` | Production graph builder, ONNX adapter, and canonical codec |
 | `docs/evidence/captures/*` | Actual production CLI stdout and exit status |
 | `docs/evidence/claims/wheel-anomaly.cert.json` | Actual positive certificate |
 | `docs/evidence/claims/ratio-*.result.json` | Actual unsigned comparison results, including non-compatible outcomes |
 | `docs/evidence/provenance.json` | Cross-bound graph, result, registry, certificate, and replay identities |
 | `docs/evidence/repair-provenance.json` | Cross-bound source, relaxed, repaired, candidate, and search identities |
 | `docs/evidence/comparison-provenance.json` | Cross-bound graph, plan, verification, result, and normalization identities |
+| `docs/evidence/onnx-provenance.json` | Receipt-bound model, checker, metadata, operator, graph, verification, and execution-boundary identities |
 | `docs/evidence/data/comparison-artifacts.json` | Exact committed comparison artifact byte lengths; no latency claim |
 | `docs/evidence/data/scaling.json` | Recorded bounded timing runs and environment |
 | `docs/evidence/data/distribution-contract.json` | Exact reviewed release, solver, install, and nonclaim boundaries |
@@ -169,7 +200,9 @@ plan, registry, and solver limits; extra or missing stdout is rejected.
 | `docs/assets/*.png` | Pinned Resvg rendering of the SVG sources |
 | `docs/assets/unitsentinel-demo.gif` | Declared transcript frames and delays |
 | `docs/assets/comparison-demo.gif` | Fixed compatible/drift/indeterminate terminal frames and delays |
+| `docs/assets/onnx-demo.gif` | Fixed import/lowering/rejection frames and delays |
 | `docs/evidence/comparison-demo/*` | Byte-identical comparison terminal frames and closed manifest |
+| `docs/evidence/onnx-demo/*` | Receipt-derived import/lowering/rejection frames and closed manifest |
 | `docs/evidence/manifest.json` | Closed file set, byte counts, and SHA-256 digests |
 
 ## Rendering boundary

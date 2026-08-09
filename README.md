@@ -12,11 +12,12 @@ certificate for a positive result.
 
 > **Status:** the v0.1 verification core, canonical graph codec, 33-unit
 > registry, deterministic CLI, detached certificate codec, independent strict
-> replay, bounded verification-backed annotation repair, canonical
-> training/serving comparison engine, normalization-lineage comparison, and
-> strict comparison-result codec are implemented. The fail-closed comparison
-> CLI and its reproducible compatible/drift/indeterminate evidence are also
-> implemented. Closed-subset ONNX lowering remains future work.
+> replay, bounded verification-backed annotation repair, training/serving
+> comparison and normalization-lineage engine, strict comparison-result codec,
+> and fail-closed static ONNX metadata adapter are implemented. Production
+> `import-onnx`, comparison CLI paths, and their reproducible positive,
+> drift, indeterminate, import, verification, and rejection evidence are
+> committed and replayed in CI.
 
 ![Implemented UnitSentinel verification pipeline and fail-closed outcomes](docs/assets/verification-pipeline.png)
 
@@ -374,6 +375,91 @@ broadcasting/matmul, measure statistical drift, or establish scientific
 correctness. The complete byte and execution contract is documented in
 [training-serving comparison v1](docs/training-serving-comparison-v1.md).
 
+## Import a static ONNX contract without executing it
+
+![Recorded static ONNX import, lowering, and fail-closed rejection demo](docs/assets/onnx-demo.gif)
+
+*An 8-second derived presentation of the actual import receipt, lowered graph,
+and three exit-4 rejection records. The primary evidence is the committed
+[593-byte synthetic ModelProto](docs/evidence/models/speed-contract.onnx),
+[CLI captures](docs/evidence/README.md#onnx-import-evidence), canonical graph,
+provenance, and accessible SVG sources—not the GIF.*
+
+The optional adapter consumes a valid serialized ONNX `ModelProto`; it never
+creates an inference session or executes the graph. The committed model is a
+small deterministic fixture built with official `onnx.helper` APIs, not a
+production export. It exists to make one reviewed path inspectable end to end.
+
+![Receipt-derived UnitSentinel ONNX adapter architecture](docs/assets/onnx-adapter-architecture.png)
+
+*The actual import receipt supplies the checker version, source and contract
+digests, graph counts, operator mapping, and execution flags shown here.
+[Inspect the accessible SVG](docs/assets/onnx-adapter-architecture.svg) or the
+[canonical receipt](docs/evidence/captures/onnx-import.json). Network access is
+not required by import; the evidence does not claim that CI observed host
+network traffic.*
+
+### Setup and main workflow
+
+Install the core plus the separately pinned ONNX dependency, choose a fresh
+output path, import, and then verify the canonical graph:
+
+```bash
+python3 -m venv .venv
+.venv/bin/python -m pip install -e '.[onnx]'
+
+mkdir -p .unitsentinel/onnx-demo
+.venv/bin/python -m unitsentinel import-onnx \
+    docs/evidence/models/speed-contract.onnx \
+    --graph .unitsentinel/onnx-demo/speed.graph.json
+
+.venv/bin/python -m unitsentinel verify \
+    .unitsentinel/onnx-demo/speed.graph.json
+```
+
+`import-onnx` reads at most 8 MiB from one regular file, requires the
+exact versioned metadata contract, runs the official ONNX checker, and lowers
+only the reviewed static subset. The graph publication is private, atomic, and
+no-overwrite. A successful import is a content-addressed translation receipt;
+the separate `verify` command establishes the dimensional result.
+
+![Actual successful ONNX import CLI output](docs/assets/onnx-import-terminal.png)
+
+*This is the production CLI output for model SHA-256
+`46be48f85a9ce2c45449fc887f38310d005f13af9878642cb209dc9a5c1401fb`.
+It records `model executed: no`, rejects external tensor data, binds
+`Div → divide`, and writes graph
+`09472bff769c5bef10ff0b525f0c117295e57e16aaa2e1446f6927dd3e54584d`.
+[Text capture](docs/evidence/captures/onnx-import.txt);
+[accessible SVG](docs/assets/onnx-import-terminal.svg).*
+
+![Receipt-derived lowered ONNX speed graph](docs/assets/onnx-lowered-graph.png)
+
+*The synthetic example maps two static `float32[4,8]` inputs annotated
+as metres and seconds through one reviewed divide node to metres per second.
+This demonstrates one closed path, not arbitrary ONNX compatibility.
+[Accessible SVG](docs/assets/onnx-lowered-graph.svg);
+[canonical lowered graph](docs/evidence/contracts/onnx-speed.graph.json).*
+
+The current envelope is deliberately narrow: ONNX 1.22.0, IR 8, default-domain
+opset 13, static float16/float32/float64/bfloat16 tensors, one output per node,
+and `Add`, `Div`, `Exp`, `Identity`, `Log`, `MatMul`, `Max`,
+`Min`, `Mul`, `Sigmoid`, `Softmax`, and `Sub`. Initializers or
+external data, symbolic dimensions, attributes, functions, training graphs,
+custom domains, quantization annotations, control flow, and every unreviewed
+operator fail closed.
+
+![Actual ONNX closed-subset rejection captures](docs/assets/onnx-rejection-matrix.png)
+
+*Actual exit-4 CLI records for a symbolic dimension, `Pow`, and an embedded
+initializer. They are representative boundary tests, not an exhaustive
+compatibility matrix. None published a graph.
+[Text capture](docs/evidence/captures/onnx-rejections.txt);
+[accessible SVG](docs/assets/onnx-rejection-matrix.svg).*
+
+The [ONNX contract v1](docs/onnx-contract-v1.md) documents the byte contract,
+complete explicit bindings, reviewed operator table, receipt, and non-claims.
+
 ## Certificates and independent replay
 
 A positive certificate binds:
@@ -469,6 +555,9 @@ The implementation includes:
 - an immutable 33-unit registry with canonical serialization and a pinned
   SHA-256 fingerprint;
 - a closed topological graph IR with one producer per non-input value;
+- a pinned optional ONNX 1.22.0 adapter that checks an 8 MiB static
+  IR-8/opset-13 subset, requires complete versioned metadata bindings, and
+  lowers without model execution into that same canonical graph;
 - scalar types, bounded concrete/symbolic shapes, and explicit unit
   annotations;
 - a byte-level decoder that rejects duplicate keys, floats, noncanonical JSON,
@@ -494,7 +583,7 @@ The implementation includes:
 - bounded, non-mutating, verification-backed unit-annotation proposals;
 - a deterministic CLI with caller-pinned comparison plans, bounded
   regular-file reads, stable domain exits, and atomic private no-overwrite
-  certificate/result writes.
+  graph/certificate/result writes, including static ONNX import.
 
 The [canonical graph contract](docs/graph-format.md),
 [registry snapshot](docs/registry.md), and
@@ -508,8 +597,10 @@ digest authenticates who approved its mapping.
 
 ## Trust boundary
 
-Verification, replay, repair, and comparison require no network and never
-execute model code. The CLI does not consume stdin; it accepts path-backed
+Verification, replay, repair, comparison, and ONNX import require no network
+and never execute model code. ONNX import parses at most 8 MiB, rejects
+initializers and external data, and requires one canonical metadata document of
+at most 128 KiB. The CLI does not consume stdin; it accepts path-backed
 regular files and rejects FIFOs, oversized documents, duplicate JSON fields,
 executable extension hooks, unsafe output targets, and symlinks at the input
 leaf or final parent component. Earlier intermediate path components are not
@@ -549,7 +640,9 @@ The recorder and renderer are part of the repository:
 ```bash
 npm --prefix tools/evidence ci --ignore-scripts
 npm --prefix tools/evidence run audit
+export UNITSENTINEL_NODE="$(command -v node)"
 
+.venv/bin/python -m tools.evidence.onnx_evidence --check
 .venv/bin/python -m tools.evidence.generate --check
 .venv/bin/python -m tools.evidence.distribution_visuals --check
 npm --prefix tools/evidence run check
@@ -558,6 +651,17 @@ npm --prefix tools/evidence run check:repair
 .venv/bin/python -m tools.evidence.comparison_evidence --check
 .venv/bin/python -m tools.evidence.comparison_visuals --check
 npm --prefix tools/evidence run check:comparison
+```
+
+To refresh only the deterministic ONNX model, production CLI records,
+receipt-derived SVGs, PNGs, and GIF:
+
+```bash
+.venv/bin/python -m tools.evidence.onnx_evidence --record
+npm --prefix tools/evidence run render
+.venv/bin/python -m tools.evidence.onnx_evidence --check
+npm --prefix tools/evidence run check
+.venv/bin/python -m tools.evidence.generate --write-manifest
 ```
 
 To refresh only the deterministic repair records and repair rendering:
@@ -607,9 +711,10 @@ The timing snapshot changes only through the explicit
 
 ## Local quality gates
 
-The current suite contains 461 unit, integration, adversarial, and evidence
-tests with 97% statement coverage, 94% branch coverage, and 96% combined
-statement/branch coverage.
+The current suite contains 493 unit, integration,
+adversarial, release, and evidence tests. CI publishes the exact branch-aware
+coverage table and enforces a 95% combined floor on every supported Python
+minor.
 
 ```bash
 PYTHONPATH=src .venv/bin/python -m unittest discover -s tests -v
@@ -622,6 +727,7 @@ PYTHONPATH=src .venv/bin/coverage run -m unittest discover -s tests
 .venv/bin/python -m build
 .venv/bin/pip-audit
 
+.venv/bin/python -m tools.evidence.onnx_evidence --check
 .venv/bin/python -m tools.evidence.generate --check
 .venv/bin/python -m tools.evidence.distribution_visuals --check
 npm --prefix tools/evidence run check
@@ -639,12 +745,16 @@ README coverage, and secret/PII exclusions.
 
 The minimally privileged GitHub Actions workflow repeats the complete
 branch-coverage suite on CPython 3.11, 3.12, 3.13, and 3.14. A separate clean
-runner replays all eight Python/Node evidence checks. Every action is pinned by
+runner replays all nine Python/Node evidence checks. Every action is pinned by
 full commit SHA, checkout credentials are not persisted, and the workflow has
 read-only repository permissions. A third exact CPython 3.12.3/Linux x86-64
 runner downloads the hash-pinned native solver wheel, validates the canonical
 sdist and reproducible pure-Python wheel, and performs the offline clean-venv
-resolver install described above.
+resolver install described above. A fourth read-only job builds the public
+wheel, resolves its pinned `onnx` extra into a clean virtual environment,
+and imports plus verifies the committed static fixture using only that installed
+wheel. This resolver-backed smoke is separate from the offline core release
+contract.
 
 ## Roadmap
 
@@ -664,7 +774,7 @@ resolver install described above.
 | Fresh cross-graph normalization-lineage comparison | Complete |
 | Strict bounded comparison-result codec | Complete |
 | Comparison CLI and reproducible visual evidence | Complete |
-| Closed-subset ONNX metadata adapter | Planned |
+| Closed-subset ONNX metadata adapter | Complete (closed static metadata subset) |
 | Grouped synthetic fault benchmark with abstention metrics | Planned |
 
 The repository intentionally has no license yet. Licensing is a decision for

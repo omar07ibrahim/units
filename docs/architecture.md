@@ -1,10 +1,9 @@
 # Architecture and verification boundary
 
 This document separates the implemented verifier, certificate/replay,
-bounded-repair, canonical comparison-plan/result, comparison engine, and
-production verification/comparison CLI boundaries from the later adapter
-design. The implementation map at the end is the authoritative status
-summary.
+bounded-repair, canonical comparison-plan/result, comparison engine, production
+CLI, and static ONNX import boundaries. The implementation map at the end is
+the authoritative status summary.
 
 ## Design objective
 
@@ -282,22 +281,61 @@ contract skew even when no representative payload samples are available.
 
 ## ONNX adapter boundary
 
-ONNX describes tensor element types and static or symbolic shapes. Its metadata
-can carry strings, but UnitSentinel will not treat arbitrary metadata as trusted
-unit semantics. The adapter will:
+The optional adapter is implemented as a preprocessing boundary into the same
+canonical graph IR. It uses the `onnx==1.22.0` package as a parser and official
+checker; it does not depend on ONNX Runtime, create an inference session, load
+external tensors, or execute model code.
 
-1. validate the model with the official ONNX checker;
-2. import only a closed operator subset;
-3. read a versioned UnitSentinel contract namespace;
-4. lower into the same canonical core graph;
-5. reject unsupported control flow or operator semantics rather than guessing.
+![Receipt-derived ONNX adapter architecture](assets/onnx-adapter-architecture.png)
 
-The adapter is not implemented.
+*The committed CLI receipt supplies the displayed checker version, source and
+contract digests, graph counts, operator mapping, and execution flags.
+[Accessible SVG](assets/onnx-adapter-architecture.svg);
+[canonical import receipt](evidence/captures/onnx-import.json).*
+
+The accepted source envelope is intentionally exact:
+
+1. one regular `ModelProto` of at most 8,388,608 bytes;
+2. ONNX IR version 8 and exactly the default-domain opset 13;
+3. `onnx.checker.check_model` with full checking, compatibility checking, and
+   custom-domain checking enabled;
+4. one canonical metadata value under
+   `io.github.omar07ibrahim.unitsentinel.contract`, no larger than 131,072
+   bytes and using `unitsentinel.onnx-contract/v1`;
+5. complete, sorted, duplicate-free bindings for every graph value and named
+   node—units come only from canonical registry IDs or explicit `null`;
+6. static rank and dimensions with float16, float32, float64, or bfloat16
+   element types; and
+7. one-output nodes from this reviewed mapping:
+   `Add`, `Div`, `Exp`, `Identity`, `Log`, `MatMul`, `Max`,
+   `Min`, `Mul`, `Sigmoid`, `Softmax`, and `Sub`.
+
+The adapter lowers the source names through those explicit bindings, constructs
+the ordinary immutable `ComputationGraph`, and lets the existing core enforce
+topology, operation, shape metadata, unit, and identifier invariants. The import
+receipt binds source bytes, metadata bytes, checker configuration, exact
+operator mappings, and the canonical graph digest. It is content-addressed and
+unsigned: it authenticates neither an exporter nor a deployment.
+
+Initializers and external tensor data, sparse initializers, symbolic or
+unspecified dimensions, attributes, functions, training graphs, custom
+domains, quantization annotations, control-flow operators, unreviewed element
+types, unknown operators, and partial metadata all fail closed. Import does not
+prove broadcasting or matrix-shape correctness, model quality, scientific
+correctness, runtime deployment, or authenticity.
+
+The production `import-onnx` command reads a bounded descriptor snapshot and
+publishes the canonical graph through a private atomic no-overwrite path before
+emitting its receipt. Import success is not dimensional verification; callers
+run the ordinary `verify` command on the graph next. The exact metadata and
+receipt contracts are specified in [ONNX contract v1](onnx-contract-v1.md).
 
 ## Resource and security limits
 
-- No network access is required by verification, replay, repair, or comparison.
-- No shell, `eval`, dynamic import, or arbitrary model execution.
+- No network access is required by verification, replay, repair, comparison,
+  or static ONNX import.
+- No shell, `eval`, dynamic import, inference session, or arbitrary model
+  execution.
 - Fixed limits for document bytes/tree shape, inputs, values, nodes, outputs,
   tensor rank, exponent size, core-shrink checks, uniqueness checks, solver
   memory, and solver time.
@@ -319,12 +357,12 @@ boundary explicitly.
 
 | Area | Current | Next |
 | --- | --- | --- |
-| Package boundary | Typed exact values, graph, registry, verification/repair/comparison/lineage results, certificates, replay reports, content-addressed comparison plans, strict bounded result codec, and production comparison CLI | Closed-subset ONNX adapter |
+| Package boundary | Typed exact values, graph, registry, verification/repair/comparison/lineage results, certificates, replay reports, content-addressed comparison plans/import receipts, strict bounded codecs, and production verification/repair/replay/comparison/ONNX-import CLI | Broader formats only after separate review |
 | Dimension semantics | Exact bounded rational algebra, graph inference, training/serving interface comparison, and fresh cross-graph normalization-lineage comparison | Extend only with reviewed operator semantics |
 | Unit registry | Immutable 33-unit snapshot with pinned SHA-256 | External snapshot decoder |
-| Graph IR | Content-addressed bounded IR and strict decoder | ONNX lowering |
+| Graph IR | Content-addressed bounded IR, strict decoder, and implemented static ONNX lowering | Additional source adapters require explicit contracts |
 | Solver | Tracked dimension/kind/scale/offset constraints, uniqueness, replay, bounded cores, repair re-verification, two-sided fresh comparison, and replay-bound lineage comparison | Grouped synthetic fault benchmark |
 | Repairs | One bounded, non-mutating, exact-registry annotation replacement with independent verification and abstention | Additional operators require separate design and review |
 | Certificates | Positive-only canonical codec, content digest, and detached replay with optional strict-toolchain policy | Signature policy remains deliberately external |
-| CLI | Bounded regular-file reads, required plan pinning, stable exits, atomic no-overwrite certificate/result publication, and read-only repair reports | ONNX import command only after adapter review |
-| Visual evidence | Real verification/replay/repair/comparison captures, lineage/workflow diagrams, measured and exact-size plots, two GIFs, accessible SVGs, and a closed digest manifest | Refresh with every behavior change |
+| CLI | Bounded regular-file reads, required plan pinning, stable exits, atomic no-overwrite graph/certificate/result publication, read-only repair reports, and static ONNX import | Expand only with reviewed semantics |
+| Visual evidence | Real verification/replay/repair/comparison/ONNX captures, lineage/workflow/lowering diagrams, measured and exact-size plots, three GIFs, accessible SVGs, and a closed digest manifest | Refresh with every behavior change |

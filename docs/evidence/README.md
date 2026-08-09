@@ -12,7 +12,9 @@ From a checkout with the Python development environment installed:
 
 ```bash
 npm --prefix tools/evidence ci --ignore-scripts
+export UNITSENTINEL_NODE="$(command -v node)"
 
+.venv/bin/python -m tools.evidence.onnx_evidence --check
 .venv/bin/python -m tools.evidence.generate --check
 .venv/bin/python -m tools.evidence.distribution_visuals --check
 npm --prefix tools/evidence run check
@@ -23,18 +25,36 @@ npm --prefix tools/evidence run check:repair
 npm --prefix tools/evidence run check:comparison
 ```
 
-The Python command re-executes the verified, conflict, and strict-replay CLI
-paths; the repair-only Python command separately re-executes the pinned
-non-mutating repair search; and the comparison-only command re-executes pinned
-compatible, drift, and indeterminate training/serving comparisons. None
-remeasures the timing benchmark. The Node commands render expected bytes in
-memory and compare them with the committed files. No check publishes
-replacements.
+The ONNX command rebuilds the synthetic ModelProto, production import/verify
+captures, three actual rejection captures, receipt-derived SVGs, and
+provenance. The general Python command re-executes the verified, conflict, and
+strict-replay CLI paths; the repair-only command separately re-executes the
+pinned non-mutating repair search; and the comparison-only command re-executes
+the compatible, drift, and indeterminate comparisons. None remeasures the
+timing benchmark. Node renders expected bytes in memory and compares them with
+the committed files. No check publishes replacements.
 
 The distribution-only check validates the canonical release contract and the
 real hosted transcript, then derives both public SVG sources without running a
 network download. The exact release job separately recreates the transcript
 while executing the full hash-pinned source-to-installed-wheel verifier.
+
+To intentionally refresh only the closed ONNX slice:
+
+```bash
+.venv/bin/python -m tools.evidence.onnx_evidence --record
+npm --prefix tools/evidence run render
+.venv/bin/python -m tools.evidence.onnx_evidence --check
+npm --prefix tools/evidence run check
+.venv/bin/python -m tools.evidence.generate --write-manifest
+```
+
+The recorder has a fixed 17-file source-record allowlist: one synthetic
+ModelProto, one lowered graph, six CLI capture files, one provenance document,
+four SVG sources, three byte-identical GIF frames, and one frame manifest. The
+general renderer adds exactly four ONNX PNGs and one three-frame GIF. The model
+comes from official `onnx.helper` APIs; it is deterministic portfolio evidence,
+not a production export.
 
 To intentionally refresh only the repair slice:
 
@@ -120,13 +140,18 @@ goldens.
 | What did an indeterminate comparison return? | [Indeterminate terminal SVG](../assets/compare-indeterminate-terminal.svg) | [Indeterminate terminal PNG](../assets/compare-indeterminate-terminal.png) |
 | How does source become an offline-installed release? | [Distribution contract SVG](../assets/distribution-contract.svg) | [Distribution contract PNG](../assets/distribution-contract.png) |
 | What did the exact hosted release verifier return? | [Distribution terminal SVG](../assets/distribution-terminal.svg) | [Distribution terminal PNG](../assets/distribution-terminal.png) |
+| Where does static ONNX import fail closed? | [ONNX adapter architecture SVG](../assets/onnx-adapter-architecture.svg) | [ONNX adapter architecture PNG](../assets/onnx-adapter-architecture.png) |
+| What canonical graph did the example lower to? | [ONNX lowered graph SVG](../assets/onnx-lowered-graph.svg) | [ONNX lowered graph PNG](../assets/onnx-lowered-graph.png) |
+| What did successful ONNX import return? | [ONNX import terminal SVG](../assets/onnx-import-terminal.svg) | [ONNX import terminal PNG](../assets/onnx-import-terminal.png) |
+| Which representative ONNX inputs were rejected? | [ONNX rejection matrix SVG](../assets/onnx-rejection-matrix.svg) | [ONNX rejection matrix PNG](../assets/onnx-rejection-matrix.png) |
 
-The [7.6-second CLI demo GIF](../assets/unitsentinel-demo.gif) is presentation,
-not the primary record. Its three frames loop in the order declared below.
-The separate [9-second comparison demo GIF](../assets/comparison-demo.gif)
-loops through the complete compatible, drift, and indeterminate terminal
-records. Both GIFs are derived presentation; the captures and strict claims
-remain the primary records.
+The [7.6-second CLI demo GIF](../assets/unitsentinel-demo.gif), separate
+[9-second comparison demo GIF](../assets/comparison-demo.gif), and
+[8-second ONNX demo GIF](../assets/onnx-demo.gif) are derived presentation, not
+primary records. Their declared frames cover verify/conflict/replay;
+compatible/drift/indeterminate; and import/lowering/rejections respectively.
+The canonical captures, claims, ModelProto, graph, provenance, and SVGs remain
+the primary records.
 
 ## Canonical inputs and outputs
 
@@ -143,6 +168,32 @@ The wheel-anomaly pair differs in one serving annotation:
 `acceleration-si` is `meter-per-second-squared` in the verified graph and
 `meter-per-second` in the conflict graph. Shape and dtype metadata stay the
 same.
+
+### ONNX import evidence
+
+- [Synthetic ONNX speed ModelProto](models/speed-contract.onnx)
+- [Canonical lowered speed graph](contracts/onnx-speed.graph.json)
+- [Human import transcript](captures/onnx-import.txt) and
+  [canonical import receipt envelope](captures/onnx-import.json)
+- [Human verification transcript](captures/onnx-verify.txt) and
+  [canonical verification envelope](captures/onnx-verify.json)
+- [Human rejection transcript](captures/onnx-rejections.txt) and
+  [canonical rejection aggregation](captures/onnx-rejections.json)
+- [Cross-bound ONNX provenance v2](onnx-provenance.json)
+
+The 593-byte model is generated deterministically by `onnx.helper` and uses one
+`Div` node over two static `float32[4,8]` inputs. It is synthetic and exists
+only to expose the closed import path. The import receipt binds model, metadata,
+checker, operator mapping, and canonical graph digests. The separately executed
+verify capture establishes this graph's dimensional result.
+
+The rejection JSON aggregates actual stable exit-4 diagnostics for one symbolic
+shape, one unreviewed `Pow` operator, and one embedded initializer. It is not a
+successful import receipt or an exhaustive compatibility matrix; every case
+records `graph_published: false`. Provenance copies `external_data` and
+`model_executed` from the production import receipt. Its
+`network_access_required: false` field is a design property of import, not a
+measurement of runner traffic.
 
 ### Positive claim
 
@@ -199,6 +250,9 @@ claims that are explicitly outside this check.
 | Compare compatible rename | [compare-compatible.txt](captures/compare-compatible.txt) | [compare-compatible.json](captures/compare-compatible.json) |
 | Detect normalization drift | [compare-drift.txt](captures/compare-drift.txt) | [compare-drift.json](captures/compare-drift.json) |
 | Abstain on underconstrained serving | [compare-indeterminate.txt](captures/compare-indeterminate.txt) | [compare-indeterminate.json](captures/compare-indeterminate.json) |
+| Import static ONNX contract | [onnx-import.txt](captures/onnx-import.txt) | [onnx-import.json](captures/onnx-import.json) |
+| Verify lowered ONNX graph | [onnx-verify.txt](captures/onnx-verify.txt) | [onnx-verify.json](captures/onnx-verify.json) |
+| Reject three ONNX boundary cases | [onnx-rejections.txt](captures/onnx-rejections.txt) | [onnx-rejections.json](captures/onnx-rejections.json) |
 
 The transcript commands use `.unitsentinel/evidence-run` as an isolated scratch
 directory. The recorder creates it with private permissions, refuses to delete
@@ -209,6 +263,7 @@ an existing directory at that path, and removes only the directory it created.
 - [Graph/result/certificate/replay provenance](provenance.json)
 - [Repair graph/result/candidate provenance](repair-provenance.json)
 - [Comparison graph/plan/result/semantic provenance](comparison-provenance.json)
+- [ONNX model/contract/checker/graph/import provenance](onnx-provenance.json)
 - [Exact comparison artifact byte lengths](data/comparison-artifacts.json)
 - [Measured scaling runs](data/scaling.json)
 
@@ -228,6 +283,10 @@ or performance guarantee.
 - [Compatible comparison frame](comparison-demo/frame-compatible.svg)
 - [Drift comparison frame](comparison-demo/frame-drift.svg)
 - [Indeterminate comparison frame](comparison-demo/frame-indeterminate.svg)
+- [ONNX frame manifest and delays](onnx-demo/frames.json)
+- [ONNX import frame](onnx-demo/frame-import.svg)
+- [ONNX lowered-graph frame](onnx-demo/frame-lowering.svg)
+- [ONNX rejection frame](onnx-demo/frame-rejections.svg)
 
 The frames are byte-identical copies of their corresponding public terminal
 SVG sources. The renderer rejects undeclared frames, mixed dimensions,
@@ -240,6 +299,9 @@ outside the compiled-in three-case sequence.
   does not execute tensors or calculate anomaly scores.
 - Shape is preserved as contract metadata; broadcasting and matrix-shape
   correctness are outside this verifier.
+- ONNX import accepts only the documented static subset, executes no model, and
+  establishes no exporter identity, deployment state, model quality, or
+  scientific correctness.
 - `core_minimal: true` means deletion-minimal under the bounded shrink
   procedure, not minimum-cardinality.
 - A verified dimensional contract does not establish scientific correctness.
