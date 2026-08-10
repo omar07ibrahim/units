@@ -711,7 +711,7 @@ The timing snapshot changes only through the explicit
 
 ## Local quality gates
 
-The current suite contains 493 unit, integration,
+The current suite contains 494 unit, integration,
 adversarial, release, and evidence tests. CI publishes the exact branch-aware
 coverage table and enforces a 95% combined floor on every supported Python
 minor.

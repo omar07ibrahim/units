@@ -493,6 +493,16 @@ class EvidenceIntegrityTests(unittest.TestCase):
             self.assertEqual(completed.stdout, b"")
             self.assertEqual(completed.stderr, b"")
 
+    def test_atomic_evidence_write_stays_private_until_review(self) -> None:
+        with tempfile.TemporaryDirectory(dir=ROOT) as directory:
+            target = Path(directory) / "candidate.txt"
+
+            evidence_generate._atomic_write(target, b"synthetic evidence\n")
+
+            self.assertEqual(target.read_bytes(), b"synthetic evidence\n")
+            self.assertEqual(stat.S_IMODE(target.stat().st_mode), 0o600)
+            self.assertEqual(list(target.parent.glob(".candidate.txt.*.tmp")), [])
+
     def test_renderer_binary_override_is_explicit_and_bounded(self) -> None:
         with tempfile.TemporaryDirectory(dir=ROOT) as directory:
             executable = Path(directory) / "node"

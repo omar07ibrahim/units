@@ -25,6 +25,8 @@ portfolio baseline.
 
 ### Security
 
+- Generated evidence candidates remain private (mode 0600) until reviewed and
+  deliberately published through Git.
 - Untrusted documents are subject to closed schemas, canonical encodings,
   resource ceilings, and fail-closed result states.
 - Evidence pipelines reject secrets, personal data, external resources, and
