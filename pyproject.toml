@@ -12,7 +12,7 @@ authors = [
     { name = "Omar Ibrahim", email = "31526072+omar07ibrahim@users.noreply.github.com" },
 ]
 dependencies = [
-    "z3-solver==4.16.0.0",
+    "z3-solver==5.0.0.0",
 ]
 classifiers = [
     "Development Status :: 2 - Pre-Alpha",
